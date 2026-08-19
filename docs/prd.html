@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dhan Option Chain Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg-base:#F7F8FB; --bg-subtle:#EEF1F6; --bg-inset:#E4E9F1; --bg-panel:#FFFFFF;
+  --fg-base:#10151F; --fg-muted:#4E5A6E; --fg-faint:#8390A6;
+  --accent:#A87516; --accent-hover:#8E620F; --accent-fg:#FFFFFF; --accent-wash:rgba(168,117,22,.10);
+  --up:#0E8A5F; --down:#C33A3A; --flat:#8390A6;
+  --warn:#B3730B; --crit:#C33A3A; --ok:#0E8A5F;
+  --border:#DCE2EC; --border-strong:#C2CBDA; --ring:#A87516;
+  --net:#3D6EA8; --compute:#A87516; --render:#6E5AA8;
+  --shadow-sm:0 1px 2px rgba(6,10,20,.10);
+  --shadow-md:0 4px 14px rgba(6,10,20,.10);
+  --shadow-lg:0 16px 40px rgba(6,10,20,.14);
+  --grid-line:rgba(16,21,31,.06);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg-base:#0A0D14; --bg-subtle:#10141D; --bg-inset:#171C28; --bg-panel:#0E121B;
+    --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
+    --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.14);
+    --up:#21B77E; --down:#E05252; --flat:#64708A;
+    --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
+    --border:#212838; --border-strong:#333D52; --ring:#C8912A;
+    --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 4px 14px rgba(0,0,0,.45);
+    --shadow-lg:0 16px 40px rgba(0,0,0,.55);
+    --grid-line:rgba(232,236,244,.06);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg-base:#0A0D14; --bg-subtle:#10141D; --bg-inset:#171C28; --bg-panel:#0E121B;
+  --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
+  --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.14);
+  --up:#21B77E; --down:#E05252; --flat:#64708A;
+  --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
+  --border:#212838; --border-strong:#333D52; --ring:#C8912A;
+  --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 4px 14px rgba(0,0,0,.45);
+  --shadow-lg:0 16px 40px rgba(0,0,0,.55);
+  --grid-line:rgba(232,236,244,.06);
+  color-scheme:dark;
+}
+
+/* ============ BASE ============ */
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg-base); color:var(--fg-base);
+  font-family:Newsreader,Georgia,"Times New Roman",serif;
+  font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,.face-d{font-family:Archivo,"Segoe UI",system-ui,sans-serif; text-wrap:balance}
+.mono,code,td.n,th.n{font-family:"IBM Plex Mono","Cascadia Mono",Consolas,monospace; font-variant-numeric:tabular-nums}
+a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
+a:hover{color:var(--accent-hover)}
+:focus-visible{outline:2px solid var(--ring); outline-offset:2px; border-radius:3px}
+hr{border:0;border-top:1px solid var(--border);margin:48px 0}
+
+/* ============ MASTHEAD ============ */
+.masthead{
+  border-bottom:1px solid var(--border);
+  background:
+    radial-gradient(120% 140% at 88% -20%, var(--accent-wash) 0%, transparent 62%),
+    var(--bg-panel);
+}
+.mast-in{max-width:1440px;margin:0 auto;padding:56px 32px 40px}
+.eyebrow{
+  font-family:Archivo,sans-serif;font-weight:600;font-size:11px;letter-spacing:.10em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 14px;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,var(--border-strong),transparent);max-width:280px}
+h1{font-size:clamp(34px,5.2vw,56px);line-height:1.03;letter-spacing:-.025em;font-weight:700;margin:0 0 18px;max-width:19ch}
+.dek{font-size:19px;line-height:1.55;color:var(--fg-muted);max-width:62ch;margin:0 0 30px}
+.mast-meta{display:flex;flex-wrap:wrap;gap:10px 26px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--fg-faint);letter-spacing:.02em}
+.mast-meta b{color:var(--fg-muted);font-weight:500}
+
+/* ============ PAGE GRID ============ */
+.page{max-width:1440px;margin:0 auto;padding:0 32px 96px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:56px;align-items:start}
+@media(max-width:1080px){.page{grid-template-columns:1fr;gap:0}.rail{display:none}}
+.rail{position:sticky;top:24px;padding-top:44px}
+.rail-h{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 14px}
+.rail ol{list-style:none;margin:0;padding:0;counter-reset:r}
+.rail li{counter-increment:r}
+.rail a{
+  display:flex;gap:9px;padding:5px 0;font-family:Archivo,sans-serif;font-size:13px;line-height:1.35;
+  color:var(--fg-muted);text-decoration:none;border-left:2px solid transparent;padding-left:12px;
+  transition:color 120ms cubic-bezier(.16,1,.3,1),border-color 120ms cubic-bezier(.16,1,.3,1);
+}
+.rail a::before{content:counter(r,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--fg-faint);padding-top:2px}
+.rail a:hover{color:var(--fg-base)}
+.rail a.on{color:var(--accent);border-left-color:var(--accent)}
+.rail a.on::before{color:var(--accent)}
+
+main{padding-top:44px;min-width:0}
+section{margin:0 0 72px;scroll-margin-top:24px}
+section>h2{
+  font-size:13px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;color:var(--fg-faint);
+  margin:0 0 6px;display:flex;align-items:center;gap:10px;
+}
+section>h2 .num{font-family:"IBM Plex Mono",monospace;color:var(--accent)}
+section>h2::after{content:"";height:1px;flex:1;background:var(--border)}
+section>.lead{font-family:Archivo,sans-serif;font-weight:700;font-size:clamp(24px,3vw,32px);line-height:1.15;letter-spacing:-.02em;margin:0 0 18px;max-width:24ch}
+p{max-width:68ch;margin:0 0 18px}
+ul,ol{max-width:68ch;padding-left:20px}
+li{margin:0 0 7px}
+strong{font-weight:500;color:var(--fg-base);background:linear-gradient(transparent 62%,var(--accent-wash) 0)}
+
+/* ============ CALLOUTS ============ */
+.flags{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:16px;margin:0 0 8px}
+.flag{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:20px 20px 18px;
+  position:relative;overflow:hidden;
+}
+.flag::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--warn)}
+.flag h4{font-size:14.5px;font-weight:700;margin:0 0 8px;letter-spacing:-.01em;line-height:1.25}
+.flag p{font-size:14.5px;line-height:1.5;color:var(--fg-muted);margin:0;max-width:none}
+.flag .tag{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--warn);display:block;margin:0 0 9px;
+}
+
+/* ============ TABLES ============ */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-panel);margin:0 0 20px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-family:Archivo,sans-serif;min-width:640px}
+th{
+  text-align:left;font-weight:600;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--fg-faint);padding:11px 14px;border-bottom:1px solid var(--border-strong);white-space:nowrap;
+  background:var(--bg-subtle);position:sticky;top:0;
+}
+td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.45;color:var(--fg-muted)}
+td:first-child{color:var(--fg-base);font-weight:500}
+tr:last-child td{border-bottom:0}
+td code,th code{font-size:12px;background:var(--bg-inset);padding:1px 5px;border-radius:3px;color:var(--fg-base)}
+td.n{text-align:right;font-size:12.5px;color:var(--fg-base)}
+.tbl-note{font-size:13px;color:var(--fg-faint);margin:-10px 0 26px;font-style:italic}
+
+/* ============ TERMINAL MOCK ============ */
+.term-frame{border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;background:var(--bg-panel);box-shadow:var(--shadow-lg);margin:0 0 14px}
+.term-chrome{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--bg-subtle);border-bottom:1px solid var(--border)}
+.dot{width:9px;height:9px;border-radius:999px;background:var(--border-strong)}
+.term-chrome .lbl{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--fg-faint);letter-spacing:.05em;margin-left:6px}
+.term-chrome .spacer{flex:1}
+.sim{display:flex;gap:5px}
+.sim button{
+  font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.03em;
+  background:transparent;color:var(--fg-muted);border:1px solid var(--border-strong);border-radius:999px;
+  padding:3px 10px;cursor:pointer;transition:all 120ms cubic-bezier(.16,1,.3,1);
+}
+.sim button:hover{background:var(--bg-inset);color:var(--fg-base)}
+.sim button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+.term{display:grid;grid-template-columns:minmax(0,1fr) 316px}
+@media(max-width:900px){.term{grid-template-columns:minmax(0,1fr)}.lat{border-left:0;border-top:1px solid var(--border)}}
+.term-main{min-width:0;border-right:1px solid var(--border)}
+
+/* chips */
+.chips{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);overflow-x:auto;background:var(--bg-panel)}
+.chip{
+  font-family:Archivo,sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.02em;white-space:nowrap;
+  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:999px;
+  padding:6px 13px;cursor:pointer;display:flex;align-items:center;gap:7px;
+  transition:transform 120ms cubic-bezier(.16,1,.3,1),background 120ms,color 120ms,border-color 120ms;
+}
+.chip:hover{background:var(--bg-inset);color:var(--fg-base);transform:translateY(-1px)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip .kbd{font-family:"IBM Plex Mono",monospace;font-size:9px;opacity:.6}
+.chip .live{width:5px;height:5px;border-radius:999px;background:var(--up)}
+.chip .live.shut{background:var(--flat)}
+
+/* header strip */
+.hstrip{display:flex;flex-wrap:wrap;gap:0 26px;align-items:flex-end;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg-panel)}
+.hs-name{display:flex;flex-direction:column;gap:2px;min-width:190px}
+.hs-name .nm{font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint);display:flex;align-items:center;gap:7px}
+.pulse{width:6px;height:6px;border-radius:999px;background:var(--up);box-shadow:0 0 0 0 var(--up);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(33,183,126,.5)}70%{box-shadow:0 0 0 6px rgba(33,183,126,0)}100%{box-shadow:0 0 0 0 rgba(33,183,126,0)}}
+.hs-name .spot{font-family:"IBM Plex Mono",monospace;font-size:25px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.1}
+.hs-name .chg{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-variant-numeric:tabular-nums}
+.stat{display:flex;flex-direction:column;gap:1px;padding:2px 0}
+.stat .k{font-family:Archivo,sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
+.stat .v{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.hstrip .grow{flex:1}
+.expiry{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--bg-subtle);border:1px solid var(--border-strong);
+  border-radius:4px;padding:6px 10px;color:var(--fg-base);cursor:pointer;
+}
+.statechip{
+  font-family:Archivo,sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  border-radius:999px;padding:4px 10px;border:1px solid;display:none;align-items:center;gap:6px;
+}
+.statechip.show{display:inline-flex}
+.statechip.warn{color:var(--warn);border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+.statechip.crit{color:var(--crit);border-color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.statechip.flat{color:var(--fg-muted);border-color:var(--border-strong);background:var(--bg-subtle)}
+
+/* grid */
+.grid-scroll{overflow-x:auto;max-height:472px;overflow-y:auto;position:relative}
+table.oc{width:100%;min-width:1180px;border-collapse:separate;border-spacing:0;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-variant-numeric:tabular-nums}
+table.oc thead th{
+  position:sticky;z-index:3;background:var(--bg-subtle);color:var(--fg-faint);
+  font-family:Archivo,sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  padding:8px 7px;border-bottom:1px solid var(--border-strong);white-space:nowrap;text-align:right;
+}
+table.oc thead tr:first-child th{top:0;height:23px}
+table.oc thead tr:nth-child(2) th{top:23px}
+table.oc thead th.stk{top:0}
+table.oc thead th.side{text-align:center;letter-spacing:.14em;font-size:10px;color:var(--fg-base);padding:6px 7px;border-bottom:1px solid var(--border)}
+table.oc thead th.side.ce{background:color-mix(in srgb,var(--net) 12%,var(--bg-subtle))}
+table.oc thead th.side.pe{background:color-mix(in srgb,var(--render) 12%,var(--bg-subtle))}
+table.oc thead th.stk{text-align:center;color:var(--fg-base)}
+table.oc td{padding:0 7px;height:30px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--grid-line);color:var(--fg-base)}
+table.oc tbody tr:hover td{background:var(--bg-subtle)}
+td.stk{
+  text-align:center;font-weight:600;font-size:12px;background:var(--bg-panel);
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
+}
+tr:hover td.stk{background:var(--bg-subtle)}
+td.itm{background:color-mix(in srgb,var(--bg-inset) 60%,transparent)}
+tr:hover td.itm{background:var(--bg-inset)}
+.up{color:var(--up)} .down{color:var(--down)} .dim{color:var(--fg-faint)}
+.sub{font-size:9.5px;opacity:.78;margin-left:3px}
+td.oi{position:relative;isolation:isolate}
+td.oi .bar{position:absolute;inset:4px auto 4px 0;background:var(--accent);opacity:.12;border-radius:2px;z-index:-1}
+td.oi.r .bar{inset:4px 0 4px auto}
+tr.atm td.stk{box-shadow:inset 3px 0 0 var(--accent)}
+tr.atm td{background:var(--accent-wash)}
+tr.spotline td{border-bottom:2px dashed var(--accent)}
+.spotpill{
+  position:absolute;left:50%;transform:translate(-50%,-50%);background:var(--accent);color:var(--accent-fg);
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;z-index:4;
+  pointer-events:none;box-shadow:var(--shadow-sm);
+}
+@keyframes flash{from{background:var(--accent-wash)}to{background:transparent}}
+td.flash{animation:flash 400ms cubic-bezier(.16,1,.3,1)}
+
+/* latency panel */
+.lat{background:var(--bg-panel);display:flex;flex-direction:column;min-width:0}
+.lat-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.lat-h .t{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint)}
+.lat-h .grow{flex:1}
+.ring{width:22px;height:22px}
+.big3{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)}
+.big{padding:12px 10px;border-right:1px solid var(--border)}
+.big:last-child{border-right:0}
+.big .k{font-family:Archivo,sans-serif;font-size:8.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
+.big .v{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15;letter-spacing:-.02em}
+.big .v small{font-size:11px;font-weight:400;color:var(--fg-faint);margin-left:2px}
+.lat-sec{padding:12px 14px;border-bottom:1px solid var(--border)}
+.lat-sec .k{font-family:Archivo,sans-serif;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px;display:flex;justify-content:space-between}
+.wf{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg-inset);margin:0 0 7px}
+.wf i{display:block;transition:width 280ms cubic-bezier(.16,1,.3,1)}
+.wf-key{display:flex;flex-wrap:wrap;gap:4px 11px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-muted)}
+.wf-key span{display:flex;align-items:center;gap:4px}
+.wf-key b{width:7px;height:7px;border-radius:2px;display:inline-block}
+.spark{width:100%;height:52px;display:block}
+.pcts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px}
+.pct{background:var(--bg-subtle);border:1px solid var(--border);border-radius:4px;padding:5px 7px}
+.pct .k2{font-family:Archivo,sans-serif;font-size:8px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
+.pct .v2{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.log{flex:1;overflow-y:auto;max-height:196px}
+.log table{width:100%;min-width:0;font-family:"IBM Plex Mono",monospace;font-size:10px;border-collapse:collapse}
+.log th{background:var(--bg-subtle);font-family:Archivo,sans-serif;font-size:8.5px;padding:6px 8px;letter-spacing:.06em;position:sticky;top:0}
+.log td{padding:5px 8px;border-bottom:1px solid var(--grid-line);white-space:nowrap;color:var(--fg-muted);font-variant-numeric:tabular-nums}
+.log td.ok{color:var(--ok)} .log td.bad{color:var(--crit)}
+.lat-foot{padding:9px 14px;border-top:1px solid var(--border);font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45}
+
+/* expressive state */
+.exp{display:none;padding:34px 22px;text-align:center;align-items:center;flex-direction:column;gap:12px}
+.exp.show{display:flex}
+.exp h4{font-family:Archivo,sans-serif;font-size:17px;font-weight:700;margin:0}
+.exp p{font-size:14.5px;color:var(--fg-muted);margin:0;max-width:40ch}
+.exp .acts{display:flex;gap:8px;margin-top:4px}
+.btn{font-family:Archivo,sans-serif;font-size:12px;font-weight:600;padding:7px 15px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);transition:all 120ms cubic-bezier(.16,1,.3,1)}
+.btn:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{background:transparent;color:var(--fg-muted);border-color:var(--border-strong)}
+.btn.ghost:hover{background:var(--bg-subtle);color:var(--fg-base)}
+.exp details{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--fg-faint);margin-top:4px}
+.exp details pre{text-align:left;background:var(--bg-inset);padding:9px 11px;border-radius:4px;overflow-x:auto;margin:7px 0 0;font-size:10px}
+.needle{width:82px;height:82px;color:var(--fg-faint)}
+.exp.concerned .needle{color:var(--crit)}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes tremor{0%,100%{transform:rotate(62deg)}50%{transform:rotate(65deg)}}
+.needle .nd{transform-origin:50px 52px}
+.exp.idle .needle .nd{animation:sway 3s ease-in-out infinite}
+.exp.concerned .needle .nd{animation:tremor .5s ease-in-out infinite}
+
+.cap{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);line-height:1.55;margin:0 0 30px;max-width:74ch}
+.cap b{color:var(--fg-muted);font-weight:500}
+
+/* diagram + code */
+pre.dg{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.72;color:var(--fg-muted);margin:0 0 20px;
+}
+pre.dg b{color:var(--fg-base);font-weight:500}
+pre.dg i{color:var(--accent);font-style:normal}
+
+/* swatches */
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:9px;margin:0 0 22px}
+.swi{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--bg-panel)}
+.swi .c{height:42px}
+.swi .m{padding:6px 8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;line-height:1.4}
+.swi .m b{display:block;color:var(--fg-base);font-weight:500}
+.swi .m span{color:var(--fg-faint)}
+
+/* checklist */
+.ck{list-style:none;padding:0;margin:0 0 22px;max-width:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:0 26px}
+.ck li{display:flex;gap:10px;font-size:14.5px;line-height:1.45;padding:7px 0;border-bottom:1px solid var(--border);color:var(--fg-muted);margin:0}
+.ck li::before{content:"";width:13px;height:13px;border:1.5px solid var(--border-strong);border-radius:3px;flex:0 0 auto;margin-top:5px}
+.ck li b{color:var(--fg-base);font-weight:500}
+.ckh{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin:22px 0 4px}
+
+/* spec lock */
+.lock{border:1px solid var(--accent);border-radius:8px;background:var(--bg-panel);overflow:hidden;margin:0 0 20px}
+.lock-h{padding:14px 18px;background:var(--accent-wash);border-bottom:1px solid var(--accent);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
+.lock-h b{font-family:Archivo,sans-serif;font-size:13px;font-weight:700;letter-spacing:.02em}
+.lock-h span{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-muted)}
+.lock .tbl-wrap{border:0;border-radius:0;margin:0}
+.ask{
+  font-family:Archivo,sans-serif;font-size:16px;font-weight:600;padding:16px 18px;border-top:1px solid var(--border);
+  background:var(--bg-subtle);
+}
+.ask code{font-family:"IBM Plex Mono",monospace;background:var(--accent);color:var(--accent-fg);padding:2px 8px;border-radius:4px;font-size:14px}
+
+.phase{display:grid;grid-template-columns:64px minmax(0,1fr);gap:0 18px;border-left:1px solid var(--border);padding:0 0 0 0;margin:0 0 0 6px}
+.phase>div{padding:0 0 22px}
+.phase .pid{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;color:var(--accent);position:relative}
+.phase .pid::before{content:"";position:absolute;left:-25px;top:5px;width:7px;height:7px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 3px var(--bg-base)}
+.phase .pb h4{font-family:Archivo,sans-serif;font-size:15px;font-weight:700;margin:0 0 4px}
+.phase .pb p{font-size:14.5px;color:var(--fg-muted);margin:0 0 5px;max-width:62ch}
+.phase .pb .done{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint)}
+.phase .pb .done b{color:var(--ok);font-weight:500}
+
+footer{border-top:1px solid var(--border);margin-top:0;background:var(--bg-panel)}
+.foot-in{max-width:1440px;margin:0 auto;padding:34px 32px 52px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);line-height:1.85}
+.foot-in a{color:var(--fg-muted)}
+.foot-in h5{font-family:Archivo,sans-serif;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 8px}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="mast-in">
+    <p class="eyebrow">Product requirements &middot; v1 &middot; awaiting spec lock</p>
+    <h1>Dhan Option Chain Terminal</h1>
+    <p class="dek">Every strike, both sides, all four greeks — for six switchable underlyings — sitting next to a panel that shows exactly when each request left for Dhan, when the answer came back, and where the milliseconds went.</p>
+    <div class="mast-meta">
+      <span><b>Owner</b> Shivam</span>
+      <span><b>Date</b> 19 Aug 2026</span>
+      <span><b>Source</b> DhanHQ API v2</span>
+      <span><b>Scope</b> read-only, no orders</span>
+      <span><b>Status</b> needs one word to start</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <nav class="rail" aria-label="Contents">
+    <p class="rail-h">Contents</p>
+    <ol>
+      <li><a href="#reality">Three hard constraints</a></li>
+      <li><a href="#terminal">The screen</a></li>
+      <li><a href="#scope">Scope</a></li>
+      <li><a href="#data">Data contract</a></li>
+      <li><a href="#instruments">Six instruments</a></li>
+      <li><a href="#arch">Architecture</a></li>
+      <li><a href="#latency">Latency panel</a></li>
+      <li><a href="#ui">UI rules</a></li>
+      <li><a href="#tokens">Design tokens</a></li>
+      <li><a href="#accept">Acceptance</a></li>
+      <li><a href="#phases">Phases</a></li>
+      <li><a href="#lock">Spec lock</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+  <!-- 1 REALITY -->
+  <section id="reality">
+    <h2><span class="num">01</span> Three hard constraints</h2>
+    <p class="lead">Read these before anything else. They shape every decision downstream.</p>
+    <div class="flags">
+      <div class="flag">
+        <span class="tag">Constraint 01</span>
+        <h4>Nothing on Dhan trades 24&times;7</h4>
+        <p>MCX GOLD is the longest session on the platform: <strong>09:00–23:30 IST, Mon–Fri</strong> (23:55 in the US winter DST window), shut on weekends. That is ~14.5 hours a day against 6.25 for the equity chips. GOLD takes the "long session" slot, and the UI carries an explicit <em>market closed, showing last snapshot</em> state instead of pretending.</p>
+      </div>
+      <div class="flag">
+        <span class="tag">Constraint 02</span>
+        <h4>"Live" means 3 seconds</h4>
+        <p>Dhan rate limits the option chain to <strong>one unique request every 3 seconds</strong> per underlying and expiry — their own stated reason is that OI updates slowly. So OI, volume, IV and greeks refresh on a 3000&nbsp;ms cadence. Only the underlying spot is genuinely tick-live, over the WebSocket feed. The screen shows two different freshness signals, never one blended lie.</p>
+      </div>
+      <div class="flag">
+        <span class="tag">Constraint 03</span>
+        <h4>The token cannot sit in the browser</h4>
+        <p>Dhan needs <code>access-token</code> and <code>client-id</code> headers, ties operations to whitelisted IPs, and serves no CORS for browser origins. v1 therefore ships a <strong>thin local Node backend</strong>. It is the only safe home for a live-account bearer credential — and it lets one poller own the 3&nbsp;s budget instead of every open tab racing it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 TERMINAL -->
+  <section id="terminal">
+    <h2><span class="num">02</span> The screen</h2>
+    <p class="lead">A working mock of what gets built. Click the chips, watch the panel.</p>
+    <p>Every control below is live. The <strong>NIFTY 50</strong> dataset holds the exact values from your screenshot — same strikes, same OI, same greeks — so you can check the rendering rules against a source you already trust. The other five carry illustrative numbers. The latency panel simulates a real 3&nbsp;s poll cycle; the buttons on the title bar force the failure states.</p>
+
+    <div class="term-frame">
+      <div class="term-chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="lbl">dhan-option-chain &mdash; localhost:5173</span>
+        <span class="spacer"></span>
+        <span class="sim" role="group" aria-label="Simulate a state">
+          <button type="button" data-sim="live" aria-pressed="true">Live</button>
+          <button type="button" data-sim="stale" aria-pressed="false">Stale</button>
+          <button type="button" data-sim="limit" aria-pressed="false">Rate&nbsp;limited</button>
+          <button type="button" data-sim="closed" aria-pressed="false">Closed</button>
+          <button type="button" data-sim="error" aria-pressed="false">Error</button>
+        </span>
+      </div>
+
+      <div class="term">
+        <div class="term-main">
+          <div class="chips" id="chips" role="group" aria-label="Underlying"></div>
+
+          <div class="hstrip">
+            <div class="hs-name">
+              <span class="nm"><span class="pulse" id="pulse"></span><span id="uName">NIFTY 50 IDX</span></span>
+              <span class="spot" id="uSpot">24,078.30</span>
+              <span class="chg down" id="uChg">-76.60 (-0.32%)</span>
+            </div>
+            <div class="stat"><span class="k">ATM IV</span><span class="v" id="sIv">9.31</span></div>
+            <div class="stat"><span class="k">IV Change %</span><span class="v down" id="sIvc">-4.71%</span></div>
+            <div class="stat"><span class="k">PCR</span><span class="v" id="sPcr">0.70</span></div>
+            <div class="stat"><span class="k">Market Lot</span><span class="v" id="sLot">65</span></div>
+            <div class="stat"><span class="k">Days for Expiry</span><span class="v" id="sDte">7</span></div>
+            <span class="grow"></span>
+            <span class="statechip" id="stateChip"></span>
+            <button class="expiry" type="button" id="sExp">Expiry: 25 AUG 2026 &#9662;</button>
+          </div>
+
+          <div class="grid-scroll" id="gridScroll">
+            <table class="oc" id="oc">
+              <thead>
+                <tr>
+                  <th class="side ce" colspan="11">CALLS &middot; CE</th>
+                  <th class="stk" rowspan="2">Strike</th>
+                  <th class="side pe" colspan="11">PUTS &middot; PE</th>
+                </tr>
+                <tr>
+                  <th>Vega</th><th>Theta</th><th>Gamma</th><th>Delta</th><th>OI</th><th>OI Chg</th>
+                  <th>Volume</th><th>Vol Chg%</th><th>IV</th><th>LTP Chg</th><th>LTP</th>
+                  <th>LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg%</th><th>Volume</th>
+                  <th>OI Chg</th><th>OI</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th>
+                </tr>
+              </thead>
+              <tbody id="ocBody"></tbody>
+            </table>
+            <div class="exp" id="expState">
+              <svg class="needle" viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M12 62 A40 40 0 0 1 88 62" fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="6" stroke-linecap="round"/>
+                <path d="M12 62 A40 40 0 0 1 30 30" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="6" stroke-linecap="round"/>
+                <g class="nd"><line x1="50" y1="52" x2="50" y2="20" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></g>
+                <circle cx="50" cy="52" r="5" fill="currentColor"/>
+              </svg>
+              <h4 id="expTitle">Dhan tak request nahi pahunch payi</h4>
+              <p id="expBody">Last snapshot 14:32:07 ka dikh raha hai. Polling rok di gayi hai.</p>
+              <div class="acts">
+                <button class="btn" type="button" id="expA">Retry now</button>
+                <button class="btn ghost" type="button" id="expB">Keep last snapshot</button>
+              </div>
+              <details><summary>Technical details</summary><pre id="expTech">FetchError: connect ETIMEDOUT 13.234.x.x:443
+  endpoint  POST /v2/optionchain
+  key       NIFTY|2026-08-25
+  attempt   3, next backoff 12000 ms</pre></details>
+            </div>
+          </div>
+        </div>
+
+        <aside class="lat" aria-label="Latency and telemetry">
+          <div class="lat-h">
+            <span class="t">Latency &amp; telemetry</span>
+            <span class="grow"></span>
+            <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
+              <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
+                      stroke-dasharray="56.5" stroke-dashoffset="56.5" stroke-linecap="round" transform="rotate(-90 12 12)"/>
+            </svg>
+          </div>
+
+          <div class="big3">
+            <div class="big"><span class="k">Round trip</span><div class="v" id="mRtt">218<small>ms</small></div></div>
+            <div class="big"><span class="k">Data age</span><div class="v" id="mAge">0.4<small>s</small></div></div>
+            <div class="big"><span class="k">Next poll</span><div class="v" id="mNext">2.6<small>s</small></div></div>
+          </div>
+
+          <div class="lat-sec">
+            <p class="k"><span>Last call &mdash; stage waterfall</span><span id="wfTotal" class="mono">262 ms</span></p>
+            <div class="wf" id="wf">
+              <i style="background:var(--net);width:62%"></i>
+              <i style="background:color-mix(in srgb,var(--net) 55%,var(--bg-inset));width:11%"></i>
+              <i style="background:var(--compute);width:8%"></i>
+              <i style="background:color-mix(in srgb,var(--render) 55%,var(--bg-inset));width:5%"></i>
+              <i style="background:var(--render);width:14%"></i>
+            </div>
+            <div class="wf-key">
+              <span><b style="background:var(--net)"></b>server <em id="kServer" class="mono">162</em></span>
+              <span><b style="background:color-mix(in srgb,var(--net) 55%,var(--bg-inset))"></b>download <em id="kDl" class="mono">29</em></span>
+              <span><b style="background:var(--compute)"></b>compute <em id="kCmp" class="mono">21</em></span>
+              <span><b style="background:color-mix(in srgb,var(--render) 55%,var(--bg-inset))"></b>transport <em id="kTr" class="mono">13</em></span>
+              <span><b style="background:var(--render)"></b>render <em id="kRn" class="mono">37</em></span>
+            </div>
+          </div>
+
+          <div class="lat-sec">
+            <p class="k"><span>Round trip &mdash; last 60 calls</span><span class="mono" id="okRate">100% ok</span></p>
+            <svg class="spark" id="spark" viewBox="0 0 288 52" preserveAspectRatio="none" aria-label="Round trip sparkline"></svg>
+            <div class="pcts">
+              <div class="pct"><div class="k2">p50</div><div class="v2" id="p50">—</div></div>
+              <div class="pct"><div class="k2">p90</div><div class="v2" id="p90">—</div></div>
+              <div class="pct"><div class="k2">p99</div><div class="v2" id="p99">—</div></div>
+              <div class="pct"><div class="k2">max</div><div class="v2" id="pmx">—</div></div>
+            </div>
+          </div>
+
+          <div class="log">
+            <table>
+              <thead><tr><th>Time</th><th>Key</th><th>St</th><th>RTT</th><th>Rows</th></tr></thead>
+              <tbody id="logBody"></tbody>
+            </table>
+          </div>
+
+          <div class="lat-foot">All stages measured on one clock except <b>transport</b>, which crosses server&rarr;browser and is shown as an estimate.</div>
+        </aside>
+      </div>
+    </div>
+    <p class="cap"><b>Design mock, not a live connection.</b> NIFTY 50 = the exact 14 strikes from your screenshot (23,700–24,350), captured 18 Aug 2026 16:35 IST. Other chips = illustrative values generated from a Black–Scholes shape so the columns read realistically. Latency numbers are simulated on the real 3&nbsp;s cadence.</p>
+  </section>
+
+  <!-- 3 SCOPE -->
+  <section id="scope">
+    <h2><span class="num">03</span> Scope</h2>
+    <p class="lead">One screen, read-only, six instruments, one panel that tells the truth about time.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:50%">In scope for v1</th><th>Explicitly not building</th></tr></thead>
+        <tbody>
+          <tr><td>Six underlyings, one-click switching, live data</td><td>Any order, position, fund or write call to Dhan</td></tr>
+          <tr><td>Expiry selector per underlying, from Dhan's expiry-list API</td><td>Strategy builder, payoff diagrams, max pain</td></tr>
+          <tr><td>Full chain: every strike Dhan returns, CE mirrored against PE</td><td>OI time series, historical playback, persistence beyond the session</td></tr>
+          <tr><td>Header strip: spot, change, ATM IV, IV chg %, PCR, lot, days to expiry</td><td>Mobile and tablet layouts — 23 numeric columns do not fit honestly</td></tr>
+          <tr><td>Latency panel: stage waterfall, percentiles, rate budget, call log, export</td><td>Multi-user auth, login screen, hosted deployment</td></tr>
+          <tr><td>Light and dark themes, full keyboard operation</td><td>Alerts, notifications, or anything that trades by itself</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4 DATA -->
+  <section id="data">
+    <h2><span class="num">04</span> Data contract</h2>
+    <p class="lead">Where every number on the screen actually comes from.</p>
+    <p>Dhan's <code>POST /v2/optionchain</code> returns a raw node per strike. Seven of the values in your screenshot <strong>are not in that response at all</strong> — they are computed by us. This table is the contract; the build may not invent anything outside it.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Dhan field</th><th>Formula</th><th style="width:80px">Decimals</th></tr></thead>
+        <tbody>
+          <tr><td>Strike Price</td><td><code>oc</code> key</td><td><code>parseFloat(key)</code></td><td class="n">0</td></tr>
+          <tr><td>LTP</td><td><code>last_price</code></td><td>direct</td><td class="n">2</td></tr>
+          <tr><td>LTP Change</td><td><code>last_price</code>, <code>previous_close_price</code></td><td><code>abs = ltp − prevClose</code>, <code>pct = abs / prevClose × 100</code></td><td class="n">2</td></tr>
+          <tr><td>IV</td><td><code>implied_volatility</code></td><td>direct</td><td class="n">2</td></tr>
+          <tr><td>Volume</td><td><code>volume</code></td><td>direct, Indian abbreviation</td><td class="n">2</td></tr>
+          <tr><td>Vol Change%</td><td><code>volume</code>, <code>previous_volume</code></td><td><code>(vol − prevVol) / prevVol × 100</code></td><td class="n">2</td></tr>
+          <tr><td>OI</td><td><code>oi</code></td><td>direct, Indian abbreviation</td><td class="n">2</td></tr>
+          <tr><td>OI Change %</td><td><code>oi</code>, <code>previous_oi</code></td><td><code>abs = oi − prevOi</code>, <code>pct = abs / prevOi × 100</code></td><td class="n">2</td></tr>
+          <tr><td>Delta</td><td><code>greeks.delta</code></td><td>direct &mdash; never recomputed by us</td><td class="n">2</td></tr>
+          <tr><td>Gamma</td><td><code>greeks.gamma</code></td><td>direct</td><td class="n">5</td></tr>
+          <tr><td>Theta</td><td><code>greeks.theta</code></td><td>direct</td><td class="n">2</td></tr>
+          <tr><td>Vega</td><td><code>greeks.vega</code></td><td>direct</td><td class="n">2</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Header value</th><th>Source</th><th>Formula &amp; evidence</th></tr></thead>
+        <tbody>
+          <tr><td>Spot &amp; change</td><td><code>data.last_price</code> + WebSocket ticker</td><td>Chain response carries spot; between polls the WS feed updates it tick by tick. Previous close from <code>/marketfeed/ohlc</code>.</td></tr>
+          <tr><td>ATM strike</td><td>derived</td><td><code>min(abs(strike − spot))</code></td></tr>
+          <tr><td>ATM IV</td><td>derived</td><td><code>(ce.iv + pe.iv) / 2</code> at the ATM strike. <strong>Verified against your screenshot:</strong> spot 24,078.30 → ATM 24,100 → CE 9.01, PE 9.61 → <b>9.31</b>, exactly what Dhan shows.</td></tr>
+          <tr><td>IV Change %</td><td>derived, session baseline</td><td><code>(atmIV − baseline) / baseline × 100</code>, baseline = first successful snapshot of the day for that key, persisted to disk. <strong>An approximation</strong> — Dhan returns no previous IV. Hover reveals the baseline timestamp.</td></tr>
+          <tr><td>PCR</td><td>derived</td><td><code>sum(pe.oi) / sum(ce.oi)</code> over the <em>whole</em> response, not the visible rows. Your screenshot reads 0.70 while the 14 visible strikes alone would give 1.10 — the difference is exactly why this must be full-chain.</td></tr>
+          <tr><td>Market Lot</td><td>instrument master</td><td><code>SEM_LOT_UNITS</code> for that underlying's option contracts. NIFTY resolves to <b>65</b> in the live master, matching your screenshot. Never a constant in code.</td></tr>
+          <tr><td>Days for Expiry</td><td>derived</td><td>calendar days from today to the expiry date</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>Formatting, locked:</strong> under 1,000 raw &middot; under 1e5 → <code>K</code> &middot; under 1e7 → <code>L</code> &middot; 1e7 and above → <code>Cr</code>; two decimals with trailing zeros stripped, which reproduces <code>51.09 K</code>, <code>2.98 L</code> and <code>16 Cr</code> from your screenshot exactly. Any percentage whose denominator is zero or missing renders as an em dash — never <code>NaN</code>, <code>Infinity</code> or a misleading <code>0%</code>.</p>
+  </section>
+
+  <!-- 5 INSTRUMENTS -->
+  <section id="instruments">
+    <h2><span class="num">05</span> Six instruments</h2>
+    <p class="lead">Five ids read straight from the live Dhan master. One needs a 30-minute spike.</p>
+    <p>These were pulled from <code>api-scrip-master.csv</code> and <code>api-scrip-master-detailed.csv</code> on 19 Aug 2026 — not from memory. The lot sizes are the proof: NIFTY comes back as <strong>65</strong>, which is the same number your screenshot shows.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Chip</th><th>UnderlyingScrip</th><th>UnderlyingSeg</th><th>Options</th><th class="n">Lot</th><th>Session (IST)</th></tr></thead>
+        <tbody>
+          <tr><td>NIFTY 50</td><td><code>13</code></td><td><code>IDX_I</code></td><td>OPTIDX / NSE_FNO</td><td class="n">65</td><td>09:15–15:30 Mon–Fri</td></tr>
+          <tr><td>BANK NIFTY</td><td><code>25</code></td><td><code>IDX_I</code></td><td>OPTIDX / NSE_FNO</td><td class="n">30</td><td>09:15–15:30 Mon–Fri</td></tr>
+          <tr><td>SENSEX</td><td><code>51</code></td><td><code>IDX_I</code></td><td>OPTIDX / BSE_FNO</td><td class="n">20</td><td>09:15–15:30 Mon–Fri</td></tr>
+          <tr><td>RELIANCE</td><td><code>2885</code></td><td><code>NSE_EQ</code></td><td>OPTSTK / NSE_FNO</td><td class="n">500</td><td>09:15–15:30 Mon–Fri</td></tr>
+          <tr><td>HDFCBANK</td><td><code>1333</code></td><td><code>NSE_EQ</code></td><td>OPTSTK / NSE_FNO</td><td class="n">650</td><td>09:15–15:30 Mon–Fri</td></tr>
+          <tr><td>GOLD (MCX)</td><td><b>SPIKE-01</b></td><td><code>MCX_COMM</code></td><td>OPTFUT / MCX_COMM</td><td class="n">1</td><td>09:00–23:30 Mon–Fri</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tbl-note">GOLD options exist on Dhan (<code>MCX,M,513413,OPTFUT,GOLD-31Aug2026-163500-CE</code>) but MCX commodity options hang off a <em>futures contract</em>, not a spot index, and Dhan's docs only give index examples. SPIKE-01 resolves it with two real API calls: first the near-month GOLD <code>FUTCOM</code> security id (e.g. <code>483079</code>), then the master's <code>UNDERLYING_SECURITY_ID</code> value <code>114</code>. Thirty minutes, before Phase 1. If both fail, GOLD ships behind a flag and the other five go ahead.</p>
+  </section>
+
+  <!-- 6 ARCH -->
+  <section id="arch">
+    <h2><span class="num">06</span> Architecture</h2>
+    <p class="lead">One poller owns the rate limit. The browser never sees the token.</p>
+<pre class="dg"><b>browser</b> (React 18 + TS + Vite)        <b>local backend</b> (Node 20 + Fastify)          <b>Dhan</b>
+──────────────────────────────        ─────────────────────────────────         ─────────────────
+OptionChainGrid   <i>&lt;── SSE ──</i>  ChainPoller     one timer per key   <i>──&gt;</i>  POST /v2/optionchain
+HeaderStrip                           DeriveEngine    section 04 rules             <i>1 req / 3 s</i>
+LatencyPanel      <i>&lt;── SSE ──</i>  TelemetryBus    ring buffer 500
+InstrumentChips   <i>── REST ──&gt;</i>  /api/instruments  /api/expiries      <i>──&gt;</i>  POST /v2/optionchain/expirylist
+SpotTicker        <i>&lt;── SSE ──</i>  FeedClient      one WS, 6 symbols   <i>──&gt;</i>  wss://api-feed.dhan.co
+                                      InstrumentMaster  CSV cache 08:00   <i>──&gt;</i>  images.dhan.co CSV
+</pre>
+    <ul>
+      <li><strong>One <code>ChainPoller</code> per active key.</strong> Switching chips pauses the old poller after a 30&nbsp;s grace period instead of killing it, so toggling back is instant.</li>
+      <li><strong>Scheduled from completion, not from dispatch.</strong> A slow response can never stack two requests in flight and trip <code>DH-904</code>.</li>
+      <li><strong>Backoff:</strong> 3&nbsp;s → 6&nbsp;s → 12&nbsp;s → 30&nbsp;s cap, reset on the first success.</li>
+      <li><strong>Raw values survive.</strong> The backend ships the raw Dhan node alongside the derived block, so the panel can always prove what came from Dhan and what we computed.</li>
+      <li><strong>Boring stack on purpose:</strong> Fastify, <code>undici</code> with per-stage timing hooks, <code>ws</code>. No UI kit, no chart library, no state library. Sparklines and the waterfall are hand-drawn SVG; 100 rows of CSS grid need no virtualisation.</li>
+    </ul>
+  </section>
+
+  <!-- 7 LATENCY -->
+  <section id="latency">
+    <h2><span class="num">07</span> Latency panel</h2>
+    <p class="lead">Eight timestamps per call, and one honest asterisk.</p>
+    <p>You asked to see when the request goes to Dhan, when the response lands, and the gap between them. The panel does that, and then answers the question that follows it — <em>whose fault is the gap</em>.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Stamp</th><th>Boundary</th><th>Clock</th></tr></thead>
+        <tbody>
+          <tr><td><code>queued</code></td><td>poller decides to fire</td><td>backend</td></tr>
+          <tr><td><code>dispatched</code></td><td>socket write begins</td><td>backend, via undici diagnostics</td></tr>
+          <tr><td><code>ttfb</code></td><td>first response byte</td><td>backend</td></tr>
+          <tr><td><code>downloaded</code></td><td>last response byte</td><td>backend</td></tr>
+          <tr><td><code>parsed</code></td><td>JSON parsed, section 04 derivations done</td><td>backend</td></tr>
+          <tr><td><code>pushed</code></td><td>SSE frame written</td><td>backend</td></tr>
+          <tr><td><code>received</code></td><td>SSE frame arrives</td><td>browser</td></tr>
+          <tr><td><code>painted</code></td><td>grid committed, read in the rAF after React's commit</td><td>browser</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Headline number is <code>round_trip = downloaded − dispatched</code></strong>, with <code>end_to_end = painted − queued</code> beside it. Server, download, compute and render are each derived inside a single clock domain. The one cross-clock value, <code>transport</code>, is labelled as an estimate in the panel itself — hiding that in a doc would be dishonest at exactly the moment the user is trusting the numbers.</p>
+    <p>Panel contents: three live numbers at 26px tabular; the stage waterfall for the most recent call; a 60-call sparkline with p50 and p95 reference lines; a p50/p90/p99/max row with success rate; a 3-second budget ring that fills between calls and turns amber the moment a response lands after its next slot was due; a 20-row call log that expands to the full stage table; an error ribbon carrying the Dhan code, a plain-language reading of it and the live backoff; and CSV/JSON export of all 500 buffered samples.</p>
+    <p><strong>Thresholds are set on our own code</strong>, since Dhan's round trip is not ours to control: compute at most 15&nbsp;ms for a 100-strike chain, render at most 50&nbsp;ms, and total overhead outside the round trip at most 80&nbsp;ms. If our overhead ever exceeds Dhan's, the panel says so in words rather than leaving you to read it off a bar.</p>
+  </section>
+
+  <!-- 8 UI -->
+  <section id="ui">
+    <h2><span class="num">08</span> UI rules</h2>
+    <p class="lead">Density first. Colour only where it carries meaning.</p>
+<pre class="dg">┌──────────────────────────────────────────────────────────────────────────────┐
+│ <b>TOP BAR</b>   56px    logo · connection pill · IST clock · theme toggle         │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ <b>CHIP RAIL</b> 52px    [NIFTY 50][BANK NIFTY][SENSEX][RELIANCE][HDFCBANK][GOLD] │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ <b>HEADER</b>    96px    name · spot · change │ ATM IV · IV Chg% · PCR · Lot · DTE │
+├───────────────────────────────────────────────┬──────────────────────────────┤
+│ <b>OPTION CHAIN GRID</b>          scrolls, sticky │ <b>LATENCY PANEL</b>  380px sticky │
+│   CE ×11 columns │ STRIKE │ PE ×11 columns    │   collapses to a 44px rail   │
+└───────────────────────────────────────────────┴──────────────────────────────┘</pre>
+    <ul>
+      <li><strong>Column order mirrors your screenshot exactly</strong> — Vega, Theta, Gamma, Delta, OI, OI Chg, Volume, Vol Chg%, IV, LTP Chg, LTP, then STRIKE, then the mirror. Muscle memory transfers on day one.</li>
+      <li><strong>Strike column sticks horizontally, header row sticks vertically.</strong> Row height 30px, data at 12px IBM Plex Mono with tabular figures.</li>
+      <li><strong>ITM tint, not borders</strong> — strikes below spot tinted on the CE side, above spot on the PE side, at 60% of <code>bg/inset</code>.</li>
+      <li><strong>Spot marker</strong> is a 2px dashed accent line drawn between the two strikes that bracket spot, with the live price in a pill on the strike column. The ATM row carries a 3px accent stripe.</li>
+      <li><strong>One heatmap only:</strong> a 12%-opacity bar behind each OI number, scaled to the largest OI on that side. Everything else stays quiet so the bar means something.</li>
+      <li><strong>Signed values keep their sign.</strong> Colour never carries meaning alone.</li>
+      <li><strong>Changed cells flash for 400&nbsp;ms</strong> — opacity only under <code>prefers-reduced-motion</code>.</li>
+      <li><strong>Keyboard:</strong> ↑↓ row, ←→ column group, <code>Home</code> jumps to ATM, <code>1</code>–<code>6</code> switch instrument, <code>E</code> expiry, <code>L</code> panel, <code>/</code> search.</li>
+    </ul>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:24%">State</th><th>Behaviour</th></tr></thead>
+        <tbody>
+          <tr><td>First load</td><td>Skeleton grid, 21 shimmer rows, real column headers, zero layout shift when data lands</td></tr>
+          <tr><td>Live</td><td>Spot pulse dot, age counter green</td></tr>
+          <tr><td>Stale &gt; 6 s</td><td>Age counter amber, grid drops to 85% opacity</td></tr>
+          <tr><td>Stale &gt; 15 s</td><td>Age counter red, <code>STALE</code> chip in the header strip</td></tr>
+          <tr><td>Market closed</td><td>Grey chip, "showing last snapshot at HH:MM:SS", polling stops. GOLD stays live if MCX is open.</td></tr>
+          <tr><td>Rate limited</td><td>Amber throttle chip with live backoff countdown; last good data stays on screen</td></tr>
+          <tr><td>Auth expired</td><td>Blocking re-auth banner, polling stops, expressive state with the exact fix</td></tr>
+          <tr><td>Network error</td><td>Expressive state inside the grid area only — chips and top bar stay usable</td></tr>
+          <tr><td>Empty chain</td><td>"Is expiry ke liye koi strike nahi aayi", with the expiry picker as the action</td></tr>
+          <tr><td>Below 1024px</td><td>Honest refusal: "Option chain needs a wider screen", plus the header numbers, which do fit</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Every error and empty state ships four parts: the gauge-needle character (idle sway, concerned tremor, celebrating sweep), a sentence in your language with no error codes in it, a real next action, and the raw technical detail folded into a <code>&lt;details&gt;</code>. No <code>alert()</code>, no bare red text, no unstyled browser validation. Try the <em>Rate limited</em>, <em>Closed</em> and <em>Error</em> buttons on the mock above.</p>
+  </section>
+
+  <!-- 9 TOKENS -->
+  <section id="tokens">
+    <h2><span class="num">09</span> Design tokens</h2>
+    <p class="lead">Instrument panel: cool blue-grey neutrals, one brass accent, semantics kept separate.</p>
+    <p>Brass reads as a dial marking rather than a brand colour, and it ties the palette to the GOLD chip. Because the accent is warm and the semantics are red/green, colour never has to do two jobs at once. Type is <strong>Archivo</strong> for structure, <strong>Newsreader</strong> for prose, <strong>IBM Plex Mono</strong> for every digit on screen.</p>
+    <div class="sw" id="swatches"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Scale</th><th>Values &mdash; nothing outside these may appear in a component</th></tr></thead>
+        <tbody>
+          <tr><td>Space</td><td class="n" style="text-align:left">4 &middot; 8 &middot; 12 &middot; 16 &middot; 24 &middot; 32 &middot; 48 &middot; 64 &middot; 96</td></tr>
+          <tr><td>Radius</td><td class="n" style="text-align:left">4 input/chip &middot; 8 card/panel &middot; 999 pill</td></tr>
+          <tr><td>Motion</td><td class="n" style="text-align:left">instant 120ms &middot; base 180ms &middot; slow 280ms &middot; flash 400ms &middot; ease-out cubic-bezier(0.16, 1, 0.3, 1)</td></tr>
+          <tr><td>Dimensions</td><td class="n" style="text-align:left">top bar 56 &middot; chip rail 52 &middot; header 96 &middot; grid header 34 &middot; row 30 &middot; panel 380 / 44 &middot; focus ring 2 @ 2</td></tr>
+          <tr><td>Type</td><td class="n" style="text-align:left">display 32/1.1 &middot; h1 24 &middot; h2 18 &middot; label 11 upper .08em &middot; body 16/1.6 &middot; data 12/1.35 &middot; data-lg 40 &middot; micro 10</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Accessibility floor, non-negotiable: body text at 4.5:1 and borders at 3:1 in <em>both</em> themes, every control keyboard reachable with a visible 2px ring at 2px offset, 44&times;44 minimum touch targets on chips and buttons, and a real <code>&lt;label&gt;</code> on every input.</p>
+  </section>
+
+  <!-- 10 ACCEPT -->
+  <section id="accept">
+    <h2><span class="num">10</span> Acceptance</h2>
+    <p class="lead">Binary, testable, no adjectives. v1 is done when every box is checked.</p>
+
+    <p class="ckh">Data</p>
+    <ul class="ck">
+      <li>Grid row count equals <b>Object.keys(oc).length</b> for every instrument</li>
+      <li>All 12 columns render on both sides at the decimals in section 04</li>
+      <li>ATM IV matches <b>(ce.iv + pe.iv)/2</b> at the nearest strike to 2 dp against a fixture</li>
+      <li>PCR matches <b>sum(pe.oi)/sum(ce.oi)</b> over the full response to 2 dp</li>
+      <li>NIFTY market lot reads <b>65</b> from the instrument master, not a constant</li>
+      <li>Zero denominators render an em dash — no NaN, Infinity or 0% anywhere</li>
+    </ul>
+
+    <p class="ckh">Instruments</p>
+    <ul class="ck">
+      <li>All six chips load an expiry list and a chain, or are disabled with a stated reason</li>
+      <li>Cached chip switch paints in <b>≤ 400 ms</b>; uncached shows a skeleton</li>
+      <li>GOLD polls 09:00–23:30 IST on weekdays and shows the closed state outside it</li>
+    </ul>
+
+    <p class="ckh">Latency</p>
+    <ul class="ck">
+      <li>Every call appears in the log with all <b>eight</b> stage timestamps</li>
+      <li>The three live numbers tick every 250 ms without re-rendering the grid</li>
+      <li>p50/p90/p99 match hand computation over the exported CSV of the same window</li>
+      <li>Zero sub-3000 ms repeats for one key across a 10-minute log</li>
+      <li>A forced <b>DH-904</b> produces the amber chip and the 3/6/12/30 s backoff</li>
+    </ul>
+
+    <p class="ckh">UI &amp; security</p>
+    <ul class="ck">
+      <li>Twelve screenshots captured: every state, dark mode, 1024px, panel collapsed</li>
+      <li>Zero layout shift when data replaces the skeleton (CLS = 0)</li>
+      <li>Contrast verified at 4.5:1 body and 3:1 borders in both themes</li>
+      <li>Full keyboard operation without a mouse</li>
+      <li>Built browser bundle contains <b>no</b> credential string (grepped in CI)</li>
+      <li><b>.env</b> git-ignored; <b>.env.example</b> carries key names only</li>
+    </ul>
+  </section>
+
+  <!-- 11 PHASES -->
+  <section id="phases">
+    <h2><span class="num">11</span> Phases</h2>
+    <p class="lead">One phase per session, roughly six to eight files each.</p>
+    <div class="phase">
+      <div class="pid">P0</div>
+      <div class="pb"><h4>Spike &amp; skeleton</h4><p>SPIKE-01 resolves the GOLD underlying. Instrument master downloader and cache, <code>.env</code> wiring, Fastify boots, <code>/api/health</code> returns all six resolved instruments with lot sizes.</p><p class="done"><b>Done when</b> all six chips resolve to a real (scrip, seg, lot) triple — or GOLD is documented as blocked.</p></div>
+      <div class="pid">P1</div>
+      <div class="pb"><h4>Chain pipeline</h4><p>ChainPoller on the completion-scheduled 3000 ms cadence, DeriveEngine implementing section 04, TelemetryBus, SSE endpoints, <code>DH-901</code> and <code>DH-904</code> handling.</p><p class="done"><b>Done when</b> a 10-minute log shows zero sub-3000 ms repeats and derived ATM IV / PCR match a fixture to 2 dp.</p></div>
+      <div class="pid">P2</div>
+      <div class="pb"><h4>Option chain grid</h4><p>Tokens as CSS custom properties, the grid, header strip, chip rail, expiry select, spot marker, ITM tint, OI bar, update flash.</p><p class="done"><b>Done when</b> the screenshot matches the reference density and row count equals the response strike count.</p></div>
+      <div class="pid">P3</div>
+      <div class="pb"><h4>Latency panel</h4><p>Three live numbers, stage waterfall, sparkline with p50/p95, percentile row, rate-limit ring, 20-row call log, CSV/JSON export.</p><p class="done"><b>Done when</b> exported percentiles match hand computation and the panel updates without re-rendering the grid.</p></div>
+      <div class="pid">P4</div>
+      <div class="pb"><h4>States &amp; polish</h4><p>All eight component states, expressive error/empty/closed states, keyboard map, both themes, contrast audit, 1024px degrade.</p><p class="done"><b>Done when</b> the twelve screenshots are captured and reviewed.</p></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:34%">Risk</th><th>Cheapest way to find out</th></tr></thead>
+        <tbody>
+          <tr><td>GOLD UnderlyingScrip cannot be resolved</td><td>SPIKE-01, 30 min, before Phase 1. GOLD ships behind a flag if it fails.</td></tr>
+          <tr><td>Dhan returns no greeks for stock options</td><td>One live call each for RELIANCE and HDFCBANK in Phase 1. If empty, render em dashes and label the columns.</td></tr>
+          <tr><td>3 s cadence feels slow next to Dhan's own terminal</td><td>Ship the countdown ring and age counter from day one so the cadence is legible, not mysterious.</td></tr>
+          <tr><td>IV Change % baseline resets on restart</td><td>Persist the daily baseline to disk keyed by date, underlying and expiry; show the baseline time on hover.</td></tr>
+          <tr><td>Token expires mid-session</td><td><code>DH-901</code> detection and the re-auth banner are Phase 1 requirements, not polish.</td></tr>
+          <tr><td>Master changes lot size or ids on a roll day</td><td>Daily 08:00 IST refresh plus a startup assertion that all six chips resolve.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 12 LOCK -->
+  <section id="lock">
+    <h2><span class="num">12</span> Spec lock</h2>
+    <p class="lead">Seventeen decisions, each with an exact value. Nothing gets built outside this table.</p>
+    <div class="lock">
+      <div class="lock-h">
+        <b>SPEC LOCK — Dhan Option Chain Terminal v1</b>
+        <span>docs/spec/option-chain-v1.md &middot; awaiting approval</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:34px">#</th><th style="width:19%">Ambiguity</th><th>Locked value</th><th style="width:27%">Why</th></tr></thead>
+          <tbody>
+            <tr><td class="n">1</td><td>"live data"</td><td>Chain refresh <b>3000 ms</b>; spot on every WebSocket tick. Two separate freshness indicators.</td><td>Dhan caps the chain at 1 request / 3 s. Spot has no such cap.</td></tr>
+            <tr><td class="n">2</td><td>"24×7 data"</td><td><b>MCX GOLD</b>, 09:00–23:30 IST Mon–Fri. Outside it: <code>MARKET CLOSED — last snapshot HH:MM:SS</code>.</td><td>Nothing on Dhan is 24×7. GOLD is the longest session available.</td></tr>
+            <tr><td class="n">3</td><td>The six chips</td><td>NIFTY 13, BANKNIFTY 25, SENSEX 51 (IDX_I); RELIANCE 2885, HDFCBANK 1333 (NSE_EQ); GOLD via SPIKE-01 (MCX_COMM).</td><td>Five read from the live master on 19 Aug 2026. GOLD needs one call to confirm.</td></tr>
+            <tr><td class="n">4</td><td>"extraordinary UI" — identity</td><td>Instrument panel. Ground <code>#0A0D14</code> / <code>#F7F8FB</code>, accent brass <code>#C8912A</code>, semantics up <code>#21B77E</code> / down <code>#E05252</code>. Archivo + Newsreader + IBM Plex Mono.</td><td>A terminal is read as an instrument. Brass ties to GOLD and never fights the red/green semantics.</td></tr>
+            <tr><td class="n">5</td><td>"extraordinary UI" — density</td><td>Row <b>30px</b>, data <b>12/1.35</b> mono, cell padding 8, header 34. 21 rows visible at 900px.</td><td>Matches your screenshot's density. Taller turns a 60-strike chain into three screens.</td></tr>
+            <tr><td class="n">6</td><td>Column order</td><td>Vega Theta Gamma Delta OI OI-Chg Volume Vol-Chg% IV LTP-Chg LTP │ STRIKE │ exact mirror.</td><td>Identical to your screenshot, so muscle memory transfers.</td></tr>
+            <tr><td class="n">7</td><td>"compare request &amp; response time"</td><td>Eight stamps per call. Headline <code>round_trip = downloaded − dispatched</code>; <code>end_to_end = painted − queued</code>.</td><td>Only boundaries measurable without guessing. One cross-clock value, clearly labelled.</td></tr>
+            <tr><td class="n">8</td><td>Panel size</td><td>Right rail <b>380px</b>, sticky, collapses to <b>44px</b>; state in localStorage.</td><td>Fits a 20-row log and still leaves 1000px+ for the chain at 1440px.</td></tr>
+            <tr><td class="n">9</td><td>History window</td><td>Ring buffer <b>500</b>; sparkline <b>60</b>; log <b>20</b>; export all 500.</td><td>500 at 3 s is 25 minutes of history without unbounded memory.</td></tr>
+            <tr><td class="n">10</td><td>Rate-limit backoff</td><td>3 → 6 → 12 → 30 s cap, reset on first success. Amber chip with live countdown.</td><td>Recovers fast without hammering; the cap stops the screen going silently dead.</td></tr>
+            <tr><td class="n">11</td><td>Stale thresholds</td><td>Green &lt; 6 s, amber 6–15 s, red &gt; 15 s + <code>STALE</code> chip. Grid to 85% opacity from amber.</td><td>6 s is two missed polls — the first point a human should stop trusting the numbers.</td></tr>
+            <tr><td class="n">12</td><td>"IV Change %"</td><td><code>(atmIV − baseline)/baseline × 100</code>, baseline = first snapshot of the day, persisted. Hover shows its time.</td><td>Dhan returns no previous IV. Stated as an approximation instead of quietly differing.</td></tr>
+            <tr><td class="n">13</td><td>Number abbreviation</td><td>&lt;1,000 raw · &lt;1e5 K · &lt;1e7 L · ≥1e7 Cr. 2 dp, trailing zeros stripped.</td><td>Reproduces <code>51.09 K</code>, <code>2.98 L</code>, <code>16 Cr</code> exactly.</td></tr>
+            <tr><td class="n">14</td><td>Null / divide by zero</td><td>Em dash. Never NaN, Infinity, 0%, or a blank cell.</td><td>At this density a blank cell is indistinguishable from a bug.</td></tr>
+            <tr><td class="n">15</td><td>Credentials</td><td><code>.env</code> read by the Node backend only; browser bundle grepped in CI; <code>.env.example</code> has key names only.</td><td>It is a bearer credential for a live trading account.</td></tr>
+            <tr><td class="n">16</td><td>Motion</td><td>120 / 180 / 280 ms, ease-out <code>cubic-bezier(.16,1,.3,1)</code>, cell flash 400 ms, all under <code>prefers-reduced-motion</code>.</td><td>One scale, no ad-hoc durations. 400 ms is catchable but does not smear at a 3 s cadence.</td></tr>
+            <tr><td class="n">17</td><td>Breakpoint floor</td><td>Full at 1440px, degraded at 1024px, blocking state below.</td><td>23 numeric columns cannot be shown honestly on a phone.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="ask">Reply <code>go</code> to build all seventeen — or <code>change 2, 11</code> with your own values.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="foot-in">
+    <h5>Verified against</h5>
+    <a href="https://dhanhq.co/docs/v2/option-chain/">dhanhq.co/docs/v2/option-chain</a> &middot;
+    <a href="https://dhanhq.co/docs/v2/live-market-feed/">live-market-feed</a> &middot;
+    <a href="https://dhanhq.co/docs/v2/market-quote/">market-quote</a> &middot;
+    <a href="https://dhanhq.co/docs/v2/instruments/">instruments</a> &middot;
+    <a href="https://dhanhq.co/docs/v2/annexure/">annexure</a> &middot;
+    <a href="https://dhan.co/support/platforms/dhanhq-api/">Dhan API support</a><br>
+    Security ids, lot sizes and expiry dates read directly from <code>images.dhan.co/api-data/api-scrip-master.csv</code> and <code>api-scrip-master-detailed.csv</code> on 19 Aug 2026.<br><br>
+    Repo docs: docs/PRD.md &middot; docs/spec/option-chain-v1.md &middot; docs/spec/dhan-api-contract.md &middot; docs/spec/ui-contract.md &middot; docs/PHASES.md
+  </div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- formatting (the locked rules) ---------- */
+function trim(s){ return s.replace(/\.00$/,"").replace(/(\.\d)0$/,"$1"); }
+function abbr(n){
+  if(n===null||n===undefined||isNaN(n)) return "—";
+  var s = n<0 ? "-" : "", a = Math.abs(n);
+  if(a>=1e7) return s+trim((a/1e7).toFixed(2))+" Cr";
+  if(a>=1e5) return s+trim((a/1e5).toFixed(2))+" L";
+  if(a>=1e3) return s+trim((a/1e3).toFixed(2))+" K";
+  return s+trim(a.toFixed(2));
+}
+function fx(n,d){ return (n===null||n===undefined||isNaN(n)) ? "—" : n.toFixed(d); }
+function pct(n){ return (n===null||n===undefined||!isFinite(n)) ? "—" : (n>0?"":"")+n.toFixed(2)+"%"; }
+function comma(n,d){ if(n===null||isNaN(n)) return "—";
+  var p=n.toFixed(d===undefined?2:d).split("."), x=p[0], last3=x.slice(-3), rest=x.slice(0,-3);
+  if(rest) last3 = rest.replace(/\B(?=(\d{2})+(?!\d))/g,",")+","+last3;
+  return p[1]!==undefined ? last3+"."+p[1] : last3;
+}
+function sgn(v){ return v>0?"up":(v<0?"down":"dim"); }
+
+/* ---------- NIFTY: exact values from the screenshot ---------- */
+/* order: [vega,theta,gamma,delta,oi,oiChg,oiChgP,vol,volChgP,iv,ltpChg,ltpChgP,ltp] */
+var N = [
+ [23700,[4.18,-9.08,0.00047,0.93,298000,115000,63.65,878000,708.01,9.09,-107.10,-20.03,427.50],
+        [14.95,1.95,15.00,10.38,114.40,38900000,1115000,15.71,8214000,-0.09,0.00052,-3.84,5.38]],
+ [23750,[5.00,-9.42,0.00058,0.91,51090,40820,397.47,380000,2744.17,8.74,-111.20,-22.64,379.95],
+        [19.35,3.20,19.81,10.18,506.02,25200000,-112000,-6.20,1703000,-0.12,0.00063,-4.38,6.35]],
+ [23800,[6.26,-10.09,0.00073,0.88,801000,178000,28.65,4513000,1102.48,8.70,-109.15,-24.57,335.00],
+        [24.70,4.20,20.48,9.95,238.46,50500000,1176000,27.95,5388000,-0.15,0.00075,-4.88,7.37]],
+ [23850,[7.75,-10.92,0.00089,0.83,101000,87290,624.65,2243000,3608.06,8.81,-104.60,-26.30,293.00],
+        [32.55,6.80,26.40,9.85,326.56,29300000,471000,40.44,1638000,-0.18,0.00087,-5.48,8.52]],
+ [23900,[9.26,-11.81,0.00103,0.78,547000,310000,131.38,9691000,2344.31,9.04,-102.25,-28.64,254.75],
+        [42.00,9.40,28.83,9.71,294.26,58300000,1059000,38.19,3833000,-0.23,0.00100,-5.96,9.63]],
+ [23950,[10.45,-12.29,0.00117,0.72,442000,378000,596.72,9887000,6511.08,9.00,-102.15,-32.02,216.85],
+        [54.40,13.50,33.00,9.64,819.99,47200000,992000,131.01,1750000,-0.28,0.00112,-6.37,10.69]],
+ [24000,[11.43,-12.53,0.00130,0.66,8312000,2180000,35.57,71200000,1586.52,8.92,-96.30,-34.69,181.25],
+        [70.10,18.20,35.06,9.62,563.43,163100000,2622000,22.98,14000000,-0.34,0.00122,-6.65,11.57]],
+ [24050,[12.15,-12.65,0.00137,0.59,3227000,3118000,2854.07,82200000,15643.15,8.96,-89.70,-37.36,150.35],
+        [88.25,23.90,37.14,9.55,2732.08,142100000,2255000,275.08,3076000,-0.40,0.00129,-6.65,12.20]],
+ [24100,[12.51,-12.52,0.00140,0.52,9891000,7958000,411.84,160000000,2745.51,9.01,-82.35,-40.08,123.10],
+        [111.10,31.40,39.39,9.61,1173.40,194700000,3301000,90.42,6952000,-0.47,0.00132,-6.51,12.51]],
+ [24150,[12.48,-12.18,0.00138,0.46,3415000,2664000,354.66,81800000,1540.10,9.15,-72.65,-41.99,100.35],
+        [136.65,39.20,40.22,9.61,728.88,80800000,701000,56.25,1948000,-0.53,0.00131,-6.06,12.49]],
+ [24200,[12.08,-11.34,0.00135,0.39,11200000,4359000,62.94,113300000,246.29,9.05,-66.50,-45.97,78.15],
+        [165.85,47.95,40.67,9.65,111.01,77400000,-187000,-2.77,6606000,-0.60,0.00127,-5.39,12.13]],
+ [24250,[11.37,-10.55,0.00125,0.32,3828000,1697000,79.65,45200000,208.49,9.20,-56.15,-47.48,62.10],
+        [197.20,55.20,38.87,9.61,34.44,19800000,-348000,-23.86,1111000,-0.66,0.00121,-4.42,11.47]],
+ [24300,[10.40,-9.47,0.00114,0.27,11700000,3745000,47.01,74400000,152.43,9.23,-47.90,-50.10,47.70],
+        [233.20,63.75,37.62,9.72,1.58,21700000,-436000,-7.78,5178000,-0.71,0.00110,-3.47,10.60]],
+ [24350,[9.31,-8.43,0.00101,0.21,2530000,1004000,65.80,28400000,281.19,9.35,-39.35,-51.60,36.90],
+        [269.60,71.35,35.98,9.62,6.86,3913000,-102000,-13.71,643000,-0.77,0.00099,-2.13,9.46]]
+];
+function fromArr(r){
+  var k=r[0],c=r[1],p=r[2];
+  return {k:k,
+    ce:{vega:c[0],theta:c[1],gamma:c[2],delta:c[3],oi:c[4],oiChg:c[5],oiChgP:c[6],vol:c[7],volChgP:c[8],iv:c[9],ltpChg:c[10],ltpChgP:c[11],ltp:c[12]},
+    pe:{ltp:p[0],ltpChg:p[1],ltpChgP:p[2],iv:p[3],volChgP:p[4],vol:p[5],oiChg:p[6],oiChgP:p[7],oi:p[8],delta:p[9],gamma:p[10],theta:p[11],vega:p[12]}};
+}
+
+/* ---------- generator for the other five (illustrative) ---------- */
+function rng(seed){ var s=seed>>>0; return function(){ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+function ncdf(x){ var t=1/(1+0.2316419*Math.abs(x)),
+  d=0.3989422804*Math.exp(-x*x/2),
+  p=d*t*(0.319381530+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));
+  return x>=0?1-p:p; }
+function npdf(x){ return 0.3989422804*Math.exp(-x*x/2); }
+function chain(spot, step, baseIV, dte, seed){
+  var rnd=rng(seed), T=Math.max(dte,1)/365, rt=Math.sqrt(T), r=0.065, out=[];
+  var atm=Math.round(spot/step)*step;
+  for(var i=-7;i<=6;i++){
+    var K=atm+i*step, m=(K-spot)/spot;
+    var iv=baseIV*(1+2.6*m*m+0.22*Math.abs(m))+ (rnd()-0.5)*0.18;
+    var v=iv/100, d1=(Math.log(spot/K)+(r+v*v/2)*T)/(v*rt), d2=d1-v*rt;
+    var ceP=spot*ncdf(d1)-K*Math.exp(-r*T)*ncdf(d2);
+    var peP=K*Math.exp(-r*T)*ncdf(-d2)-spot*ncdf(-d1);
+    var g=npdf(d1)/(spot*v*rt), vg=spot*npdf(d1)*rt/100;
+    var th=-(spot*npdf(d1)*v)/(2*rt)/252;
+    var hump=Math.exp(-Math.pow(i/4.2,2));
+    var oiC=Math.round((2.4e6*hump+1.6e5)*(0.45+rnd()*1.3));
+    var oiP=Math.round((2.4e6*hump+1.6e5)*(0.45+rnd()*1.3));
+    var vlC=Math.round(oiC*(2.5+rnd()*16)), vlP=Math.round(oiP*(2.5+rnd()*16));
+    var pC=Math.round(oiC*(0.35+rnd()*0.9)), pP=Math.round(oiP*(0.35+rnd()*0.9));
+    var pvC=Math.round(vlC*(0.12+rnd()*0.7)), pvP=Math.round(vlP*(0.12+rnd()*0.7));
+    var pcC=ceP*(0.7+rnd()*0.9), pcP=peP*(0.7+rnd()*0.9);
+    out.push({k:K,
+      ce:{vega:vg,theta:th,gamma:g,delta:ncdf(d1),oi:oiC,oiChg:oiC-pC,oiChgP:(oiC-pC)/pC*100,
+          vol:vlC,volChgP:(vlC-pvC)/pvC*100,iv:iv,ltp:ceP,ltpChg:ceP-pcC,ltpChgP:(ceP-pcC)/pcC*100},
+      pe:{vega:vg,theta:th,gamma:g,delta:ncdf(d1)-1,oi:oiP,oiChg:oiP-pP,oiChgP:(oiP-pP)/pP*100,
+          vol:vlP,volChgP:(vlP-pvP)/pvP*100,iv:iv,ltp:peP,ltpChg:peP-pcP,ltpChgP:(peP-pcP)/pcP*100}});
+  }
+  return out;
+}
+
+/* ---------- instruments ---------- */
+var INS = [
+ {id:"NIFTY", name:"NIFTY 50 IDX", label:"NIFTY 50", scrip:13, seg:"IDX_I", lot:65, spot:24078.30, chg:-76.60, chgP:-0.32,
+  step:50, exp:"25 AUG 2026", dte:7, atmIV:9.31, ivc:-4.71, pcr:0.70, open:true, rows:N.map(fromArr), real:true},
+ {id:"BANKNIFTY", name:"NIFTY BANK IDX", label:"BANK NIFTY", scrip:25, seg:"IDX_I", lot:30, spot:54318.75, chg:-142.35, chgP:-0.26,
+  step:100, exp:"29 SEP 2026", dte:41, open:true, seed:7301, iv:11.4},
+ {id:"SENSEX", name:"SENSEX IDX", label:"SENSEX", scrip:51, seg:"IDX_I", lot:20, spot:78642.30, chg:210.55, chgP:0.27,
+  step:100, exp:"24 SEP 2026", dte:36, open:true, seed:5109, iv:10.2},
+ {id:"RELIANCE", name:"RELIANCE INDUSTRIES", label:"RELIANCE", scrip:2885, seg:"NSE_EQ", lot:500, spot:1392.40, chg:8.15, chgP:0.59,
+  step:10, exp:"27 AUG 2026", dte:8, open:true, seed:2885, iv:19.6},
+ {id:"HDFCBANK", name:"HDFC BANK", label:"HDFCBANK", scrip:1333, seg:"NSE_EQ", lot:650, spot:758.90, chg:-4.20, chgP:-0.55,
+  step:5, exp:"25 AUG 2026", dte:6, open:true, seed:1333, iv:17.3},
+ {id:"GOLD", name:"GOLD MCX · long session", label:"GOLD", scrip:null, seg:"MCX_COMM", lot:1, spot:163940.00, chg:412.00, chgP:0.25,
+  step:500, exp:"31 AUG 2026", dte:12, open:true, seed:1140, iv:13.8}
+];
+INS.forEach(function(o){
+  if(!o.rows) o.rows = chain(o.spot,o.step,o.iv,o.dte,o.seed);
+  if(o.atmIV===undefined){
+    var best=o.rows[0], bd=1e18;
+    o.rows.forEach(function(r){ var d=Math.abs(r.k-o.spot); if(d<bd){bd=d;best=r;} });
+    o.atmIV=(best.ce.iv+best.pe.iv)/2;
+    var sc=0,sp=0; o.rows.forEach(function(r){ sc+=r.ce.oi; sp+=r.pe.oi; });
+    o.pcr=sp/sc; o.ivc=(o.seed%700)/100-3.4;
+  }
+});
+
+/* ---------- render chain ---------- */
+var cur = INS[0];
+function cell(v,cls,extra){ return '<td class="'+(cls||"")+'"'+(extra||"")+'>'+v+'</td>'; }
+function signed(a,p,d){
+  var c=sgn(a);
+  return '<span class="'+c+'">'+(a>0?"+":"")+fx(a,d)+'<span class="sub">('+(p>0?"+":"")+fx(p,2)+'%)</span></span>';
+}
+function renderChain(o){
+  var body=document.getElementById("ocBody");
+  var maxC=0,maxP=0;
+  o.rows.forEach(function(r){ if(r.ce.oi>maxC)maxC=r.ce.oi; if(r.pe.oi>maxP)maxP=r.pe.oi; });
+  var atmK=o.rows[0].k, bd=1e18;
+  o.rows.forEach(function(r){ var d=Math.abs(r.k-o.spot); if(d<bd){bd=d;atmK=r.k;} });
+  var html="", prevBelow=true;
+  o.rows.forEach(function(r,i){
+    var c=r.ce,p=r.pe, itmC=r.k<o.spot, itmP=r.k>o.spot;
+    var mark = (i<o.rows.length-1 && r.k<o.spot && o.rows[i+1].k>o.spot) ? " spotline" : "";
+    var cls = (r.k===atmK?"atm":"")+mark;
+    html+='<tr class="'+cls+'">'
+      +cell(fx(c.vega,2),itmC?"itm":"")
+      +cell(fx(c.theta,2),itmC?"itm":"")
+      +cell(fx(c.gamma,5),itmC?"itm":"")
+      +cell(fx(c.delta,2),itmC?"itm":"")
+      +cell('<i class="bar" style="width:'+(c.oi/maxC*100).toFixed(1)+'%"></i>'+abbr(c.oi),"oi r"+(itmC?" itm":""))
+      +cell('<span class="'+sgn(c.oiChg)+'">'+abbr(c.oiChg)+'<span class="sub">('+fx(c.oiChgP,2)+'%)</span></span>',itmC?"itm":"")
+      +cell(abbr(c.vol),itmC?"itm":"")
+      +cell('<span class="'+sgn(c.volChgP)+'">'+pct(c.volChgP)+'</span>',itmC?"itm":"")
+      +cell(fx(c.iv,2),itmC?"itm":"")
+      +cell(signed(c.ltpChg,c.ltpChgP,2),itmC?"itm":"")
+      +cell('<b>'+comma(c.ltp,2)+'</b>',itmC?"itm":"")
+      +cell(comma(r.k,0),"stk")
+      +cell('<b>'+comma(p.ltp,2)+'</b>',itmP?"itm":"")
+      +cell(signed(p.ltpChg,p.ltpChgP,2),itmP?"itm":"")
+      +cell(fx(p.iv,2),itmP?"itm":"")
+      +cell('<span class="'+sgn(p.volChgP)+'">'+pct(p.volChgP)+'</span>',itmP?"itm":"")
+      +cell(abbr(p.vol),itmP?"itm":"")
+      +cell('<span class="'+sgn(p.oiChg)+'">'+abbr(p.oiChg)+'<span class="sub">('+fx(p.oiChgP,2)+'%)</span></span>',itmP?"itm":"")
+      +cell('<i class="bar" style="width:'+(p.oi/maxP*100).toFixed(1)+'%"></i>'+abbr(p.oi),"oi"+(itmP?" itm":""))
+      +cell(fx(p.delta,2),itmP?"itm":"")
+      +cell(fx(p.gamma,5),itmP?"itm":"")
+      +cell(fx(p.theta,2),itmP?"itm":"")
+      +cell(fx(p.vega,2),itmP?"itm":"")
+      +'</tr>';
+  });
+  body.innerHTML=html;
+  var old=document.querySelector(".spotpill"); if(old) old.remove();
+  var line=body.querySelector("tr.spotline");
+  if(line){
+    var pill=document.createElement("div");
+    pill.className="spotpill"; pill.textContent=comma(o.spot,2);
+    var sc=line.querySelector("td.stk");
+    pill.style.top=(line.offsetTop+line.offsetHeight)+"px";
+    if(sc) pill.style.left=(sc.offsetLeft+sc.offsetWidth/2)+"px";
+    document.getElementById("gridScroll").appendChild(pill);
+  }
+}
+function renderHeader(o){
+  document.getElementById("uName").textContent=o.name;
+  document.getElementById("uSpot").textContent=comma(o.spot,2);
+  var ch=document.getElementById("uChg");
+  ch.textContent=(o.chg>0?"+":"")+fx(o.chg,2)+" ("+(o.chgP>0?"+":"")+fx(o.chgP,2)+"%)";
+  ch.className="chg "+sgn(o.chg);
+  document.getElementById("sIv").textContent=fx(o.atmIV,2);
+  var iv=document.getElementById("sIvc");
+  iv.textContent=(o.ivc>0?"+":"")+fx(o.ivc,2)+"%"; iv.className="v "+sgn(o.ivc);
+  document.getElementById("sPcr").textContent=fx(o.pcr,2);
+  document.getElementById("sLot").textContent=o.lot;
+  document.getElementById("sDte").textContent=o.dte;
+  document.getElementById("sExp").innerHTML="Expiry: "+o.exp+" ▾";
+}
+var chips=document.getElementById("chips");
+INS.forEach(function(o,i){
+  var b=document.createElement("button");
+  b.type="button"; b.className="chip"; b.setAttribute("aria-pressed", i===0?"true":"false");
+  b.innerHTML='<span class="live"></span>'+o.label+'<span class="kbd">'+(i+1)+'</span>';
+  b.addEventListener("click",function(){ select(o.id); });
+  chips.appendChild(b);
+});
+function select(id){
+  cur=INS.filter(function(o){return o.id===id;})[0];
+  Array.prototype.forEach.call(chips.children,function(b,i){ b.setAttribute("aria-pressed", INS[i].id===id?"true":"false"); });
+  renderHeader(cur); renderChain(cur);
+  if(sim==="live") pushCall(true);
+}
+
+/* ---------- latency simulation ---------- */
+var samples=[], logRows=[], lastAt=Date.now(), sim="live";
+function rttFor(){
+  var base=140+Math.random()*120;
+  if(Math.random()<0.08) base+=180+Math.random()*260;
+  return Math.round(base);
+}
+function pushCall(ok){
+  var rtt=rttFor();
+  var server=Math.round(rtt*0.74), dl=rtt-server;
+  var cmp=Math.round(6+Math.random()*14), tr=Math.round(5+Math.random()*14), rn=Math.round(14+Math.random()*30);
+  var total=rtt+cmp+tr+rn;
+  samples.push(rtt); if(samples.length>60) samples.shift();
+  lastAt=Date.now();
+  document.getElementById("mRtt").innerHTML=rtt+'<small>ms</small>';
+  var segs=document.querySelectorAll("#wf i"), vals=[server,dl,cmp,tr,rn];
+  vals.forEach(function(v,i){ segs[i].style.width=(v/total*100).toFixed(1)+"%"; });
+  document.getElementById("wfTotal").textContent=total+" ms";
+  document.getElementById("kServer").textContent=server;
+  document.getElementById("kDl").textContent=dl;
+  document.getElementById("kCmp").textContent=cmp;
+  document.getElementById("kTr").textContent=tr;
+  document.getElementById("kRn").textContent=rn;
+  var d=new Date(), t=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2);
+  logRows.unshift({t:t,key:cur.id,ok:ok,rtt:rtt,rows:cur.rows.length});
+  if(logRows.length>20) logRows.pop();
+  drawLog(); drawSpark(); drawPcts();
+  if(!RM){
+    var tds=document.querySelectorAll("#ocBody tr td:nth-child(11), #ocBody tr td:nth-child(13)");
+    Array.prototype.forEach.call(tds,function(td){ if(Math.random()<0.3){ td.classList.remove("flash"); void td.offsetWidth; td.classList.add("flash"); } });
+  }
+}
+function pushFail(code){
+  var d=new Date(), t=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2);
+  logRows.unshift({t:t,key:cur.id,ok:false,rtt:code,rows:0}); if(logRows.length>20) logRows.pop();
+  drawLog();
+}
+function drawLog(){
+  document.getElementById("logBody").innerHTML=logRows.map(function(r){
+    return '<tr><td>'+r.t+'</td><td>'+r.key+'</td><td class="'+(r.ok?"ok":"bad")+'">'+(r.ok?"200":"429")+'</td><td>'
+      +(typeof r.rtt==="number"?r.rtt+" ms":r.rtt)+'</td><td>'+(r.rows||"—")+'</td></tr>';
+  }).join("");
+  var ok=logRows.filter(function(r){return r.ok;}).length;
+  document.getElementById("okRate").textContent = logRows.length ? Math.round(ok/logRows.length*100)+"% ok" : "—";
+}
+function drawSpark(){
+  var s=document.getElementById("spark");
+  if(samples.length<2){ s.innerHTML=""; return; }
+  var W=288,H=52,mn=Math.min.apply(null,samples),mx=Math.max.apply(null,samples),rg=Math.max(mx-mn,1);
+  var sorted=samples.slice().sort(function(a,b){return a-b;});
+  var p50=sorted[Math.floor(sorted.length*0.5)], p95=sorted[Math.floor(sorted.length*0.95)]||mx;
+  function X(i){ return i/(samples.length-1)*W; }
+  function Y(v){ return H-4-((v-mn)/rg)*(H-10); }
+  var line=samples.map(function(v,i){ return (i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); }).join(" ");
+  var area=line+" L"+W+" "+H+" L0 "+H+" Z";
+  s.innerHTML='<path d="'+area+'" fill="var(--accent)" fill-opacity=".10"/>'
+    +'<line x1="0" y1="'+Y(p50).toFixed(1)+'" x2="'+W+'" y2="'+Y(p50).toFixed(1)+'" stroke="var(--fg-faint)" stroke-width="1" stroke-dasharray="2 3"/>'
+    +'<line x1="0" y1="'+Y(p95).toFixed(1)+'" x2="'+W+'" y2="'+Y(p95).toFixed(1)+'" stroke="var(--warn)" stroke-width="1" stroke-dasharray="2 3"/>'
+    +'<path d="'+line+'" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/>'
+    +'<circle cx="'+X(samples.length-1).toFixed(1)+'" cy="'+Y(samples[samples.length-1]).toFixed(1)+'" r="2.6" fill="var(--accent)"/>';
+}
+function drawPcts(){
+  if(!samples.length) return;
+  var s=samples.slice().sort(function(a,b){return a-b;});
+  function q(p){ return s[Math.min(s.length-1,Math.floor(s.length*p))]; }
+  document.getElementById("p50").textContent=q(0.5);
+  document.getElementById("p90").textContent=q(0.9);
+  document.getElementById("p99").textContent=q(0.99);
+  document.getElementById("pmx").textContent=s[s.length-1];
+}
+
+/* ---------- state simulation ---------- */
+var STATES={
+  live:  null,
+  stale: {chip:["warn","STALE · 18s"], keep:true},
+  limit: {chip:["warn","THROTTLED · DH-904"], exp:["concerned","Dhan ne 3 second ka limit laga diya",
+          "Agla attempt 6 seconds mein. Screen par abhi last good snapshot dikh raha hai.",
+          "Wait 6s","Force refresh",
+          "DhanApiError: DH-904 Rate_Limit\\n  endpoint  POST /v2/optionchain\\n  key       "+"NIFTY|2026-08-25"+"\\n  backoff   3000 -> 6000 ms"]},
+  closed:{chip:["flat","MARKET CLOSED"], exp:["idle","MCX 23:30 par band ho gaya",
+          "Ye 23:29:58 IST ka last snapshot hai. Polling roki gayi hai, kal 09:00 par apne aap resume hogi.",
+          "See last snapshot","Switch to NIFTY",
+          "PollerPaused: session window 09:00-23:30 IST (Mon-Fri)\\n  now      23:41:12 IST\\n  resumes  tomorrow 09:00:00 IST"]},
+  error: {chip:["crit","DISCONNECTED"], exp:["concerned","Dhan tak request nahi pahunch payi",
+          "Last snapshot 14:32:07 ka dikh raha hai. Aapka data safe hai, sirf refresh ruka hai.",
+          "Retry now","Keep last snapshot",
+          "FetchError: connect ETIMEDOUT 13.234.x.x:443\\n  endpoint  POST /v2/optionchain\\n  attempt   3, next backoff 12000 ms"]}
+};
+function setSim(k){
+  sim=k;
+  Array.prototype.forEach.call(document.querySelectorAll(".sim button"),function(b){
+    b.setAttribute("aria-pressed", b.dataset.sim===k ? "true":"false"); });
+  var st=STATES[k], chip=document.getElementById("stateChip"), exp=document.getElementById("expState"),
+      tbl=document.getElementById("oc"), pulse=document.getElementById("pulse"), scroll=document.getElementById("gridScroll");
+  var pill=document.querySelector(".spotpill");
+  chip.className="statechip"; exp.className="exp";
+  if(!st){ tbl.style.display=""; if(pill)pill.style.display=""; scroll.style.opacity="1"; pulse.style.background="var(--up)"; return; }
+  chip.classList.add("show",st.chip[0]); chip.textContent=st.chip[1];
+  pulse.style.background = k==="closed" ? "var(--flat)" : "var(--warn)";
+  if(st.exp){
+    tbl.style.display="none"; if(pill)pill.style.display="none";
+    exp.classList.add("show",st.exp[0]);
+    document.getElementById("expTitle").textContent=st.exp[1];
+    document.getElementById("expBody").textContent=st.exp[2];
+    document.getElementById("expA").textContent=st.exp[3];
+    document.getElementById("expB").textContent=st.exp[4];
+    document.getElementById("expTech").textContent=st.exp[5].replace(/\\n/g,"\n");
+    if(k==="limit") pushFail("DH-904");
+  } else {
+    tbl.style.display=""; if(pill)pill.style.display="";
+    scroll.style.opacity = k==="stale" ? "0.85" : "1";
+  }
+}
+Array.prototype.forEach.call(document.querySelectorAll(".sim button"),function(b){
+  b.addEventListener("click",function(){ setSim(b.dataset.sim); });
+});
+document.getElementById("expA").addEventListener("click",function(){ setSim("live"); });
+document.getElementById("expB").addEventListener("click",function(){ setSim("live"); });
+
+/* ---------- clocks ---------- */
+var CADENCE=3000;
+setInterval(function(){
+  if(sim!=="live") return;
+  pushCall(true);
+},CADENCE);
+setInterval(function(){
+  var age=(Date.now()-lastAt)/1000;
+  var next=Math.max(0,(CADENCE-(Date.now()-lastAt))/1000);
+  if(sim==="live"){
+    document.getElementById("mAge").innerHTML=age.toFixed(1)+'<small>s</small>';
+    document.getElementById("mNext").innerHTML=next.toFixed(1)+'<small>s</small>';
+    var arc=document.getElementById("ringArc"), C=56.5;
+    arc.setAttribute("stroke-dashoffset", (C*(next/(CADENCE/1000))).toFixed(1));
+  } else if(sim==="stale"){
+    document.getElementById("mAge").innerHTML='18.4<small>s</small>';
+    document.getElementById("mNext").innerHTML='—';
+  } else if(sim==="limit"){
+    document.getElementById("mNext").innerHTML='6.0<small>s</small>';
+  }
+},200);
+
+/* ---------- swatches ---------- */
+var SW=[["--bg-base","bg/base"],["--bg-subtle","bg/subtle"],["--bg-inset","bg/inset"],["--fg-base","fg/base"],
+        ["--fg-muted","fg/muted"],["--accent","accent"],["--up","up"],["--down","down"],["--warn","warn"],
+        ["--border","border"],["--net","stage/net"],["--render","stage/render"]];
+document.getElementById("swatches").innerHTML=SW.map(function(s){
+  return '<div class="swi"><div class="c" style="background:var('+s[0]+')"></div><div class="m"><b>'+s[1]+'</b><span>var('+s[0]+')</span></div></div>';
+}).join("");
+
+/* ---------- scroll spy ---------- */
+var links=Array.prototype.slice.call(document.querySelectorAll(".rail a"));
+var secs=links.map(function(a){ return document.querySelector(a.getAttribute("href")); });
+if(window.IntersectionObserver){
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(l){ l.classList.remove("on"); });
+        var i=secs.indexOf(e.target); if(i>=0) links[i].classList.add("on");
+      }
+    });
+  },{rootMargin:"-10% 0px -80% 0px"});
+  secs.forEach(function(s){ if(s) io.observe(s); });
+}
+
+/* ---------- keyboard 1-6 inside the mock ---------- */
+document.addEventListener("keydown",function(e){
+  if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  var n=parseInt(e.key,10);
+  if(n>=1 && n<=6 && document.getElementById("terminal").getBoundingClientRect().top < window.innerHeight
+     && document.getElementById("terminal").getBoundingClientRect().bottom > 0){
+    select(INS[n-1].id);
+  }
+});
+
+/* ---------- boot ---------- */
+renderHeader(cur); renderChain(cur);
+for(var i=0;i<24;i++){ samples.push(150+Math.round(Math.random()*140)); }
+drawSpark(); drawPcts();
+pushCall(true);
+window.addEventListener("resize",function(){ renderChain(cur); });
+})();
+</script>
+
+</body>
+</html>
