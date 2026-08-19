@@ -6,10 +6,11 @@
  * on every boot, because they change on roll days.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { loadMaster, type MasterRow, type MasterMeta } from './master.ts';
 import { isReplay } from './replay.ts';
+import { fetchExpiryList, type Credentials } from './dhan.ts';
 
 export type Seg = 'IDX_I' | 'NSE_EQ' | 'NSE_FNO' | 'BSE_EQ' | 'BSE_FNO' | 'MCX_COMM';
 
@@ -166,6 +167,47 @@ export async function readGoldResolution(): Promise<GoldResolution | null> {
 
 export const GOLD_RESOLUTION_FILE = GOLD_RESOLUTION_PATH;
 
+async function writeGoldResolution(r: GoldResolution): Promise<void> {
+  try {
+    await mkdir(path.dirname(GOLD_RESOLUTION_PATH), { recursive: true });
+    await writeFile(GOLD_RESOLUTION_PATH, JSON.stringify(r, null, 2));
+  } catch { /* the cache is an optimisation; failing to write it must not break boot */ }
+}
+
+/**
+ * SPIKE-01, run automatically at boot instead of as a manual step.
+ *
+ * MCX commodity options hang off a futures contract rather than a spot index and Dhan documents
+ * index examples only, so the right UnderlyingScrip has to be proven with a real call. Trying it
+ * here means swapping the token in .env is the only thing a user ever has to do.
+ */
+async function autoResolveGold(
+  rows: MasterRow[], creds: Credentials, today: string,
+): Promise<{ resolution: GoldResolution | null; tried: string[] }> {
+  const tried: string[] = [];
+  const future = nearMonthGoldFuture(rows, today);
+  const optfut = rows.find(r =>
+    r.exchId === 'MCX' && r.instrument === 'OPTFUT' && r.underlyingSymbol === 'GOLD' && r.expiry && r.expiry >= today);
+
+  const candidates: { value: number; why: string }[] = [];
+  if (future) candidates.push({ value: future.securityId, why: `near-month FUTCOM ${future.displayName}` });
+  const token = Number(optfut?.underlyingSecurityId ?? 0);
+  if (token > 0) candidates.push({ value: token, why: 'UNDERLYING_SECURITY_ID on GOLD OPTFUT rows' });
+
+  for (const c of candidates) {
+    const call = await fetchExpiryList(creds, c.value, 'MCX_COMM');
+    if (call.ok && Array.isArray(call.data?.data) && call.data!.data.length > 0) {
+      const resolution: GoldResolution = { underlyingScrip: c.value, via: c.why, confirmedAt: new Date().toISOString() };
+      await writeGoldResolution(resolution);
+      return { resolution, tried };
+    }
+    tried.push(`${c.value} (${c.why}) -> ${call.error?.code ?? 'no expiries'}`);
+    // A rejected token will reject every candidate identically; stop rather than hammer.
+    if (call.error && !call.error.retryable && call.error.code !== 'DH-905') break;
+  }
+  return { resolution: null, tried };
+}
+
 /** Near-month GOLD futures contract: the first FUTCOM whose expiry has not passed. */
 export function nearMonthGoldFuture(rows: MasterRow[], today = todayIso()): MasterRow | null {
   return rows
@@ -192,10 +234,20 @@ export type Registry = {
   allResolved: boolean;
 };
 
-export async function resolveRegistry(opts: { force?: boolean } = {}): Promise<Registry> {
+export async function resolveRegistry(
+  opts: { force?: boolean; creds?: Credentials | null } = {},
+): Promise<Registry> {
   const { rows, meta } = await loadMaster(opts);
   const today = todayIso();
-  const gold = await readGoldResolution();
+
+  let gold = await readGoldResolution();
+  let goldTried: string[] = [];
+  // Nothing cached and we have credentials: prove the value now so the GOLD chip just works.
+  if (!gold && opts.creds && !isReplay()) {
+    const out = await autoResolveGold(rows, opts.creds, today);
+    gold = out.resolution;
+    goldTried = out.tried;
+  }
 
   const instruments = REGISTRY.map<ResolvedInstrument>(entry => {
     const notes: string[] = [];
@@ -251,7 +303,9 @@ export async function resolveRegistry(opts: { force?: boolean } = {}): Promise<R
           underlyingScrip = scripCandidates[0]?.value ?? 0;
           notes.push('SPIKE-01 pending; replay mode uses a synthetic chain');
         } else {
-          problems.push('SPIKE-01 pending: run `npm run spike:gold` with credentials in .env');
+          problems.push(goldTried.length
+          ? `Dhan rejected every GOLD underlying candidate: ${goldTried.join('; ')}`
+          : 'GOLD underlying unresolved: no valid Dhan credentials in .env');
         }
       }
     }

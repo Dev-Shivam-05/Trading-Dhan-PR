@@ -45,7 +45,7 @@ for (const [route, { file, type }] of Object.entries(STATIC)) {
 
 app.get('/api/health', async (req) => {
   const force = (req.query as Record<string, string>)?.refresh === '1';
-  if (force) registry = await resolveRegistry({ force: true });
+  if (force) registry = await resolveRegistry({ force: true, creds });
   return {
     status: registry.allResolved && (creds || isReplay()) ? 'ok' : 'degraded',
     node: process.version,
@@ -132,7 +132,7 @@ app.get('/api/stream', (req, reply) => {
 /* ---------------------------------------------------------------- boot */
 
 const start = async () => {
-  registry = await resolveRegistry();
+  registry = await resolveRegistry({ creds });
 
   const mode = isReplay() ? 'REPLAY (synthetic data)' : 'LIVE (Dhan API)';
   const lines = registry.instruments.map(i =>
