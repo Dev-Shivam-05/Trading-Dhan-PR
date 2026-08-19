@@ -132,7 +132,7 @@ export function explain(code: string): string {
 export async function dhanPost<T>(
   endpoint: string,
   body: unknown,
-  opts: { creds: Credentials; key?: string; cadenceMs?: number; timeoutMs?: number },
+  opts: { creds: Credentials; key?: string; cadenceMs?: number; timeoutMs?: number; method?: 'GET' | 'POST' },
 ): Promise<DhanCall<T>> {
   const key = opts.key ?? endpoint;
   const cadenceMs = opts.cadenceMs ?? CADENCE_MS;
@@ -154,15 +154,17 @@ export async function dhanPost<T>(
   const timer = setTimeout(() => ac.abort(), timeoutMs);
 
   try {
+    const method = opts.method ?? 'POST';
     const res = await fetch(BASE_URL + endpoint, {
-      method: 'POST',
+      method,
       headers: {
         'access-token': opts.creds.accessToken,
         'client-id': opts.creds.clientId,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(body),
+      // A GET with a body is rejected by fetch, and Dhan's read-only endpoints are GETs.
+      ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
       signal: ac.signal,
     });
 

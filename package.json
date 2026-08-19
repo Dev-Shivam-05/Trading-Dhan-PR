@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env src/server/index.ts",
+    "check": "node --env-file-if-exists=.env scripts/check.ts",
     "typecheck": "tsc --noEmit",
     "master:refresh": "node src/server/master.ts --refresh",
     "spike:gold": "node --env-file-if-exists=.env scripts/spike-gold.ts",

@@ -38,49 +38,73 @@ nothing came from Dhan. Use it to look at the interface, never to read a market.
 
 ### Live data
 
-**Only one file changes. Nothing in the code.**
+**You need exactly one thing: an access token.** Not the API key, not the secret.
 
-1. Copy `.env.example` to `.env`
-2. Open `.env` and fill two values:
+1. Go to **<https://web.dhan.co>** → *My Profile* → **DhanHQ Trading APIs**
+   (first time only: click *Request Access*, refresh, then the generate button appears)
+2. Generate an **Access Token** and copy it
+3. Paste it into `.env`:
 
 ```ini
 DHAN_CLIENT_ID=<your 10-digit Dhan client id>
 DHAN_ACCESS_TOKEN=<paste the JWT from Dhan Web>
 ```
 
-3. Run it:
+4. Confirm it works before starting anything:
 
 ```bash
-npm run dev
+npm run check
 ```
 
-That is the whole switch. No `REPLAY` variable means live mode. The banner disappears, the badge
-in the top bar turns from `REPLAY` to `LIVE`, and the GOLD underlying resolves itself at boot.
+```
+  client id  11035xxxxx
+  type       SELF
+  expires    20/8/2026, 4:29:26 pm  (18.0 h left)
 
-#### Where those two values come from
+  profile        ... ok  212 ms  Shivam
+  option chain   ... ok  198 ms  8 NIFTY expiries, nearest 2026-08-25
 
-| Value | Where |
-|---|---|
-| `DHAN_ACCESS_TOKEN` | Dhan Web → Profile → **DhanHQ Trading APIs** → generate an Access Token |
-| `DHAN_CLIENT_ID` | The same page shows it. It is also encoded inside the token as `dhanClientId`. |
+  READY. Run `npm run dev` and open http://127.0.0.1:8787
+```
+
+5. `npm run dev`
+
+That is the whole switch — no `REPLAY` variable means live mode. The badge in the top bar turns
+from `REPLAY` to `LIVE`, the yellow banner disappears, and the GOLD underlying resolves itself
+at boot.
+
+#### What each credential is actually for
+
+| Thing | Needed here? | What it is |
+|---|---|---|
+| **Access token** | **Yes — this is the only one** | A 24-hour JWT. Every REST call sends it as the `access-token` header. |
+| Client id | Comes free | It is encoded inside the token as `dhanClientId`. `.env` keeps it so the app can send the `client-id` header without decoding the JWT. |
+| API key + secret | No | An *alternative* login route: generate consent → browser login with 2FA → exchange for a token. Useful for building an app other people log into. Pointless when you can just copy your own token. |
 
 A **DhanHQ Data API subscription** (₹499 + tax per month) is required — the option chain, market
 quotes and live feed all sit behind it.
 
-The API key / secret pair that Dhan also gives you is for the partner browser-login flow. This app
-does not use it and does not need it.
+#### Token lifetime — the thing that bites
 
-#### If the screen says the token was rejected
+A self-generated token lasts **24 hours**, and Dhan's own docs say generating a new one
+*"expires your current token"*. So:
 
-The error panel prints the exact Dhan code and what to do about it:
+- Generating a fresh token **kills the previous one immediately**, even if hours remain on it.
+- Revoking API access kills it too.
+- After roughly a day you will need a new one regardless. `npm run check` tells you in one line.
+
+If the screen or `npm run check` reports a rejected token, generate a new one and paste it in.
+There is nothing else to fix.
+
+#### Error codes
 
 | Code | Meaning | Fix |
 |---|---|---|
-| `808` | Client id or token invalid | Token is revoked, or a newer one replaced it. Generate a fresh one, paste into `.env`, restart. |
+| `808` | Client id or token invalid | Token revoked, expired, or replaced by a newer one. Generate a fresh one. |
 | `810` | Client id invalid | Check `DHAN_CLIENT_ID`. |
 | `DH-901` / `DH-906` | Token invalid or expired | Same as 808. |
 | `DH-904` | Rate limited | Nothing to do — the app backs off 3 → 6 → 12 → 30 s by itself. |
-| `DH-905` | Bad request, or this IP is not whitelisted | If you whitelisted static IPs in Dhan, add the machine's IP. |
+| `DH-905` | Bad request, or this IP is not whitelisted | If you whitelisted static IPs in Dhan, add this machine's IP. |
 | `DH-907` | Data API problem | The Data API subscription is not active. |
 
 Restart the server after editing `.env` — Node reads it once at startup.
@@ -93,6 +117,7 @@ Restart the server after editing `.env` — Node reads it once at startup.
 |---|---|
 | `npm run dev` | Backend + UI on <http://127.0.0.1:8787> |
 | `REPLAY=1 npm run dev` | Same, with synthetic data and no Dhan account |
+| `npm run check` | Validate the token in `.env` against Dhan and print a verdict |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run master:refresh` | Force a fresh download of Dhan's instrument master |
 | `npm run spike:gold` | Diagnose the GOLD underlying by hand (boot does it automatically) |
