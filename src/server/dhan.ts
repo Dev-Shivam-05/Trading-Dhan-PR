@@ -79,18 +79,32 @@ async function waitForSlot(key: string, cadenceMs: number): Promise<number> {
 function mapError(httpStatus: number | null, body: unknown, fallback: string): DhanError {
   const b = (body ?? {}) as Record<string, unknown>;
   const remarks = (b.remarks ?? {}) as Record<string, unknown>;
-  const code = String(b.errorCode ?? remarks.error_code ?? (httpStatus === 429 ? 'DH-904' : 'HTTP'));
-  const type = String(b.errorType ?? remarks.error_type ?? 'Unknown');
-  const message = String(b.errorMessage ?? remarks.error_message ?? fallback);
 
-  const RETRYABLE = new Set(['DH-904', 'DH-908', 'DH-909', 'HTTP']);
+  // Dhan has a third error shape besides errorCode and remarks.error_code:
+  //   { "data": { "808": "Authentication Failed - Client ID or Token invalid" }, "status": "failed" }
+  // The numeric key IS the code, so it has to be read out of the object key, not a field.
+  let numericCode: string | null = null;
+  let numericMessage: string | null = null;
+  const data = b.data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const entry = Object.entries(data as Record<string, unknown>)
+      .find(([k]) => /^\d{3}$/.test(k));
+    if (entry) { numericCode = entry[0]; numericMessage = String(entry[1]); }
+  }
+
+  const code = String(b.errorCode ?? remarks.error_code ?? numericCode ?? (httpStatus === 429 ? 'DH-904' : 'HTTP'));
+  const type = String(b.errorType ?? remarks.error_type ?? (numericCode ? 'Authentication' : 'Unknown'));
+  const message = String(b.errorMessage ?? remarks.error_message ?? numericMessage ?? fallback);
+
+  const RETRYABLE = new Set(['DH-904', 'DH-908', 'DH-909', 'HTTP', '805']);
   return {
     code,
     type,
     message,
     httpStatus,
     // DH-901 (bad auth) and DH-905 (bad input) will fail identically forever. Do not retry them.
-    retryable: RETRYABLE.has(code) && code !== 'DH-901' && code !== 'DH-905',
+    // 808/810 are credential problems: they will fail identically forever until .env changes.
+    retryable: RETRYABLE.has(code) && !['DH-901', 'DH-905', '808', '810'].includes(code),
   };
 }
 
@@ -102,7 +116,13 @@ export function explain(code: string): string {
     case 'DH-903': return 'Account-level problem on the Dhan side.';
     case 'DH-904': return 'Rate limited. The option chain allows one request every 3 seconds per key.';
     case 'DH-905': return 'Dhan rejected the request body, or this IP is not whitelisted.';
+    case 'DH-906': return 'Dhan rejected the token. Generate a fresh access token in Dhan Web and update .env.';
     case 'DH-907': return 'Data API problem. A Data API subscription is required for the option chain.';
+    case '808': return 'Dhan rejected the client id or access token. The token is invalid, revoked, or superseded by a newer one. Generate a fresh access token in Dhan Web, put it in .env, and restart.';
+    case '810': return 'Client id is invalid. Check DHAN_CLIENT_ID in .env.';
+    case '805': return 'Too many requests on the websocket feed. Backing off.';
+    case 'NETWORK': return 'Could not reach api.dhan.co. Check the connection.';
+    case 'TIMEOUT': return 'Dhan did not respond in time.';
     default: return 'Request to Dhan failed.';
   }
 }
