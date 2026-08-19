@@ -44,8 +44,8 @@ nothing came from Dhan. Use it to look at the interface, never to read a market.
 2. Open `.env` and fill two values:
 
 ```ini
-DHAN_CLIENT_ID=1103575055
-DHAN_ACCESS_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...
+DHAN_CLIENT_ID=<your 10-digit Dhan client id>
+DHAN_ACCESS_TOKEN=<paste the JWT from Dhan Web>
 ```
 
 3. Run it:
