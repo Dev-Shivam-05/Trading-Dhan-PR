@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dhan Option Chain Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <span class="brand">DHAN <b>OPTION CHAIN</b></span>
+  <span class="badge" id="modeBadge">…</span>
+  <span class="conn" id="conn"><i></i><span>connecting</span></span>
+  <span class="grow"></span>
+  <div class="latmini" id="latMini" title="Round trip to Dhan / age of the data on screen">
+    <span id="miniRtt">—<em>rtt</em></span>
+    <span id="miniAge">—<em>age</em></span>
+  </div>
+  <span class="clock mono" id="clock">--:--:--</span>
+  <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
+</header>
+
+<div class="replaybar" id="replayBar" hidden>
+  <b>REPLAY MODE</b> — these numbers are synthetic, generated locally from a Black–Scholes shape.
+  Nothing on this screen came from Dhan. Put a valid token in <code>.env</code> and restart without
+  <code>REPLAY=1</code> for live data.
+</div>
+
+<nav class="chips" id="chips" aria-label="Underlying"></nav>
+
+<section class="hstrip">
+  <div class="hs-name">
+    <span class="nm"><i class="pulse" id="pulse"></i><span id="uName">—</span></span>
+    <span class="spot mono" id="uSpot">—</span>
+    <span class="chg mono" id="uChg">—</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="k">ATM Strike</span><span class="v mono" id="sAtm">—</span></div>
+    <div class="stat"><span class="k">ATM IV</span><span class="v mono" id="sIv">—</span></div>
+    <div class="stat" id="ivcWrap"><span class="k">IV Change %</span><span class="v mono" id="sIvc">—</span></div>
+    <div class="stat"><span class="k">PCR</span><span class="v mono" id="sPcr">—</span></div>
+    <div class="stat"><span class="k">Market Lot</span><span class="v mono" id="sLot">—</span></div>
+    <div class="stat"><span class="k">Days for Expiry</span><span class="v mono" id="sDte">—</span></div>
+    <div class="stat"><span class="k">Strikes</span><span class="v mono" id="sStrikes">—</span></div>
+  </div>
+  <span class="grow"></span>
+  <span class="statechip" id="stateChip" hidden></span>
+  <label class="srch">
+    <span class="sr-only">Search strike</span>
+    <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
+  </label>
+  <label class="expwrap">
+    <span class="sr-only">Expiry</span>
+    <select id="expiry" class="mono"></select>
+  </label>
+  <button class="icon" id="panelBtn" type="button" title="Toggle latency panel (L)" aria-label="Toggle latency panel">⇥</button>
+</section>
+
+<main class="work" id="work">
+
+  <section class="gridwrap" aria-label="Option chain">
+    <div class="gridscroll" id="gridScroll">
+      <table class="oc" id="oc">
+        <colgroup id="cg"></colgroup>
+        <thead>
+          <tr class="sides">
+            <th class="side ce" colspan="11">CALLS · CE</th>
+            <th class="spine" rowspan="2">STRIKE</th>
+            <th class="side pe" colspan="11">PUTS · PE</th>
+          </tr>
+          <tr class="cols">
+            <th>Vega</th><th>Theta</th><th>Gamma</th><th>Delta</th><th>OI</th><th>OI Chg</th>
+            <th>Volume</th><th>Vol Chg%</th><th>IV</th><th>LTP Chg</th><th class="ltp">LTP</th>
+            <th class="ltp">LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg%</th><th>Volume</th>
+            <th>OI Chg</th><th>OI</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th>
+          </tr>
+        </thead>
+        <tbody id="ocBody"></tbody>
+      </table>
+      <div class="spotpill mono" id="spotPill" hidden></div>
+    </div>
+
+    <div class="exp" id="expState" hidden>
+      <svg class="needle" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M12 62 A40 40 0 0 1 88 62" fill="none" stroke="currentColor" stroke-opacity=".18" stroke-width="6" stroke-linecap="round"/>
+        <path d="M12 62 A40 40 0 0 1 30 30" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="6" stroke-linecap="round"/>
+        <g class="nd"><line x1="50" y1="52" x2="50" y2="20" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></g>
+        <circle cx="50" cy="52" r="5" fill="currentColor"/>
+      </svg>
+      <h2 id="expTitle"></h2>
+      <p id="expBody"></p>
+      <div class="acts"><button class="btn" id="expA" type="button"></button></div>
+      <details><summary>Technical details</summary><pre id="expTech"></pre></details>
+    </div>
+  </section>
+
+  <aside class="lat" id="lat" aria-label="Latency and telemetry">
+    <div class="lat-h">
+      <span class="t">Latency &amp; telemetry</span>
+      <span class="grow"></span>
+      <a class="mini" id="exportBtn" href="/api/telemetry.csv" download>CSV</a>
+      <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
+        <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
+                stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
+      </svg>
+    </div>
+
+    <div class="big3">
+      <div class="big"><span class="k">Round trip</span><div class="v mono" id="mRtt">—</div></div>
+      <div class="big"><span class="k">Data age</span><div class="v mono" id="mAge">—</div></div>
+      <div class="big"><span class="k">Next poll</span><div class="v mono" id="mNext">—</div></div>
+    </div>
+
+    <div class="lat-sec">
+      <p class="k"><span>Last call — stage waterfall</span><span class="mono" id="wfTotal">—</span></p>
+      <div class="wf" id="wf">
+        <i data-stage="server"></i><i data-stage="download"></i><i data-stage="compute"></i>
+        <i data-stage="transport"></i><i data-stage="render"></i>
+      </div>
+      <div class="wfkey" id="wfKey"></div>
+      <p class="foot">All stages share one clock except <b>transport</b>, which crosses server→browser and is an estimate.</p>
+    </div>
+
+    <div class="lat-sec">
+      <p class="k"><span>Round trip — last 60 calls</span><span class="mono" id="okRate">—</span></p>
+      <svg class="spark" id="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-label="Round trip sparkline"></svg>
+      <div class="pcts">
+        <div class="pct"><div class="k2">p50</div><div class="v2 mono" id="p50">—</div></div>
+        <div class="pct"><div class="k2">p90</div><div class="v2 mono" id="p90">—</div></div>
+        <div class="pct"><div class="k2">p99</div><div class="v2 mono" id="p99">—</div></div>
+        <div class="pct"><div class="k2">max</div><div class="v2 mono" id="pmx">—</div></div>
+      </div>
+    </div>
+
+    <div class="log">
+      <table>
+        <thead><tr><th>Time</th><th>Key</th><th>St</th><th>RTT</th><th>KB</th><th>Rows</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </aside>
+</main>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

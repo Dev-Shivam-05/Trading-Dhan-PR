@@ -9,6 +9,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadMaster, type MasterRow, type MasterMeta } from './master.ts';
+import { isReplay } from './replay.ts';
 
 export type Seg = 'IDX_I' | 'NSE_EQ' | 'NSE_FNO' | 'BSE_EQ' | 'BSE_FNO' | 'MCX_COMM';
 
@@ -245,7 +246,13 @@ export async function resolveRegistry(opts: { force?: boolean } = {}): Promise<R
         if (fut) scripCandidates.push({ value: fut.securityId, why: `near-month FUTCOM ${fut.displayName} exp ${fut.expiry}` });
         const tok = contracts[0]?.underlyingSecurityId;
         if (tok && Number(tok) > 0) scripCandidates.push({ value: Number(tok), why: 'UNDERLYING_SECURITY_ID on GOLD OPTFUT rows' });
-        problems.push('SPIKE-01 pending: run `npm run spike:gold` with credentials in .env');
+        // In replay the chain is synthetic, so an unresolved live scrip does not block the chip.
+        if (isReplay()) {
+          underlyingScrip = scripCandidates[0]?.value ?? 0;
+          notes.push('SPIKE-01 pending; replay mode uses a synthetic chain');
+        } else {
+          problems.push('SPIKE-01 pending: run `npm run spike:gold` with credentials in .env');
+        }
       }
     }
 
