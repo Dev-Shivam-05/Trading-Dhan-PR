@@ -139,5 +139,28 @@ for (const theme of ['light', 'dark'] as const) {
   await ctx.close();
 }
 
+/* 10. the tick chart, after enough ticks to draw a real line */
+{
+  const { ctx, page } = await open('dark', false);
+  await waitForChain(page);
+  await page.waitForTimeout(14000);            // let the chart fill with ticks
+  await shot(page, '09-tick-chart-dark');
+  const el = await page.$('#chartWrap');
+  await el!.screenshot({ path: path.join(OUT, '10-chart-strip.png') });
+  console.log('  10-chart-strip.png');
+  await ctx.close();
+}
+
+/* 11. chart collapsed - the chain gets the whole screen back */
+{
+  const { ctx, page } = await open('light', false);
+  await waitForChain(page);
+  await page.waitForTimeout(6000);
+  await page.keyboard.press('c');
+  await page.waitForTimeout(500);
+  await shot(page, '11-chart-collapsed-light');
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\ndone -> ${OUT}\n`);

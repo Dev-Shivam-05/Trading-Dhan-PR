@@ -103,8 +103,9 @@ function mapError(httpStatus: number | null, body: unknown, fallback: string): D
     message,
     httpStatus,
     // DH-901 (bad auth) and DH-905 (bad input) will fail identically forever. Do not retry them.
-    // 808/810 are credential problems: they will fail identically forever until .env changes.
-    retryable: RETRYABLE.has(code) && !['DH-901', 'DH-905', '808', '810'].includes(code),
+    // 806 (no data plan), 808/810 (credentials) fail identically until something outside the
+    // app changes, so retrying them only burns rate limit.
+    retryable: RETRYABLE.has(code) && !['DH-901', 'DH-905', 'DH-902', '806', '808', '810'].includes(code),
   };
 }
 
@@ -119,6 +120,7 @@ export function explain(code: string): string {
     case 'DH-906': return 'Dhan rejected the token. Generate a fresh access token in Dhan Web and update .env.';
     case 'DH-907': return 'Data API problem. A Data API subscription is required for the option chain.';
     case '808': return 'Dhan rejected the client id or access token. The token is invalid, revoked, or superseded by a newer one. Generate a fresh access token in Dhan Web, put it in .env, and restart.';
+    case '806': return 'The Dhan Data API plan is not active on this account. Profile reports dataPlan: Deactive. Subscribe at web.dhan.co -> My Profile -> DhanHQ Trading APIs -> Data APIs. The option chain, quotes and the live tick feed all sit behind it.';
     case '810': return 'Client id is invalid. Check DHAN_CLIENT_ID in .env.';
     case '805': return 'Too many requests on the websocket feed. Backing off.';
     case 'NETWORK': return 'Could not reach api.dhan.co. Check the connection.';

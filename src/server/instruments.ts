@@ -228,6 +228,37 @@ export function daysToExpiry(expiry: string, at = new Date()): number {
 
 /* ------------------------------------------------------------- resolution */
 
+/**
+ * The feed subscribes per contract, so it needs each strike's Dhan security id. The option chain
+ * REST response does not carry them, but the instrument master does - so the parsed rows are kept
+ * after resolution rather than thrown away.
+ */
+let cachedRows: MasterRow[] = [];
+
+export type OptionContract = { strike: number; optionType: 'CE' | 'PE'; securityId: number; seg: Seg };
+
+/** Every live option contract for one instrument and expiry, with the segment to subscribe on. */
+export function optionContracts(instrumentId: string, expiry: string): OptionContract[] {
+  const entry = REGISTRY.find(e => e.id === instrumentId);
+  if (!entry) return [];
+
+  // Options trade on the derivative segment, not the underlying's segment.
+  const seg: Seg =
+    entry.options.exchId === 'BSE' ? 'BSE_FNO'
+    : entry.options.exchId === 'MCX' ? 'MCX_COMM'
+    : 'NSE_FNO';
+
+  return cachedRows
+    .filter(r =>
+      r.exchId === entry.options.exchId &&
+      r.instrument === entry.options.instrument &&
+      r.underlyingSymbol === entry.options.underlyingSymbol &&
+      r.expiry === expiry &&
+      (r.optionType === 'CE' || r.optionType === 'PE') &&
+      r.strike !== null && r.securityId > 0)
+    .map(r => ({ strike: r.strike!, optionType: r.optionType as 'CE' | 'PE', securityId: r.securityId, seg }));
+}
+
 export type Registry = {
   instruments: ResolvedInstrument[];
   meta: MasterMeta;
@@ -238,6 +269,7 @@ export async function resolveRegistry(
   opts: { force?: boolean; creds?: Credentials | null } = {},
 ): Promise<Registry> {
   const { rows, meta } = await loadMaster(opts);
+  cachedRows = rows;
   const today = todayIso();
 
   let gold = await readGoldResolution();

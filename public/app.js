@@ -63,6 +63,13 @@ const state = {
   clientStages: { transport: null, render: null },
   prevLtp: new Map(),
   filter: '',
+  // tick feed
+  ticks: [],                 // underlying: [{t, p}]
+  chartRange: Number(localStorage.getItem('chartRange') ?? 300000),
+  chartDirty: false,
+  rowByStrike: new Map(),
+  tickTimes: [],
+  feed: { state: 'off' },
 };
 
 /* ------------------------------------------------------------------ chips */
@@ -105,6 +112,10 @@ function select(id, expiry) {
   state.snapshot = null;
   state.centred = false;
   state.prevLtp.clear();
+  state.ticks = [];
+  state.rowByStrike.clear();
+  state.spotIdx = -1;
+  state.chartDirty = true;
 
   [...$('chips').children].forEach((b, i) =>
     b.setAttribute('aria-pressed', String(state.instruments[i].id === id)));
@@ -145,6 +156,13 @@ function connect() {
   });
   es.addEventListener('status', (ev) => onStatus(JSON.parse(ev.data)));
   es.addEventListener('telemetry', (ev) => onTelemetry(JSON.parse(ev.data)));
+  es.addEventListener('ticks', (ev) => onTicks(JSON.parse(ev.data).batch));
+  es.addEventListener('feed', (ev) => onFeed(JSON.parse(ev.data)));
+  es.addEventListener('chart-history', (ev) => {
+    const pts = JSON.parse(ev.data).points ?? [];
+    state.ticks = pts.map(x => ({ t: x.t, p: x.p }));
+    state.chartDirty = true;
+  });
 }
 
 function setConn(kind) {
@@ -233,7 +251,7 @@ function renderGrid(s) {
       + cell(fx(c.theta, 2), itmCe)
       + cell(fx(c.gamma, 5), itmCe)
       + cell(fx(c.delta, 2), itmCe)
-      + cell(barCe + abbr(c.oi), `oi r ${itmCe}`)
+      + cell(`${barCe}<span class="v">${abbr(c.oi)}</span>`, `oi r ${itmCe}`)
       + cell(signedPair(c.oiChg, c.oiChgPct, 'abbr'), itmCe)
       + cell(abbr(c.volume), itmCe)
       + cell(`<span class="${cls(c.volChgPct)}">${pctText(c.volChgPct)}</span>`, itmCe)
@@ -247,7 +265,7 @@ function renderGrid(s) {
       + cell(`<span class="${cls(p.volChgPct)}">${pctText(p.volChgPct)}</span>`, itmPe)
       + cell(abbr(p.volume), itmPe)
       + cell(signedPair(p.oiChg, p.oiChgPct, 'abbr'), itmPe)
-      + cell(barPe + abbr(p.oi), `oi ${itmPe}`)
+      + cell(`${barPe}<span class="v">${abbr(p.oi)}</span>`, `oi ${itmPe}`)
       + cell(fx(p.delta, 2), itmPe)
       + cell(fx(p.gamma, 5), itmPe)
       + cell(fx(p.theta, 2), itmPe)
@@ -257,8 +275,11 @@ function renderGrid(s) {
 
   $('ocBody').innerHTML = html;
 
-  // Flash only the cells whose LTP actually moved.
   const body = $('ocBody');
+  state.rowByStrike.clear();
+  for (const tr of body.children) state.rowByStrike.set(Number(tr.dataset.strike), tr);
+
+  // Flash only the cells whose LTP actually moved.
   for (const tr of body.children) {
     const strike = Number(tr.dataset.strike);
     const row = rows.find(r => r.strike === strike);
@@ -271,6 +292,7 @@ function renderGrid(s) {
     }
   }
 
+  state.spotIdx = -1;
   placeSpotPill(s);
 }
 
@@ -513,6 +535,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'l') setPanel(document.body.classList.contains('nopanel'));
   if (e.key.toLowerCase() === 't') $('themeBtn').click();
   if (e.key.toLowerCase() === 'e') $('expiry').focus();
+  if (e.key.toLowerCase() === 'c') setChart(document.body.classList.contains('nochart'));
   if (e.key === 'Home' && state.snapshot) scrollToAtm();
 });
 
@@ -525,3 +548,264 @@ loadInstruments().catch(err => {
     'Local server chal raha hai? Terminal mein `npm run dev` chala kar dobara try karo.',
     'Retry', String(err));
 });
+
+/* ==========================================================================
+   Tick feed — chart + per-cell updates
+   ==========================================================================
+   The feed carries LTP, volume and OI only. IV and greeks have no tick source
+   at all, so those columns keep coming from the 3 s snapshot, and the legend
+   above the chart says which is which. */
+
+const CELL = { ce: { ltp: 10, vol: 6, oi: 4 }, pe: { ltp: 12, vol: 16, oi: 18 } };
+
+function onFeed(fs) {
+  state.feed = fs;
+  const pill = $('feedPill');
+  const label = pill.lastElementChild;
+  if (fs.state === 'live') {
+    pill.className = 'feedpill live';
+    label.textContent = `feed live · ${fs.instruments} instruments`;
+    pill.title = 'Tick-by-tick over Dhan WebSocket';
+  } else if (fs.state === 'connecting') {
+    pill.className = 'feedpill';
+    label.textContent = 'feed connecting';
+  } else if (fs.state === 'error') {
+    pill.className = 'feedpill bad';
+    label.textContent = `feed down · ${fs.code}`;
+    pill.title = fs.message ?? '';
+  } else {
+    pill.className = 'feedpill';
+    label.textContent = 'feed off';
+  }
+}
+
+function onTicks(batch) {
+  const now = Date.now();
+  for (const it of batch) {
+    state.tickTimes.push(now);
+    if (it.k === 'u') {
+      if (it.p !== null && it.p !== undefined) {
+        state.ticks.push({ t: it.t, p: it.p });
+        // The chart only ever needs the visible window plus a little slack.
+        if (state.ticks.length > 6000) state.ticks.splice(0, state.ticks.length - 6000);
+        paintSpot(it.p);
+      }
+      continue;
+    }
+    applyCellTick(it);
+  }
+  state.chartDirty = true;
+}
+
+/**
+ * The spot marker in the grid follows ticks too, otherwise the header would read one price and
+ * the dashed line another. The row only moves when the price actually crosses a strike, so the
+ * marker does not jitter on every print.
+ */
+function updateSpotMarker(price) {
+  const rows = state.snapshot?.rows;
+  if (!rows || !rows.length) return;
+
+  let idx = -1;
+  for (let i = 0; i < rows.length - 1; i++) {
+    if (rows[i].strike < price && rows[i + 1].strike > price) { idx = i; break; }
+  }
+  const pill = $('spotPill');
+  if (idx === -1) { pill.hidden = true; state.spotIdx = -1; return; }
+
+  if (idx !== state.spotIdx) {
+    state.spotIdx = idx;
+    const body = $('ocBody');
+    const prev = body.querySelector('tr.spotline');
+    if (prev) prev.classList.remove('spotline');
+    const tr = state.rowByStrike.get(rows[idx].strike);
+    if (tr) {
+      tr.classList.add('spotline');
+      const spine = tr.querySelector('td.spine');
+      pill.hidden = false;
+      pill.style.top = `${tr.offsetTop + tr.offsetHeight}px`;
+      pill.style.left = `${spine.offsetLeft + spine.offsetWidth / 2}px`;
+    }
+  }
+  pill.textContent = inr(price);
+}
+
+/** Underlying price straight from the feed — fresher than the 3 s snapshot. */
+function paintSpot(p) {
+  $('chartPx').textContent = inr(p);
+  $('uSpot').textContent = inr(p);
+  updateSpotMarker(p);
+
+  const prev = state.snapshot?.spotPrevClose ?? null;
+  const chg = prev !== null && prev !== 0 ? p - prev : null;
+  const text = chg === null ? 'prev close n/a'
+    : `${chg > 0 ? '+' : ''}${inr(chg)} (${pctText((chg / prev) * 100)})`;
+  const klass = chg === null ? 'dim' : cls(chg);
+
+  const c = $('chartChg');
+  c.textContent = text;
+  c.className = 'cchg mono ' + klass;
+
+  const h = $('uChg');
+  h.textContent = text;
+  h.className = 'chg mono ' + klass;
+}
+
+function applyCellTick(it) {
+  const tr = state.rowByStrike.get(it.s);
+  if (!tr) return;
+  const idx = CELL[it.k];
+  if (!idx) return;
+
+  if (it.p !== null && it.p !== undefined) {
+    const td = tr.children[idx.ltp];
+    const before = parseFloat((td.textContent || '').replace(/,/g, ''));
+    td.textContent = inr(it.p);
+    if (Number.isFinite(before) && before !== it.p) {
+      td.classList.remove('tup', 'tdn');
+      void td.offsetWidth;                       // restart the animation on a repeat move
+      td.classList.add(it.p > before ? 'tup' : 'tdn');
+    }
+  }
+  if (it.v !== null && it.v !== undefined) tr.children[idx.vol].textContent = abbr(it.v);
+  if (it.o !== null && it.o !== undefined) {
+    const span = tr.children[idx.oi].querySelector('.v');
+    if (span) span.textContent = abbr(it.o);
+  }
+}
+
+/* ------------------------------------------------------------------ chart */
+
+function drawChart() {
+  const svg = $('chartSvg');
+  const box = svg.getBoundingClientRect();
+  const W = Math.max(1, Math.round(box.width));
+  const H = Math.max(1, Math.round(box.height));
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const cutoff = state.chartRange ? Date.now() - state.chartRange : 0;
+  const pts = state.ticks.filter(p => p.t >= cutoff);
+
+  $('chartEmpty').style.display = pts.length < 2 ? '' : 'none';
+  if (pts.length < 2) { svg.innerHTML = ''; return; }
+
+  const PAD_R = 76, PAD_B = 16;
+  const t0 = pts[0].t;
+  const t1 = Math.max(pts[pts.length - 1].t, t0 + 1);
+
+  let lo = Infinity, hi = -Infinity;
+  for (const p of pts) { if (p.p < lo) lo = p.p; if (p.p > hi) hi = p.p; }
+  const span = hi - lo;
+  const pad = span > 0 ? span * 0.12 : Math.max(hi * 0.0005, 0.05);
+  const loP = lo - pad, hiP = hi + pad;
+
+  const X = (t) => ((t - t0) / (t1 - t0)) * (W - PAD_R);
+  const Y = (p) => (H - PAD_B) - ((p - loP) / Math.max(1e-9, hiP - loP)) * (H - PAD_B);
+
+  // A quiet period is not a straight line between two prices - it is missing data.
+  // Anything over GAP_MS starts a new segment so the chart never invents a move.
+  const GAP_MS = 5000;
+  const segs = [[pts[0]]];
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].t - pts[i - 1].t > GAP_MS) segs.push([pts[i]]);
+    else segs[segs.length - 1].push(pts[i]);
+  }
+  const pathOf = (seg) => seg
+    .map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)} ${Y(p.p).toFixed(1)}`)
+    .join('');
+
+  const last = pts[pts.length - 1];
+  const rising = last.p >= pts[0].p;
+  const stroke = rising ? 'var(--up)' : 'var(--down)';
+  const lastX = X(last.t), lastY = Y(last.p);
+  const MONO = 'IBM Plex Mono, monospace';
+
+  const guide = (p) =>
+    `<line x1="0" y1="${Y(p).toFixed(1)}" x2="${(W - PAD_R).toFixed(1)}" y2="${Y(p).toFixed(1)}" `
+    + `stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"/>`
+    + `<text x="${(W - PAD_R + 6).toFixed(1)}" y="${(Y(p) + 3.5).toFixed(1)}" fill="var(--fg-faint)" `
+    + `font-family="${MONO}" font-size="9.5">${inr(p)}</text>`;
+
+  svg.innerHTML =
+    guide(hi) + guide(lo)
+    + segs.filter(s => s.length > 1).map(s =>
+        `<path d="${pathOf(s)} L${X(s[s.length - 1].t).toFixed(1)} ${H - PAD_B} L${X(s[0].t).toFixed(1)} ${H - PAD_B} Z" `
+        + `fill="${stroke}" fill-opacity=".10"/>`).join('')
+    + segs.map(s => s.length > 1
+        ? `<path d="${pathOf(s)}" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`
+        : `<circle cx="${X(s[0].t).toFixed(1)}" cy="${Y(s[0].p).toFixed(1)}" r="1.6" fill="${stroke}"/>`).join('')
+    + `<line x1="0" y1="${lastY.toFixed(1)}" x2="${lastX.toFixed(1)}" y2="${lastY.toFixed(1)}" `
+    + `stroke="${stroke}" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>`
+    + `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${stroke}"/>`
+    + `<rect x="${(W - PAD_R + 2).toFixed(1)}" y="${(lastY - 9).toFixed(1)}" width="${PAD_R - 6}" height="18" rx="3" fill="${stroke}"/>`
+    + `<text x="${(W - PAD_R + 7).toFixed(1)}" y="${(lastY + 3.5).toFixed(1)}" fill="var(--bg-panel)" `
+    + `font-family="${MONO}" font-size="10.5" font-weight="600">${inr(last.p)}</text>`
+    + `<text x="0" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" font-size="9">`
+    + `${new Date(t0).toLocaleTimeString('en-IN', { hour12: false })}</text>`
+    + `<text x="${(W - PAD_R).toFixed(1)}" y="${H - 3}" fill="var(--fg-faint)" text-anchor="end" `
+    + `font-family="${MONO}" font-size="9">`
+    + `${new Date(t1).toLocaleTimeString('en-IN', { hour12: false })}</text>`;
+}
+
+/* One paint per frame at most, however many ticks arrived in between. */
+function chartLoop() {
+  if (state.chartDirty) { state.chartDirty = false; drawChart(); }
+  requestAnimationFrame(chartLoop);
+}
+requestAnimationFrame(chartLoop);
+
+/* ticks per second over a rolling 1 s window */
+setInterval(() => {
+  const cut = Date.now() - 1000;
+  state.tickTimes = state.tickTimes.filter(x => x >= cut);
+  $('tickRate').textContent = `${state.tickTimes.length} t/s`;
+  if (state.chartRange) state.chartDirty = true;   // keep the window sliding
+}, 500);
+
+/* ------------------------------------------------------- chart controls */
+
+$('chartRange').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.chartRange = Number(b.dataset.range);
+  localStorage.setItem('chartRange', String(state.chartRange));
+  [...$('chartRange').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  state.chartDirty = true;
+});
+[...$('chartRange').children].forEach(b =>
+  b.setAttribute('aria-pressed', String(Number(b.dataset.range) === state.chartRange)));
+
+function setChart(open) {
+  document.body.classList.toggle('nochart', !open);
+  localStorage.setItem('chart', open ? '1' : '0');
+  state.chartDirty = true;
+}
+setChart(localStorage.getItem('chart') !== '0');
+$('chartBtn').addEventListener('click', () => setChart(document.body.classList.contains('nochart')));
+
+/* drag the grip to resize; the height persists */
+{
+  const saved = localStorage.getItem('chartH');
+  if (saved) $('chartBody').style.height = `${saved}px`;
+  let dragging = false, startY = 0, startH = 0;
+  const grip = $('chartGrip');
+  grip.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    startY = e.clientY;
+    startH = $('chartBody').getBoundingClientRect().height;
+    grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const h = Math.max(70, Math.min(520, startH + (e.clientY - startY)));
+    $('chartBody').style.height = `${h}px`;
+    state.chartDirty = true;
+  });
+  grip.addEventListener('pointerup', (e) => {
+    dragging = false;
+    grip.releasePointerCapture(e.pointerId);
+    localStorage.setItem('chartH', String(Math.round($('chartBody').getBoundingClientRect().height)));
+  });
+}
+
+window.addEventListener('resize', () => { state.chartDirty = true; });

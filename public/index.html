@@ -60,6 +60,33 @@
   <button class="icon" id="panelBtn" type="button" title="Toggle latency panel (L)" aria-label="Toggle latency panel">⇥</button>
 </section>
 
+<section class="chart" id="chartWrap">
+  <div class="chart-h">
+    <span class="ct">LIVE TICK CHART</span>
+    <span class="cpx mono" id="chartPx">—</span>
+    <span class="cchg mono" id="chartChg">—</span>
+    <span class="legend">
+      <span><i class="dot tick"></i>tick: LTP · Volume · OI</span>
+      <span><i class="dot slow"></i>3&nbsp;s: IV · Greeks</span>
+    </span>
+    <span class="grow"></span>
+    <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
+    <span class="tickrate mono" id="tickRate">0 t/s</span>
+    <span class="range" id="chartRange" role="group" aria-label="Chart window">
+      <button type="button" data-range="60000">1m</button>
+      <button type="button" data-range="300000" aria-pressed="true">5m</button>
+      <button type="button" data-range="900000">15m</button>
+      <button type="button" data-range="0">All</button>
+    </span>
+    <button class="icon" id="chartBtn" type="button" title="Collapse chart (C)" aria-label="Collapse chart">▾</button>
+  </div>
+  <div class="chart-body" id="chartBody">
+    <svg id="chartSvg" preserveAspectRatio="none" aria-label="Live tick chart"></svg>
+    <div class="chart-empty" id="chartEmpty">waiting for the first tick…</div>
+  </div>
+  <div class="chart-grip" id="chartGrip" title="Drag to resize"></div>
+</section>
+
 <main class="work" id="work">
 
   <section class="gridwrap" aria-label="Option chain">

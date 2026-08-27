@@ -119,6 +119,11 @@ export function replayChain(key: string, expiry: string, dte: number, tick: numb
   return { data: { last_price: Math.round(spot * 100) / 100, oc }, status: 'success' };
 }
 
+/** Where a replayed underlying's price sits, so synthetic ticks land in a believable range. */
+export function replayBasePrice(key: string): number {
+  return (SHAPES[key] ?? SHAPES.NIFTY!).spot;
+}
+
 /** Previous close for the underlying, so the header's spot change is exercised too. */
 export function replayPrevClose(key: string): number {
   const shape = SHAPES[key] ?? SHAPES.NIFTY!;

@@ -309,3 +309,55 @@ body.nopanel .lat{display:none}
 .latmini em{font-style:normal;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);font-family:Archivo,sans-serif;font-weight:600}
 .latmini span.warn{color:var(--warn)}
 .latmini span.crit{color:var(--crit)}
+
+/* ------------------------------------------------------------ tick chart */
+/* Sits above the chain. Height is user-draggable and remembered; C collapses it. */
+.chart{
+  flex:0 0 auto;display:flex;flex-direction:column;
+  background:var(--bg-panel);border-bottom:1px solid var(--border);
+}
+.chart-h{display:flex;align-items:center;gap:14px;padding:8px 16px;flex-wrap:wrap}
+.chart-h .ct{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)}
+.chart-h .cpx{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.chart-h .cchg{font-size:11.5px}
+.legend{display:flex;gap:14px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint)}
+.legend span{display:flex;align-items:center;gap:5px}
+.dot{width:6px;height:6px;border-radius:999px;display:inline-block}
+.dot.tick{background:var(--up)}
+.dot.slow{background:var(--accent)}
+.feedpill{
+  display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--fg-muted);background:var(--bg-subtle);
+  border:1px solid var(--border);border-radius:999px;padding:3px 10px;
+}
+.feedpill i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
+.feedpill.live{color:var(--ok);border-color:var(--ok)}
+.feedpill.live i{background:var(--ok);animation:pulse 2.4s infinite}
+.feedpill.bad{color:var(--crit);border-color:var(--crit)}
+.feedpill.bad i{background:var(--crit)}
+.tickrate{font-size:10.5px;color:var(--fg-faint)}
+.range{display:flex;gap:3px}
+.range button{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;padding:3px 8px;min-height:24px;cursor:pointer;
+  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:4px;
+  transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms;
+}
+.range button:hover{background:var(--bg-inset);color:var(--fg-base)}
+.range button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+.chart-body{position:relative;height:190px;min-height:70px;padding:0 16px 8px}
+.chart-body svg{width:100%;height:100%;display:block;overflow:visible}
+.chart-empty{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);pointer-events:none;
+}
+.chart-grip{height:6px;cursor:ns-resize;background:transparent;flex:0 0 auto}
+.chart-grip:hover{background:var(--accent-wash)}
+body.nochart .chart-body,body.nochart .chart-grip{display:none}
+body.nochart #chartBtn{transform:rotate(-90deg)}
+
+/* a cell whose price came from a tick, not from the 3 s snapshot */
+@keyframes tickup{from{background:color-mix(in srgb,var(--up) 34%,transparent)}to{background:transparent}}
+@keyframes tickdown{from{background:color-mix(in srgb,var(--down) 34%,transparent)}to{background:transparent}}
+td.tup{animation:tickup 520ms cubic-bezier(.16,1,.3,1)}
+td.tdn{animation:tickdown 520ms cubic-bezier(.16,1,.3,1)}

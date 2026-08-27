@@ -7,10 +7,11 @@
 import Fastify from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { resolveRegistry, type Registry, type ResolvedInstrument } from './instruments.ts';
+import { resolveRegistry, optionContracts, type Registry, type ResolvedInstrument } from './instruments.ts';
 import { readCredentials } from './dhan.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
-import { isReplay } from './replay.ts';
+import { isReplay, replayBasePrice } from './replay.ts';
+import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
@@ -18,6 +19,32 @@ const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'warn' } });
 const creds = readCredentials();
 const hub = new PollerHub(creds);
+const feed = new FeedClient(creds);
+const history = new TickHistory();
+
+/**
+ * Which instruments each open SSE connection wants ticks for. The feed holds ONE socket, so it
+ * subscribes to the union - two tabs on different underlyings both keep working, and Dhan's
+ * 5-socket-per-user limit is never approached.
+ */
+const feedWants = new Map<number, Subscription[]>();
+let feedConnSeq = 0;
+
+function refreshFeedSubscriptions() {
+  const union = new Map<string, Subscription>();
+  for (const list of feedWants.values()) {
+    for (const s of list) union.set(`${s.seg}:${s.securityId}`, s);
+  }
+  if (union.size === 0) feed.stop();
+  else feed.setSubscriptions([...union.values()]);
+}
+
+/** Underlying ticks feed the chart, so they are kept in a ring buffer per instrument. */
+const underlyingOf = new Map<string, string>();   // "SEG:securityId" -> instrument id
+feed.on('tick', (t: Tick) => {
+  const id = underlyingOf.get(`${t.seg}:${t.securityId}`);
+  if (id && t.ltp !== null) history.push(id, t.at, t.ltp);
+});
 
 let registry: Registry;
 
@@ -67,6 +94,13 @@ app.get('/api/instruments', async () => ({
   })),
 }));
 
+app.get('/api/feed', async () => ({
+  status: feed.status,
+  packets: feed.packetsSeen,
+  ticks: feed.ticksEmitted,
+  subscriptions: [...feedWants.values()].reduce((a, l) => a + l.length, 0),
+}));
+
 app.get('/api/telemetry', async () => ({
   stats: hub.bus.stats(),
   samples: hub.bus.recent(60),
@@ -109,22 +143,116 @@ app.get('/api/stream', (req, reply) => {
 
   const poller = hub.get(inst, expiry);
   const offPoller = poller.on(ev => {
-    if (ev.type === 'snapshot') send('snapshot', ev.data as Snapshot);
+    if (ev.type === 'snapshot') { syncContractSubs(ev.data as Snapshot); send('snapshot', ev.data as Snapshot); }
     else send('status', ev.data as PollerStatus);
   });
   const offBus = hub.bus.on(s => { if (s.key === poller.key) send('telemetry', s); });
 
-  send('hello', { key: poller.key, mode: isReplay() ? 'replay' : 'live', serverNow: Date.now() });
+  /* ---- live feed: the underlying for the chart, every contract for the grid ---- */
+
+  const contracts = optionContracts(inst.id, expiry);
+  const byStrike = new Map<string, typeof contracts[number]>();
+  for (const c of contracts) byStrike.set(`${c.strike}|${c.optionType}`, c);
+
+  const connId = ++feedConnSeq;
+  const underlyingId = inst.underlyingScrip;
+  const cellOf = new Map<number, { strike: number; side: 'ce' | 'pe' }>();
+
+  const underlyingSub: Subscription[] = [];
+  if (underlyingId !== null) {
+    underlyingSub.push({
+      seg: inst.underlyingSeg, securityId: underlyingId, mode: 'quote',
+      base: isReplay() ? replayBasePrice(inst.id) : undefined,
+    });
+    underlyingOf.set(`${inst.underlyingSeg}:${underlyingId}`, inst.id);
+  }
+  feedWants.set(connId, underlyingSub);
+  refreshFeedSubscriptions();
+
+  /**
+   * The master lists every strike the exchange has ever opened for this expiry - for NIFTY that
+   * is several hundred - while the option chain returns only the band around spot that we
+   * actually render. Subscribing to the master's list would burn bandwidth on rows nobody sees,
+   * so the contract subscriptions are rebuilt from each snapshot's own strike list.
+   */
+  let subscribedStrikes = '';
+  const syncContractSubs = (snap: Snapshot) => {
+    const key = snap.rows.map(r => r.strike).join(',');
+    if (key === subscribedStrikes) return;
+    subscribedStrikes = key;
+
+    const wants = [...underlyingSub];
+    cellOf.clear();
+    for (const row of snap.rows) {
+      for (const side of ['CE', 'PE'] as const) {
+        const c = byStrike.get(`${row.strike}|${side}`);
+        if (!c) continue;
+        wants.push({
+          seg: c.seg, securityId: c.securityId, mode: 'full',
+          // Replay seeds each contract from its real LTP in the snapshot, so a synthetic tick
+          // on a far OTM strike does not print the same price as an ATM one.
+          base: isReplay() ? ((side === 'CE' ? row.ce.ltp : row.pe.ltp) ?? undefined) : undefined,
+        });
+        cellOf.set(c.securityId, { strike: c.strike, side: side === 'CE' ? 'ce' : 'pe' });
+      }
+    }
+    feedWants.set(connId, wants);
+    refreshFeedSubscriptions();
+  };
+
+  /**
+   * Ticks are batched at 10 Hz. A busy expiry can print thousands of ticks a second, and one SSE
+   * frame per tick would spend more time in the browser's event loop than in the paint.
+   */
+  let pending: unknown[] = [];
+  const onTick = (t: Tick) => {
+    if (t.securityId === underlyingId && t.seg === inst.underlyingSeg) {
+      pending.push({ k: 'u', p: t.ltp, v: t.volume, t: t.at });
+      return;
+    }
+    const cell = cellOf.get(t.securityId);
+    if (!cell) return;
+    pending.push({ k: cell.side, s: cell.strike, p: t.ltp, v: t.volume, o: t.oi, t: t.at });
+  };
+  feed.on('tick', onTick);
+
+  const flush = setInterval(() => {
+    if (!pending.length) return;
+    send('ticks', { batch: pending });
+    pending = [];
+  }, 100);
+
+  const onFeedStatus = (fs: FeedState) => send('feed', fs);
+  feed.on('status', onFeedStatus);
+
+  /* ---- opening frames ---- */
+
+  send('hello', {
+    key: poller.key, mode: isReplay() ? 'replay' : 'live', serverNow: Date.now(),
+    contractsAvailable: contracts.length, underlyingSeg: inst.underlyingSeg, underlyingScrip: inst.underlyingScrip,
+  });
   // Backfill: a client joining a warm poller must not stare at an empty panel until the
   // next tick, which for a closed market is 60 s away.
   for (const s of hub.bus.all().filter(s => s.key === poller.key).slice(-20)) send('telemetry', s);
-  if (poller.last) send('snapshot', poller.last);
+  if (poller.last) { syncContractSubs(poller.last); send('snapshot', poller.last); }
   send('status', poller.status);
+  send('feed', feed.status);
+  send('chart-history', { points: history.get(inst.id, 30 * 60_000) });
 
   poller.subscribe();
 
   const heartbeat = setInterval(() => reply.raw.write(': ping\n\n'), 15_000);
-  const cleanup = () => { clearInterval(heartbeat); offPoller(); offBus(); poller.unsubscribe(); };
+  const cleanup = () => {
+    clearInterval(heartbeat);
+    clearInterval(flush);
+    offPoller();
+    offBus();
+    feed.off('tick', onTick);
+    feed.off('status', onFeedStatus);
+    feedWants.delete(connId);
+    refreshFeedSubscriptions();
+    poller.unsubscribe();
+  };
   req.raw.on('close', cleanup);
   req.raw.on('error', cleanup);
 });

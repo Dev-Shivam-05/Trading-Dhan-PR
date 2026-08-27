@@ -105,7 +105,7 @@ There is nothing else to fix.
 | `DH-901` / `DH-906` | Token invalid or expired | Same as 808. |
 | `DH-904` | Rate limited | Nothing to do — the app backs off 3 → 6 → 12 → 30 s by itself. |
 | `DH-905` | Bad request, or this IP is not whitelisted | If you whitelisted static IPs in Dhan, add this machine's IP. |
-| `DH-907` | Data API problem | The Data API subscription is not active. |
+| `806` / `DH-907` | Data APIs not subscribed | The Data API plan is not active. `/v2/profile` reports `dataPlan: Deactive`. Subscribe at web.dhan.co → My Profile → DhanHQ Trading APIs → Data APIs. The option chain, quotes **and the live tick feed** all sit behind it. |
 
 Restart the server after editing `.env` — Node reads it once at startup.
 
@@ -120,6 +120,7 @@ Restart the server after editing `.env` — Node reads it once at startup.
 | `npm run check` | Validate the token in `.env` against Dhan and print a verdict |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run master:refresh` | Force a fresh download of Dhan's instrument master |
+| `npm run feed:probe` | Dump raw feed bytes beside the parsed values, to verify the binary parser |
 | `npm run spike:gold` | Diagnose the GOLD underlying by hand (boot does it automatically) |
 | `npm run shots` | Screenshot every UI state into `docs/shots/` (server must already be running) |
 
@@ -128,7 +129,8 @@ Change the port with `PORT=9000 npm run dev`.
 ## Keyboard
 
 `1`–`6` switch instrument · `/` search a strike · `Home` jump to the ATM row ·
-`L` toggle the latency panel · `T` toggle theme · `E` focus the expiry select
+`C` collapse the tick chart · `L` toggle the latency panel · `T` toggle theme ·
+`E` focus the expiry select
 
 ---
 
@@ -139,6 +141,12 @@ columns. The strike is rendered as a spine — its own background, heavier borde
 it reads first. On load the grid centres itself on the at-the-money row. A dashed line with a price
 pill sits between the two strikes that bracket spot, in-the-money sides carry a tint, OI cells
 carry an intensity bar, and a cell whose price moved flashes for 400 ms.
+
+**The tick chart.** A strip above the chain, plotting the underlying tick by tick over the Dhan
+WebSocket feed — every print is a point, nothing is averaged into candles. Window buttons for
+1m / 5m / 15m / all, drag the bottom edge to resize, `C` to collapse. When the feed goes quiet the
+line **breaks** rather than drawing a straight line through the gap, because a quiet period is
+missing data, not a smooth move.
 
 **The header.** Spot with change, ATM strike, ATM IV, IV change %, PCR, market lot, days to
 expiry, strike count. Lot sizes come from Dhan's instrument master on every boot, never from a
@@ -154,9 +162,19 @@ trip and age stay in the top bar.
 
 ## Three things worth knowing before you trust the numbers
 
-**The chain refreshes every 3 seconds, not tick by tick.** Dhan rate limits the option chain to one
-unique request every 3 s per (underlying, expiry) — their stated reason is that OI updates slowly.
-The countdown ring and the age counter exist so that cadence is visible instead of mysterious.
+**Two clocks run at once, and the screen says which is which.** The WebSocket feed carries LTP,
+volume and OI only — it has no implied volatility and no greeks, at all. Those come from the option
+chain REST endpoint, which Dhan rate limits to one request every 3 s per (underlying, expiry). So:
+
+| Column | Source | Freshness |
+|---|---|---|
+| LTP, Volume, OI (both sides) | WebSocket feed | tick by tick |
+| IV, Delta, Gamma, Theta, Vega | Option chain REST | every 3 s |
+| ATM IV, PCR, spot change | derived from the 3 s snapshot | every 3 s |
+
+The legend above the chart states this, the feed pill shows how many instruments are subscribed and
+the tick rate, and the latency panel keeps its own 3 s countdown. Nothing is blended into a single
+misleading "live".
 
 **Nothing on Dhan trades 24×7.** MCX GOLD is the longest session available: 09:00–23:30 IST Monday
 to Friday, 23:55 outside US daylight saving, closed on weekends. Outside its window a chip shows
@@ -177,7 +195,8 @@ src/server/
   dhan.ts          timed REST client, 3 s-per-key rate gate, DH-9xx and 8xx error mapping
   derive.ts        everything Dhan does not return: LTP/OI/volume change, ATM IV, PCR
   poller.ts        one poller per key, telemetry ring buffer, IV baseline store
-  replay.ts        synthetic chains, only under REPLAY=1, loudly labelled
+  feed.ts          Dhan WebSocket live feed: binary packet parser, subscriptions, reconnect
+  replay.ts        synthetic chains and ticks, only under REPLAY=1, loudly labelled
   index.ts         REST + SSE + serves the UI
 public/
   index.html  app.css  app.js      the whole UI: no framework, no bundler
@@ -199,6 +218,8 @@ docs/
 | Colours, spacing, type | the token block at the top of `public/app.css` |
 | Column order or widths | `CE_COLS` in `public/app.js` and the `<thead>` in `public/index.html` |
 | Session windows | `sessionState()` in `src/server/instruments.ts` |
+| Tick batching rate (10 Hz) | the `flush` interval in the SSE handler, `src/server/index.ts` |
+| Chart gap threshold (5 s) | `GAP_MS` in `drawChart()`, `public/app.js` |
 
 Full spec and acceptance criteria: [docs/spec/option-chain-v1.md](docs/spec/option-chain-v1.md)
 and [docs/PRD.md](docs/PRD.md). A visual walkthrough: open [docs/prd.html](docs/prd.html) in a
