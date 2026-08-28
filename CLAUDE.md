@@ -41,6 +41,28 @@ the project root. Put it in `.cache/`.
 - Expiry dates in the UI are always in the future — that is what an option expiry is. They come
   from the real instrument master even in replay mode. Only prices/OI/IV/greeks are synthetic.
 
+## Scanner / F&O universe facts (verified 2026-08-28 against the real master)
+- The NSE F&O stock universe is **exactly 210 stocks**. `FUTSTK` and `OPTSTK` underlying lists are
+  identical once you drop the junk. Do not hardcode "about 200".
+- The master ships **18 fake `NSETEST` scrips** (`011NSETEST` ...) inside `FUTSTK`. Filter them or
+  the scanner will try to quote instruments that do not exist.
+- `KEEP_INSTRUMENTS` in `src/server/master.ts` does **not** include `FUTSTK` / `FUTIDX` today, so
+  stock futures are dropped at parse time. Anything needing futures OI has to add them first.
+- Every row of the master has exactly 33 comma-separated fields, so awk-style column parsing is
+  safe for one-off analysis — but keep using the quoted splitter in code, a company name with a
+  comma would silently shift every column.
+- `POST /v2/marketfeed/quote` takes **1000 instruments per request** (1 req/sec) and returns
+  `last_price`, `ohlc`, `volume`, `oi` and `net_change` (absolute change from previous close).
+  All 210 F&O stocks therefore fit in **one** call — there is no top-gainer/loser endpoint in
+  DhanHQ v2 and none is needed; sort locally.
+
+## nseindia.com is not reachable from a server here
+Plain fetch/curl to `nseindia.com` returns **HTTP 000** (connection refused) while example.com and
+dhanhq.co return 200 on the same run — browser UA and cookie bootstrap do not help. It also
+publishes only the **top 25** underlyings on the OI Spurts page. Treat any NSE-scraping plan as
+blocked-and-lossy until proven otherwise with a real Chromium, and prefer computing the same number
+from Dhan.
+
 ## Verification bar for this project
 It is a trading screen. "It compiled" is not done, and a number that is silently wrong is worse
 than a visible error. Any derived value gets recomputed from the payload and compared before it is

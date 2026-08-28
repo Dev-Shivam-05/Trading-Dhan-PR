@@ -1,55 +1,83 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 6 (preview run) — 2026-08-28
+# HANDOFF — Dhan Option Chain Terminal — Phase 8/9 spec capture — 2026-08-28
 
 ## Done
-- The app was launched and driven end to end in replay mode (`REPLAY=1 npm run dev`) and is
-  serving at <http://127.0.0.1:8787>. This was a run-and-verify session, not a code session.
-- `/api/health` reports **6/6 instruments resolved**. GOLD now resolves by itself
-  (`scrip=483079 seg=MCX_COMM lot=1`) — the P0 blocker is closed. The other five are unchanged:
-  NIFTY 13/65, BANKNIFTY 25/30, SENSEX 51/20, RELIANCE 2885/500, HDFCBANK 1333/650.
-- Grid renders 41 rows x 23 columns for NIFTY with the strike spine centred on ATM 24,100.
-- Verified it is genuinely streaming, not a static render: two frames 6 s apart showed spot
-  24,078.67 -> 24,112.47, the chart advancing, tick rate 49 -> 56 t/s, RTT 220 -> 192 ms, and
-  per-cell change flashes firing.
-- Chip rail exercised: GOLD (31 rows), BANK NIFTY (41), RELIANCE (31) all switch and load.
-- Zero browser console errors, zero page errors across both drives.
+- Six voice recordings turned into a written requirements set. They describe **two separate
+  systems**, not one, and they are now on the board as P8 and P9.
+- Rec 03 and Rec 04 are word-for-word duplicates, so the scanner has **three** filter steps, not four.
+- Feasibility of both systems verified end to end against the real instrument master and the
+  DhanHQ v2 docs. No numbers were invented; both specs are deliberately left **unlocked**.
+- A wrong claim made earlier the same day was found and corrected across three files.
 
 ## Files changed
-- `docs/PHASES.md` — added P5 (tick feed, retro-filled: it was in the session log but missing
-  from the table), P6 (chart price axis + drawing tools), P7 (peak-OI tracking). Added
-  `## Now` / `## Next 3`. Added this session's log row.
-- `docs/HANDOFF.md` — created (previous session ended without one).
-- `docs/DECISIONS.md` — created.
-- `CLAUDE.md` — created, with the traps found while running the app.
-- **No `src/` changes.** Nothing in the application code was touched this session.
+- `docs/PHASES.md` — P8 (9:20 F&O scanner) and P9 (option candle colouring) added, both marked
+  **spec NOT locked**; P7 rewritten now that peak OI turns out to be fetchable; `## Now` /
+  `## Next 3` rewritten; session log row added.
+- `docs/DECISIONS.md` — appended: the superseding peak-OI entry, why P8/P9 were boarded unlocked,
+  and why NSE Spurts will not be scraped without an explicit decision.
+- `CLAUDE.md` — added the verified F&O-universe facts and the nseindia.com unreachability, so the
+  next session does not re-derive them.
+- **No `src/` changes.** Nothing in the application code was touched.
 
 ## Decisions made
-- Screenshots for verification were written to the session scratchpad and driven by a throwaway
-  script in `.cache/` (gitignored), **not** via `npm run shots` — that script overwrites the 17
-  committed reference images in `docs/shots/`, which is a real diff nobody asked for.
-- P7 (peak-OI) was added to the board rather than built. It is a genuine feature with a hard
-  data dependency (see below), so it needs its own session, not an absorb.
-- P5 was retro-filled into the table for a contiguous board. Its wording is taken verbatim from
-  the existing 2026-08-27 session log — no new claims were invented.
+- **Both specs left unlocked on purpose.** The recordings are mostly thresholds, and the standing
+  rule is that a number or colour that is not written down does not get invented. Fifteen open
+  questions are listed below.
+- **NSE Spurts not swapped for a Dhan-computed equivalent.** The equivalent was presented and it is
+  strictly better on both blockers, but the user named NSE Spurt specifically, so replacing a named
+  data source is their call, not something to absorb quietly.
+- **P9's trigger left undecided** rather than picking one. Rec 01 says volume triggers the colour,
+  Rec 02 says OI does. They are different signals — a candle can carry huge volume with no OI change
+  at all, which is the exact opposite of a big player taking a position.
+
+## Verified this session (facts, not estimates)
+- The NSE F&O stock universe is **exactly 210** — `FUTSTK` and `OPTSTK` underlyings are identical
+  after dropping 18 `NSETEST` dummy scrips the master ships.
+- All 210 fit in **one** `POST /v2/marketfeed/quote` call (limit 1000, 1 req/sec), which returns
+  `net_change` against previous close — so scanner filters 1 and 2 cost roughly one second against
+  the user's two-minute budget. DhanHQ v2 has **no** top-gainer/loser endpoint and does not need one.
+- `POST /v2/charts/intraday` accepts `NSE_FNO` with `OPTSTK` / `OPTIDX` / `FUTSTK`, takes
+  `"oi": true`, and returns `open_interest` per candle at 1/5/15/25/60 min for up to 90 days.
+- `nseindia.com` refuses connection from this machine (**HTTP 000**) while example.com and
+  dhanhq.co return 200 on the same run; its OI Spurts page lists only the **top 25** underlyings.
 
 ## Known broken / deliberately skipped
-- **Live Dhan data is still blocked.** `npm run check` this session: profile OK (token valid to
-  28/08/2026 16:52) but option chain returns `806 Data APIs not Subscribed`, and the profile
-  reports `dataPlan: Deactive`. Every number currently on screen is synthetic Black-Scholes
-  output from `src/server/replay.ts`, which is why the yellow banner is up.
-- Because of that, the WebSocket binary packet parser in `src/server/feed.ts` has still never
-  run against real Dhan bytes. `npm run feed:probe` exists to check it the moment the plan is active.
-- **CORRECTED 2026-08-28 (later same day).** An earlier version of this handoff said yesterday's
-  peak OI cannot be obtained from Dhan and must be self-recorded from day one. That was wrong.
-  `POST /v2/charts/intraday` with `"oi": true` returns `open_interest` per candle for `NSE_FNO`
-  options, up to 90 days back, so the peak is a `max()` over yesterday's candles and is
-  back-fillable. P7 does **not** need a warm-up day. See DECISIONS.md 2026-08-28 (superseding).
+- **Correction to this morning's handoff.** It stated that yesterday's peak OI cannot be obtained
+  from Dhan and must be self-recorded from day one. That was wrong, and wrong in the expensive
+  direction — it would have had us build a recorder for data Dhan already serves. `/v2/charts/intraday`
+  with `"oi": true` gives per-candle `open_interest`, so yesterday's peak is a `max()` and 90 days
+  are back-fillable. P7 needs no warm-up day.
+- **Untested:** whether Dhan really retains 90 days of per-candle OI for *option* contracts, and how
+  expired contracts behave (there is a separate "Expired Options Data" API). One call settles both.
+- **Still blocked on the Data API plan** (`dataPlan: Deactive`, option chain -> `806`). Market Quote,
+  Historical Data and the tick feed all sit behind it, so P7, P8 and P9 cannot run at all yet. The
+  binary packet parser in `src/server/feed.ts` has still never seen real bytes.
+
+## Open questions — P8 (scanner)
+1. **What is "top gainer/loser" measured over?** If it is the 210-stock F&O universe itself, filters
+   1 and 2 are the same filter and the scanner is 2 steps. The worked example ("maan lo 50 stock
+   aaye") implies an external list instead. **This changes the architecture — answer it first.**
+2. Is the 2% measured against previous close (`net_change`) or against the 9:15 open?
+3. Is the 7% OI change positive-only, or absolute (|7%|)? No direction was stated.
+4. Does the scanner run once at 9:20, or repeat until 9:30?
+5. Does the output distinguish gainers from losers (long vs short candidates)?
+6. Screen only, or persisted / alerted?
+7. 9:20 or 9:25 — Rec 02 left it open, Rec 03/04/06 all say 9:20.
+
+## Open questions — P9 (candle colouring)
+8. **What separates a blue candle from a yellow one?** Both colours and both actions were given
+   (blue -> buy, yellow -> sell); the conditions were not. **Biggest single gap in the whole spec.**
+9. **Volume or OI?** Rec 01 says volume triggers, Rec 02 says OI. AND, OR, or OI-primary?
+10. What does "vibration" mean numerically? Never defined in any of the six recordings.
+11. Volume threshold value — and compared against what (previous candle, N-candle average, day average)?
+12. OI threshold value — absolute contracts, or % change, and against which baseline?
+13. Candle interval — 1, 5, 15, 25 or 60 min are what Dhan offers; none was chosen.
+14. Which contracts get charted — ATM only, ATM +/- N strikes, or all 41? Which expiry?
+15. Colour decided on candle **close** (confirmed but late) or **during formation** (early but can flip)?
 
 ## Next session starts here
-- Phase 7: peak-OI tracking — record a per-strike running max of OI, persist it on the existing
-  `BaselineStore` pattern in `src/server/poller.ts`, and compare live OI against yesterday's peak
-  instead of `previous_oi`.
+- Spec-lock P8 and P9. Questions 1 and 8 first — nothing downstream of them can be designed.
 - First command: `npm run check`
-- Watch out for: the OI ceiling is not the 3 s REST poll. `src/server/feed.ts` already carries OI
-  on the tick socket (`PACKET.OI`, code 5, 12 bytes), so the running max should be fed from the
-  tick stream, not from the chain snapshot — otherwise you record a 3-second-sampled peak and
-  systematically under-report the real high.
+- Watch out for: the temptation to start building P8 because it "sounds simple". Question 1 decides
+  whether it is a two-step or three-step scanner, and question 8 has no defensible default at all —
+  guessing which colour means buy would put a wrong signal on a trading screen, which is the one
+  failure mode this project explicitly refuses.

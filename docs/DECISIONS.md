@@ -38,3 +38,30 @@ its peak, so it is the wrong field for this. Still open: whether Dhan really ret
 per-candle OI for option contracts, and how expired contracts behave (separate "Expired Options
 Data" API). Both are one API call to settle once the Data API plan is active - settle them before
 building P7.
+
+## 2026-08-28 — P8 and P9 boarded without locking their specs
+Six voice recordings produced two systems: a 9:20 F&O stock scanner and option-candle colouring.
+Feasibility was verified against the real master and the DhanHQ docs; the *numbers* were not, so
+both rows say **spec NOT locked** and no code was written. The user's own rule is that a number,
+colour or threshold that is not written down does not get invented, and these specs are mostly
+thresholds. Fifteen open questions are listed in `docs/HANDOFF.md`.
+
+Two of them are load-bearing rather than cosmetic:
+- **P8** — if "top gainer/loser" is measured over the 210-stock F&O universe itself, then filter 1
+  and filter 2 are the same filter and the scanner is 2 steps, not 3. The user's worked example
+  ("maan lo 50 stock aaye") implies an external list instead. The answer changes the architecture.
+- **P9** — the user gave both colours and both actions (blue -> buy, yellow -> sell) but never the
+  condition that separates them. There is no defensible way to guess which side is which.
+
+## 2026-08-28 — NSE OI Spurts will not be scraped server-side without an explicit decision
+Two independent blockers, both verified: `nseindia.com` refuses connection from this machine
+(HTTP 000, while example.com and dhanhq.co return 200 on the same run, with a browser UA and a
+cookie bootstrap attempted), and the OI Spurts page publishes only the **top 25** underlyings by OI
+change — so a stock that passes the first two filters but sits outside NSE's top 25 has no row to
+read, and the third filter cannot be evaluated for it at all.
+
+The alternative is to compute OI change % from Dhan for all 210 stocks: today's futures OI from
+`/v2/marketfeed/quote` (`oi`) against yesterday's closing OI from `/v2/charts/historical`
+(`"oi": true`) — the same "latest OI vs previous OI" NSE itself publishes, with no scraping and no
+top-25 cap. This was **presented, not adopted**: the user asked for NSE Spurt by name, and swapping
+a named data source for a computed equivalent is their call, not a detail to absorb quietly.

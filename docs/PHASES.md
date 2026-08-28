@@ -12,20 +12,27 @@ absorbing the work.
 | P4 | States + polish | All eight component states, expressive error/empty/closed states, keyboard map, both themes, contrast audit, 1024px degrade | ~6 | Twelve screenshots from `ui-contract.md` section 5 captured and reviewed | **done** |
 | P5 | Tick feed + live chart | Dhan WebSocket feed, hand-written binary packet parser, per-contract subscriptions built from each snapshot's strike list, 10 Hz tick batching over SSE, live chart strip | ~5 | Subscriptions match the rendered strike list with zero orphans; frame gaps stay under 250 ms | **done** (2026-08-27) |
 | P6 | Chart price axis + drawing tools | Draggable price axis (drag to compress/expand the scale, double-click to reset), crosshair readout, and drawing tools - trendline, horizontal price line, ray, rectangle - persisted per (instrument, expiry) | ~5 | A trendline drawn on NIFTY survives an instrument switch and a page reload, and stays anchored to its price/time coordinates after a scale drag | planned |
-| P7 | Peak-OI tracking | Per-strike intraday running max of OI, persisted on the existing `BaselineStore` pattern (`.cache/oi-peak-<key>.json`); grid column and filter comparing live OI against **yesterday's peak** OI rather than `previous_oi` (yesterday's close); breach highlight on cross | ~6 | On the second recorded day, a strike whose live OI exceeds the stored previous-day peak flags within one poll, and the stored peak equals the max of that day's recorded samples | planned - blocked until one full session has been recorded |
+| P7 | Peak-OI tracking | Yesterday's per-strike **peak** OI fetched as `max(open_interest)` over yesterday's 1-min candles from `POST /v2/charts/intraday` (`"oi": true`, `NSE_FNO`), cached per (contract, date); grid column and filter comparing live OI against that peak rather than `previous_oi` (yesterday's close); breach highlight on cross | ~6 | For one strike, the fetched peak equals the hand-computed max of that day's candle OI series, and a live OI above it flags within one poll | planned - needs the Data API plan; **no warm-up day required** (see DECISIONS 2026-08-28 superseding entry) |
+| P8 | 9:20 F&O scanner | Manually triggered scanner over the 210-stock NSE F&O universe: one `POST /v2/marketfeed/quote` call for all 210, then the user's three filters - top gainer/loser, LTP change >= 2%, OI change >= 7% - producing a short named list with a count | ~7 | Run at 9:20 on a live session it returns a list within 2 minutes, and every stock in it independently satisfies all three filters when checked by hand | **spec NOT locked** - 7 open questions, biggest is what "top gainer/loser" is measured over |
+| P9 | Option candle colouring | Per-candle OHLC + volume + `open_interest` for a chosen option contract from `/v2/charts/intraday`; candles rendered green/red normally and recoloured blue / yellow when the user's OI+volume rule fires, so a big player entering or exiting a strike is visible on the option's own chart (not the spot chart) | ~8 | A candle the rule fires on is recoloured, and its trigger values recomputed by hand from the same payload match what the UI used to colour it | **spec NOT locked** - 8 open questions + one contradiction (R01 says volume triggers, R02 says OI) |
 
 ## Now
-**P6 / P7 planned, nothing in flight.** The app runs and is verified in replay mode; live Dhan data
-is blocked on the account's Data API plan (`dataPlan: Deactive`, option chain -> `806`).
+**Nothing in flight. Two new systems captured from voice notes but their specs are NOT locked.**
+P8 (9:20 F&O scanner) and P9 (option candle colouring) were derived from six recordings on
+2026-08-28. Feasibility is verified end to end; the numbers are not. **No code should be written
+for either until the open questions are answered** — every one of them changes what gets built.
+Everything live is still blocked on the Data API plan (`dataPlan: Deactive`, option chain -> `806`).
 
 ## Next 3
-1. **P7 — peak-OI tracking.** Record a per-strike running max of OI from the tick feed, persist it,
-   and compare live OI against yesterday's peak instead of `previous_oi` (yesterday's close).
-2. **P6 — chart price axis + drawing tools.** Draggable price scale, crosshair readout, trendline /
-   horizontal line / ray / rectangle, persisted per instrument and expiry.
-3. **Unblock live data.** Subscribe to Data APIs at web.dhan.co, then `npm run check` until it
-   reports READY, then `npm run feed:probe` to validate the binary parser against real bytes for
-   the first time.
+1. **Spec-lock P8 and P9.** Answer the open questions listed in `docs/HANDOFF.md`. The two that
+   block the most: for P8, what "top gainer/loser" is measured over (if the universe is already the
+   210 F&O stocks, steps 1 and 2 collapse into one filter); for P9, what separates a **blue** candle
+   from a **yellow** one — both colours and both actions were given, the conditions were not.
+2. **Unblock live data.** Subscribe to Data APIs at web.dhan.co, then `npm run check` until it
+   reports READY, then `npm run feed:probe` to validate the binary parser against real bytes for the
+   first time. P7, P8 and P9 are all blocked behind this.
+3. **P6 — chart price axis + drawing tools.** The one phase that needs no live data, so it is the
+   only thing that can be built while the plan is inactive.
 
 ## Session log
 | Date | Phase | What happened |
@@ -37,6 +44,7 @@ is blocked on the account's Data API plan (`dataPlan: Deactive`, option chain ->
 
 | 2026-08-27 | P5 | Tick-by-tick added on the user's request: Dhan WebSocket live feed (`feed.ts`) with a hand-written binary packet parser, per-contract subscriptions derived from each snapshot's own strike list, 10 Hz tick batching over SSE, and a live line/area chart strip above the chain. Feed carries LTP/volume/OI only, so IV and greeks stay on the 3 s REST path and the UI labels which is which. **Verified in replay:** 83 subscriptions for 41 strikes with zero orphans, 92 underlying ticks in 12 s, frame gaps 99-237 ms, header/chart/spot-marker all agreeing. **Two real bugs found and fixed by testing:** subscriptions were built from the master (462 contracts, 141 never rendered) instead of the snapshot; and the reconnect backoff never escalated because an opened-then-dropped socket reset the failure count, producing a 1-per-second reconnect loop forever. **Live still blocked:** token is valid but `/v2/profile` reports `dataPlan: Deactive` - option chain returns `806 Data APIs not Subscribed` and the feed socket is accepted then dropped with code 1006. The binary parser has therefore never run against real bytes; `npm run feed:probe` exists to check it the moment the plan goes active. |
 | 2026-08-28 | P6 preview | Ran the app for the user in replay mode and drove it in a browser. 6/6 instruments resolve - **GOLD now resolves on its own** (`483079 / MCX_COMM / lot 1`), closing the P0 blocker. 41 rows x 23 columns, streaming confirmed across two frames 6 s apart (spot 24,078.67 -> 24,112.47, 49 -> 56 t/s, RTT 220 -> 192 ms), chip rail exercised on GOLD / BANKNIFTY / RELIANCE, zero console errors. No `src/` changes. **Live data still blocked**: token valid to 16:52 today but `dataPlan: Deactive`, option chain returns `806`. Boarded P6 (chart price axis + drawing tools) and P7 (peak-OI tracking) from the user's questions; retro-filled the missing P5 row from the 2026-08-27 log. |
+| 2026-08-28 | P8/P9 spec | Six voice recordings analysed into requirements. **Two separate systems**, not one: P8 a 9:20 F&O stock scanner (top gainer/loser -> LTP change >= 2% -> OI change >= 7%) and P9 option-candle colouring (blue/yellow on the option's own chart when a big player enters or exits a strike). Rec 03 and 04 are word-for-word duplicates, so the scanner has 3 filter steps, not 4. **Verified, not assumed:** the NSE F&O universe is exactly **210** stocks (FUTSTK and OPTSTK underlying lists identical after dropping 18 `NSETEST` dummy scrips); all 210 fit in ONE `/v2/marketfeed/quote` call (limit 1000), so scanner steps 1-2 cost ~1 s against a 2-minute budget; `/v2/charts/intraday` accepts `NSE_FNO`+`OPTSTK` and returns per-candle `open_interest`, which makes P9 buildable and **corrects this morning's wrong claim that peak OI must be self-recorded**; `nseindia.com` refuses connection from this machine (HTTP 000 while example.com and dhanhq.co return 200) and its OI Spurts page lists only the top 25, so scraping it is both blocked and lossy. No `src/` changes. Specs deliberately left unlocked - 15 open questions and one contradiction (R01 says volume triggers the colour, R02 says OI). |
 
 ## Deviations from the locked spec, and why
 
