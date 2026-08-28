@@ -27,8 +27,13 @@ cwd. A driver script in the system temp dir fails with `ERR_MODULE_NOT_FOUND` ev
 the project root. Put it in `.cache/`.
 
 ## Data facts worth not re-deriving
-- Dhan's option chain returns `previous_oi` = yesterday's **closing** OI. There is **no** endpoint
-  for yesterday's intraday peak/high OI. Anything peak-based has to be self-recorded.
+- Dhan's option chain returns `previous_oi` = yesterday's **closing** OI, not its peak.
+- Yesterday's intraday **peak** OI *is* obtainable: `POST /v2/charts/intraday` with `"oi": true`
+  returns `open_interest` per candle (intervals 1/5/15/25/60 min, up to 90 days back) and accepts
+  `exchangeSegment: NSE_FNO` with `instrument: OPTSTK` / `OPTIDX` / `FUTSTK`. Peak = max of that
+  day's candle OI. **Do not self-record what this endpoint already answers.** (Untested against a
+  live plan — verify with one call before relying on it, and check how expired contracts behave;
+  there is a separate "Expired Options Data" API for those.)
 - The chain REST poll is rate-limited to 1 request / 3 s per (underlying, expiry). OI and greeks
   are therefore 3 s data, not tick data.
 - The WebSocket feed carries LTP, volume and OI only (`PACKET.OI`, code 5, 12 bytes) — **not** IV

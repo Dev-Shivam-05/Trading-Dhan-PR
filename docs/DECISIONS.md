@@ -20,3 +20,21 @@ nothing. This is a property of the data, not a bug to design around.
 ## 2026-08-28 — P7 deferred to its own session rather than absorbed
 Peak-OI tracking touches the poller, the feed, a new persistence file, the SSE payload, the grid
 column set and the filter bar — past the ~8 file limit for one phase. Boarded as P7.
+
+## 2026-08-28 (later) — SUPERSEDES "Peak-OI must be recorded from the tick feed"
+The earlier entry today claimed no Dhan endpoint exposes yesterday's intraday peak OI, so it had
+to be self-recorded and P7 could not show anything on its first day. **That was wrong**, and it was
+wrong in the direction that costs the most: it would have had us build a recorder for data Dhan
+already serves.
+
+Verified against the DhanHQ v2 docs: `POST /v2/charts/intraday` accepts `exchangeSegment: NSE_FNO`
+with `instrument: OPTSTK` / `OPTIDX` / `FUTSTK`, takes `"oi": true`, and returns `open_interest`
+per candle at 1/5/15/25/60-minute intervals for up to 90 days. Yesterday's peak OI is therefore
+`max(open_interest)` over yesterday's candles, and 90 days of history can be back-filled on
+first run.
+
+Still true from the earlier entry: `previous_oi` on the option chain is yesterday's *close*, not
+its peak, so it is the wrong field for this. Still open: whether Dhan really retains 90 days of
+per-candle OI for option contracts, and how expired contracts behave (separate "Expired Options
+Data" API). Both are one API call to settle once the Data API plan is active - settle them before
+building P7.

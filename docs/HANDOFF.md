@@ -38,10 +38,11 @@
   output from `src/server/replay.ts`, which is why the yellow banner is up.
 - Because of that, the WebSocket binary packet parser in `src/server/feed.ts` has still never
   run against real Dhan bytes. `npm run feed:probe` exists to check it the moment the plan is active.
-- **P7 has a data dependency that cannot be back-filled.** Dhan's option chain returns
-  `previous_oi`, which is yesterday's *closing* OI. No Dhan endpoint returns yesterday's intraday
-  *peak* OI. The peak can only exist for days this app was running and recording, so P7 shows
-  nothing on its first day by construction.
+- **CORRECTED 2026-08-28 (later same day).** An earlier version of this handoff said yesterday's
+  peak OI cannot be obtained from Dhan and must be self-recorded from day one. That was wrong.
+  `POST /v2/charts/intraday` with `"oi": true` returns `open_interest` per candle for `NSE_FNO`
+  options, up to 90 days back, so the peak is a `max()` over yesterday's candles and is
+  back-fillable. P7 does **not** need a warm-up day. See DECISIONS.md 2026-08-28 (superseding).
 
 ## Next session starts here
 - Phase 7: peak-OI tracking — record a per-strike running max of OI, persist it on the existing
