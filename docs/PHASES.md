@@ -5,11 +5,27 @@ absorbing the work.
 
 | # | Phase | Deliverable | Files | Done when | Status |
 |---|---|---|---|---|---|
-| P0 | Spike + skeleton | SPIKE-01 resolves the GOLD `UnderlyingScrip`; instrument master downloader + cache; `.env` wiring; Fastify boots; `/api/health` returns the six resolved instruments with their lot sizes | 9 | All six chips resolve to a real `(scrip, seg, lot)` triple, or GOLD is documented as blocked | **5/6 done** — GOLD blocked on credentials |
+| P0 | Spike + skeleton | SPIKE-01 resolves the GOLD `UnderlyingScrip`; instrument master downloader + cache; `.env` wiring; Fastify boots; `/api/health` returns the six resolved instruments with their lot sizes | 9 | All six chips resolve to a real `(scrip, seg, lot)` triple, or GOLD is documented as blocked | **done** — GOLD resolved 2026-08-28 (`483079 / MCX_COMM / lot 1`) |
 | P1 | Chain pipeline | `ChainPoller` (3000 ms, completion-scheduled), `DeriveEngine` (PRD section 4), `TelemetryBus`, SSE endpoints, `DH-901` / `DH-904` handling | ~8 | 10-minute log with zero sub-3000 ms repeats; derived ATM IV and PCR match a fixture to 2 dp | **done** |
 | P2 | Option chain grid | Token sheet as CSS custom properties, grid, header strip, chip rail, expiry select, spot marker, ITM tint, OI bar, update flash | ~8 | Screenshot matches the reference density; row count equals the response strike count | **done** |
 | P3 | Latency panel | Three live numbers, stage waterfall, sparkline with p50/p95, percentile row, rate-limit ring, 20-row call log, export | ~6 | Exported CSV percentiles match hand computation; panel updates without re-rendering the grid | **done** |
 | P4 | States + polish | All eight component states, expressive error/empty/closed states, keyboard map, both themes, contrast audit, 1024px degrade | ~6 | Twelve screenshots from `ui-contract.md` section 5 captured and reviewed | **done** |
+| P5 | Tick feed + live chart | Dhan WebSocket feed, hand-written binary packet parser, per-contract subscriptions built from each snapshot's strike list, 10 Hz tick batching over SSE, live chart strip | ~5 | Subscriptions match the rendered strike list with zero orphans; frame gaps stay under 250 ms | **done** (2026-08-27) |
+| P6 | Chart price axis + drawing tools | Draggable price axis (drag to compress/expand the scale, double-click to reset), crosshair readout, and drawing tools - trendline, horizontal price line, ray, rectangle - persisted per (instrument, expiry) | ~5 | A trendline drawn on NIFTY survives an instrument switch and a page reload, and stays anchored to its price/time coordinates after a scale drag | planned |
+| P7 | Peak-OI tracking | Per-strike intraday running max of OI, persisted on the existing `BaselineStore` pattern (`.cache/oi-peak-<key>.json`); grid column and filter comparing live OI against **yesterday's peak** OI rather than `previous_oi` (yesterday's close); breach highlight on cross | ~6 | On the second recorded day, a strike whose live OI exceeds the stored previous-day peak flags within one poll, and the stored peak equals the max of that day's recorded samples | planned - blocked until one full session has been recorded |
+
+## Now
+**P6 / P7 planned, nothing in flight.** The app runs and is verified in replay mode; live Dhan data
+is blocked on the account's Data API plan (`dataPlan: Deactive`, option chain -> `806`).
+
+## Next 3
+1. **P7 — peak-OI tracking.** Record a per-strike running max of OI from the tick feed, persist it,
+   and compare live OI against yesterday's peak instead of `previous_oi` (yesterday's close).
+2. **P6 — chart price axis + drawing tools.** Draggable price scale, crosshair readout, trendline /
+   horizontal line / ray / rectangle, persisted per instrument and expiry.
+3. **Unblock live data.** Subscribe to Data APIs at web.dhan.co, then `npm run check` until it
+   reports READY, then `npm run feed:probe` to validate the binary parser against real bytes for
+   the first time.
 
 ## Session log
 | Date | Phase | What happened |
@@ -20,6 +36,7 @@ absorbing the work.
 | 2026-08-19 | P1-P4 | Ran all remaining phases in one session at the user's explicit request. Backend: DeriveEngine, ChainPoller (completion-scheduled 3000 ms), TelemetryBus (500-sample ring), SSE stream with telemetry backfill, CSV export, IV baseline store, previous-close cache. UI: 23-column grid with the strike spine, ATM auto-centring, spot marker, ITM tint, OI bars, change flash, latency panel, expressive states, both themes, keyboard map. **Verified in replay:** PCR and ATM IV recomputed from the payload match exactly; 41 rows x 26 fields with zero NaN/Infinity; cadence min gap 3184 ms across 7 consecutive polls; 14 screenshots captured and reviewed. **Live data still blocked** - the supplied access token is rejected by Dhan (`DH-906 Invalid Token`, `808 Authentication Failed`) on every endpoint including `/v2/profile`, so SPIKE-01 could not run. |
 
 | 2026-08-27 | P5 | Tick-by-tick added on the user's request: Dhan WebSocket live feed (`feed.ts`) with a hand-written binary packet parser, per-contract subscriptions derived from each snapshot's own strike list, 10 Hz tick batching over SSE, and a live line/area chart strip above the chain. Feed carries LTP/volume/OI only, so IV and greeks stay on the 3 s REST path and the UI labels which is which. **Verified in replay:** 83 subscriptions for 41 strikes with zero orphans, 92 underlying ticks in 12 s, frame gaps 99-237 ms, header/chart/spot-marker all agreeing. **Two real bugs found and fixed by testing:** subscriptions were built from the master (462 contracts, 141 never rendered) instead of the snapshot; and the reconnect backoff never escalated because an opened-then-dropped socket reset the failure count, producing a 1-per-second reconnect loop forever. **Live still blocked:** token is valid but `/v2/profile` reports `dataPlan: Deactive` - option chain returns `806 Data APIs not Subscribed` and the feed socket is accepted then dropped with code 1006. The binary parser has therefore never run against real bytes; `npm run feed:probe` exists to check it the moment the plan goes active. |
+| 2026-08-28 | P6 preview | Ran the app for the user in replay mode and drove it in a browser. 6/6 instruments resolve - **GOLD now resolves on its own** (`483079 / MCX_COMM / lot 1`), closing the P0 blocker. 41 rows x 23 columns, streaming confirmed across two frames 6 s apart (spot 24,078.67 -> 24,112.47, 49 -> 56 t/s, RTT 220 -> 192 ms), chip rail exercised on GOLD / BANKNIFTY / RELIANCE, zero console errors. No `src/` changes. **Live data still blocked**: token valid to 16:52 today but `dataPlan: Deactive`, option chain returns `806`. Boarded P6 (chart price axis + drawing tools) and P7 (peak-OI tracking) from the user's questions; retro-filled the missing P5 row from the 2026-08-27 log. |
 
 ## Deviations from the locked spec, and why
 
