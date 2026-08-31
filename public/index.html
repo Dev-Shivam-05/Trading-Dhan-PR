@@ -72,6 +72,14 @@
     <span class="grow"></span>
     <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
     <span class="tickrate mono" id="tickRate">0 t/s</span>
+    <span class="tools" id="chartTools" role="group" aria-label="Drawing tools">
+      <button type="button" data-tool="cursor" aria-pressed="true" title="Cursor (V)" aria-label="Cursor">↖</button>
+      <button type="button" data-tool="trend" aria-pressed="false" title="Trendline (D)" aria-label="Trendline">╱</button>
+      <button type="button" data-tool="hline" aria-pressed="false" title="Horizontal line (H)" aria-label="Horizontal line">—</button>
+      <button type="button" data-tool="ray" aria-pressed="false" title="Ray (R)" aria-label="Ray">→</button>
+      <button type="button" data-tool="rect" aria-pressed="false" title="Rectangle (B)" aria-label="Rectangle">▭</button>
+      <button type="button" id="chartClear" title="Clear all drawings — click twice" aria-label="Clear all drawings">✕</button>
+    </span>
     <span class="range" id="chartRange" role="group" aria-label="Chart window">
       <button type="button" data-range="60000">1m</button>
       <button type="button" data-range="300000" aria-pressed="true">5m</button>
@@ -83,6 +91,8 @@
   <div class="chart-body" id="chartBody">
     <svg id="chartSvg" preserveAspectRatio="none" aria-label="Live tick chart"></svg>
     <div class="chart-empty" id="chartEmpty">waiting for the first tick…</div>
+    <div class="chart-surface" id="chartSurface"></div>
+    <div class="chart-axis" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
   </div>
   <div class="chart-grip" id="chartGrip" title="Drag to resize"></div>
 </section>

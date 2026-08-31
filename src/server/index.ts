@@ -58,11 +58,12 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/': { file: 'index.html', type: 'text/html; charset=utf-8' },
   '/app.css': { file: 'app.css', type: 'text/css; charset=utf-8' },
   '/app.js': { file: 'app.js', type: 'text/javascript; charset=utf-8' },
+  '/chart-tools.js': { file: 'chart-tools.js', type: 'text/javascript; charset=utf-8' },
 };
 
 for (const [route, { file, type }] of Object.entries(STATIC)) {
   app.get(route, async (_req, reply) => {
-    // Explicit allow-list of three files: no path joining from user input, no traversal surface.
+    // Explicit allow-list of four files: no path joining from user input, no traversal surface.
     const body = await readFile(path.join(PUBLIC_DIR, file), 'utf8');
     return reply.type(type).send(body);
   });

@@ -1,6 +1,8 @@
 /* Dhan Option Chain Terminal — client.
    Talks only to the local backend. Never sees a Dhan credential. */
 
+import * as tools from '/chart-tools.js';
+
 const $ = (id) => document.getElementById(id);
 
 /* ------------------------------------------------------------- formatting */
@@ -116,6 +118,7 @@ function select(id, expiry) {
   state.rowByStrike.clear();
   state.spotIdx = -1;
   state.chartDirty = true;
+  tools.setScope(inst.id, state.expiry);       // drawings never cross an instrument or an expiry
 
   [...$('chips').children].forEach((b, i) =>
     b.setAttribute('aria-pressed', String(state.instruments[i].id === id)));
@@ -529,6 +532,9 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') e.target.blur();
     return;
   }
+  // drawing tools claim V/D/H/R/B, Esc and Delete first (docs/spec/chart-tools-v1.md row 11)
+  if (tools.onKey(e)) { e.preventDefault(); return; }
+
   const n = Number(e.key);
   if (n >= 1 && n <= state.instruments.length) { select(state.instruments[n - 1].id); return; }
   if (e.key === '/') { e.preventDefault(); $('search').focus(); }
@@ -687,6 +693,7 @@ function drawChart() {
   const pts = state.ticks.filter(p => p.t >= cutoff);
 
   $('chartEmpty').style.display = pts.length < 2 ? '' : 'none';
+  tools.setEnabled(pts.length >= 2);                 // chart-tools row 25
   if (pts.length < 2) { svg.innerHTML = ''; return; }
 
   const PAD_R = 76, PAD_B = 16;
@@ -699,8 +706,11 @@ function drawChart() {
   const pad = span > 0 ? span * 0.12 : Math.max(hi * 0.0005, 0.05);
   const loP = lo - pad, hiP = hi + pad;
 
-  const X = (t) => ((t - t0) / (t1 - t0)) * (W - PAD_R);
-  const Y = (p) => (H - PAD_B) - ((p - loP) / Math.max(1e-9, hiP - loP)) * (H - PAD_B);
+  // The price axis can be dragged to compress or expand the scale (chart-tools rows 2-4). The
+  // transform lives in chart-tools so the price line and the drawings can never disagree.
+  const [loV, hiV] = tools.applyZoom(loP, hiP);
+  tools.setFrame({ W, H, t0, t1, lo: loV, hi: hiV, pts });
+  const X = tools.X, Y = tools.Y;
 
   // A quiet period is not a straight line between two prices - it is missing data.
   // Anything over GAP_MS starts a new segment so the chart never invents a move.
@@ -720,11 +730,18 @@ function drawChart() {
   const lastX = X(last.t), lastY = Y(last.p);
   const MONO = 'IBM Plex Mono, monospace';
 
-  const guide = (p) =>
-    `<line x1="0" y1="${Y(p).toFixed(1)}" x2="${(W - PAD_R).toFixed(1)}" y2="${Y(p).toFixed(1)}" `
+  // Zoomed in past the data (chart-tools row 6), a price can sit outside the view. The svg is
+  // overflow:visible, so anything off-plot has to be dropped or it paints over the header.
+  const inPlot = (y) => y >= 0 && y <= H - PAD_B;
+  const guide = (p) => !inPlot(Y(p)) ? ''
+    : `<line x1="0" y1="${Y(p).toFixed(1)}" x2="${(W - PAD_R).toFixed(1)}" y2="${Y(p).toFixed(1)}" `
     + `stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"/>`
     + `<text x="${(W - PAD_R + 6).toFixed(1)}" y="${(Y(p) + 3.5).toFixed(1)}" fill="var(--fg-faint)" `
     + `font-family="${MONO}" font-size="9.5">${inr(p)}</text>`;
+
+  // The pill keeps the true last price readable by sticking to the edge; the dot and its rule
+  // are dropped instead of drawn at a price they are not at.
+  const pillY = Math.min(Math.max(lastY, 9), H - PAD_B - 9);
 
   svg.innerHTML =
     guide(hi) + guide(lo)
@@ -734,22 +751,31 @@ function drawChart() {
     + segs.map(s => s.length > 1
         ? `<path d="${pathOf(s)}" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`
         : `<circle cx="${X(s[0].t).toFixed(1)}" cy="${Y(s[0].p).toFixed(1)}" r="1.6" fill="${stroke}"/>`).join('')
-    + `<line x1="0" y1="${lastY.toFixed(1)}" x2="${lastX.toFixed(1)}" y2="${lastY.toFixed(1)}" `
-    + `stroke="${stroke}" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>`
-    + `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${stroke}"/>`
-    + `<rect x="${(W - PAD_R + 2).toFixed(1)}" y="${(lastY - 9).toFixed(1)}" width="${PAD_R - 6}" height="18" rx="3" fill="${stroke}"/>`
-    + `<text x="${(W - PAD_R + 7).toFixed(1)}" y="${(lastY + 3.5).toFixed(1)}" fill="var(--bg-panel)" `
+    + tools.renderDrawings()                          // chart-tools row 26 — above the fill…
+    + (!inPlot(lastY) ? ''
+        : `<line x1="0" y1="${lastY.toFixed(1)}" x2="${lastX.toFixed(1)}" y2="${lastY.toFixed(1)}" `
+        + `stroke="${stroke}" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>`
+        + `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${stroke}"/>`)
+    + `<rect x="${(W - PAD_R + 2).toFixed(1)}" y="${(pillY - 9).toFixed(1)}" width="${PAD_R - 6}" height="18" rx="3" fill="${stroke}"/>`
+    + `<text x="${(W - PAD_R + 7).toFixed(1)}" y="${(pillY + 3.5).toFixed(1)}" fill="var(--bg-panel)" `
     + `font-family="${MONO}" font-size="10.5" font-weight="600">${inr(last.p)}</text>`
     + `<text x="0" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" font-size="9">`
     + `${new Date(t0).toLocaleTimeString('en-IN', { hour12: false })}</text>`
     + `<text x="${(W - PAD_R).toFixed(1)}" y="${H - 3}" fill="var(--fg-faint)" text-anchor="end" `
     + `font-family="${MONO}" font-size="9">`
-    + `${new Date(t1).toLocaleTimeString('en-IN', { hour12: false })}</text>`;
+    + `${new Date(t1).toLocaleTimeString('en-IN', { hour12: false })}</text>`
+    + tools.renderCrosshair();                        // …and the crosshair on top of everything
 }
 
 /* One paint per frame at most, however many ticks arrived in between. */
 function chartLoop() {
-  if (state.chartDirty) { state.chartDirty = false; drawChart(); }
+  if (state.chartDirty) {
+    state.chartDirty = false;
+    const t0 = performance.now();
+    drawChart();
+    // paint cost, read by the replay verification script through the chart-tools test seam
+    if (window.__chart) window.__chart.paintMs = performance.now() - t0;
+  }
   requestAnimationFrame(chartLoop);
 }
 requestAnimationFrame(chartLoop);
@@ -763,6 +789,16 @@ setInterval(() => {
 }, 500);
 
 /* ------------------------------------------------------- chart controls */
+
+/* Price axis, crosshair and drawing tools — docs/spec/chart-tools-v1.md */
+tools.init({
+  svg: $('chartSvg'),
+  surface: $('chartSurface'),
+  axis: $('chartAxis'),
+  tools: $('chartTools'),
+  inr,
+  repaint: () => { state.chartDirty = true; },
+});
 
 $('chartRange').addEventListener('click', (e) => {
   const b = e.target.closest('button');

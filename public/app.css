@@ -336,14 +336,21 @@ body.nopanel .lat{display:none}
 .feedpill.bad{color:var(--crit);border-color:var(--crit)}
 .feedpill.bad i{background:var(--crit)}
 .tickrate{font-size:10.5px;color:var(--fg-faint)}
-.range{display:flex;gap:3px}
-.range button{
+.range,.tools{display:flex;gap:3px}
+.range button,.tools button{
   font-family:"IBM Plex Mono",monospace;font-size:10px;padding:3px 8px;min-height:24px;cursor:pointer;
   background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:4px;
   transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms;
 }
-.range button:hover{background:var(--bg-inset);color:var(--fg-base)}
-.range button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.range button:hover,.tools button:hover{background:var(--bg-inset);color:var(--fg-base)}
+.range button[aria-pressed="true"],.tools button[aria-pressed="true"]{
+  background:var(--accent);border-color:var(--accent);color:var(--accent-fg);
+}
+/* drawing tools — docs/spec/chart-tools-v1.md rows 10, 21, 25 */
+.tools button{min-width:26px;font-size:11px;line-height:1}
+.tools button:disabled{opacity:.4;cursor:not-allowed}
+.tools button:disabled:hover{background:var(--bg-subtle);color:var(--fg-muted)}
+.tools button.confirm{border-color:var(--crit);color:var(--crit);font-size:9.5px}
 
 .chart-body{position:relative;height:190px;min-height:70px;padding:0 16px 8px}
 .chart-body svg{width:100%;height:100%;display:block;overflow:visible}
@@ -351,6 +358,12 @@ body.nopanel .lat{display:none}
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);pointer-events:none;
 }
+/* Pointer targets for the crosshair/drawings and the price axis. They line up with the svg's
+   content box: .chart-body pads 16px left/right and 8px bottom, and the axis gutter is 76px
+   (docs/spec/chart-tools-v1.md rows 1, 7). */
+.chart-surface{position:absolute;left:16px;right:92px;top:0;bottom:8px;cursor:crosshair;touch-action:none}
+.chart-axis{position:absolute;right:16px;top:0;bottom:8px;width:76px;cursor:ns-resize;touch-action:none}
+.chart-axis:hover{background:var(--accent-wash)}
 .chart-grip{height:6px;cursor:ns-resize;background:transparent;flex:0 0 auto}
 .chart-grip:hover{background:var(--accent-wash)}
 body.nochart .chart-body,body.nochart .chart-grip{display:none}
