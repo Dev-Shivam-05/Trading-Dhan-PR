@@ -100,3 +100,45 @@ than the data, so the live price can sit outside the plot, and the chart svg is 
 the price pill sticks to the nearest edge. Rationale: on a trading screen a marker drawn at a
 price it is not at is worse than no marker, but the number itself must stay readable. Six lines in
 `public/app.js`; change it if you would rather clamp the dot too.
+
+## 2026-08-31 — "Top gainer/loser" is the F&O universe's own top 50 a side, not an external list
+This supersedes the 2026-08-28 entry that left the question open as architecture-changing. It is
+still architecture-changing; it is now answered. The scanner ranks all 210 F&O stocks by % change
+against previous close and keeps the **top 50 gainers and top 50 losers**, then applies the 2% and
+7% filters to those 100. Three reasons, none of them taste: DhanHQ v2 has no gainer/loser endpoint,
+`nseindia.com` refuses connection from this machine and publishes only its top 25 anyway, so an
+external list cannot be sourced even if it were wanted; and the user's own worked example was
+"maan lo 50 stock aaye", which is where the 50 comes from rather than from a round number. Keeping
+50 a side also preserves the user's three-step mental model instead of collapsing filters 1 and 2,
+while costing nothing — the ranking is a local sort over a payload already in hand.
+Consequence: the scanner can never surface a stock outside the F&O universe. That is correct for
+this tool, since every downstream action needs an option chain to trade.
+
+## 2026-08-31 — Blue means entering, yellow means exiting, and the spec says so out loud
+The 2026-08-28 entry refused to guess which colour meant buy, on the grounds that a wrong signal on
+a trading screen is the one failure this project will not ship. That still holds, and the answer is
+not a guess: the board's own sentence for P9 is "so a big player **entering or exiting** a strike is
+visible", and the user gave blue -> buy, yellow -> sell. Entering a strike is the buy side, exiting
+is the sell side, so `dOI > 0` is blue and `dOI < 0` is yellow. It is a reading of intent rather
+than a measurement, which is why `option-candles-v1.md` row 8 names itself as the row to revisit
+first if the screen ever looks backwards — and why nothing else in that spec depends on the
+direction. Flipping row 8 is a one-line change with no downstream effect.
+
+## 2026-08-31 — The volume-vs-OI contradiction is resolved as AND, which is why it was resolvable
+Rec 01 said volume triggers the colour, Rec 02 said OI. They are not alternatives to choose between:
+open interest cannot change without trades, so `OR` degenerates into the OI test alone and Rec 01
+stops meaning anything. Volume on its own is intraday churn — the precise opposite of a big player
+taking a position. Requiring both keeps each recording's signal doing the job it is good at: volume
+says something unusual happened, `dOI` says whether it was accumulation or unwinding. "Vibration",
+which was never defined in any of the six recordings, is now bound to exactly one number — the
+volume test, `vol >= 3.0 x median(previous 20 candles)` — and is in `GLOSSARY.md` so it cannot be
+redefined later.
+
+## 2026-08-31 — Two build prerequisites found while writing the specs, not while building
+Both are one-line changes that a session could otherwise lose an hour to. `KEEP_INSTRUMENTS` in
+`src/server/master.ts` does not include `FUTSTK`, so stock futures are dropped at parse time and
+stock OI is simply unreachable — P8's entire third filter depends on adding it, which is why it is
+row 3 of the spec rather than a note. And both new client files need their row in the `STATIC`
+allow-list in `src/server/index.ts`; without it the module 404s and the failure presents as the
+whole client dying, not as a missing file. Writing the spec against the real code is what surfaced
+them; neither is visible from the requirements alone.
