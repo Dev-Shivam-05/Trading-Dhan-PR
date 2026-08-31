@@ -87,3 +87,14 @@ Anchors are `{t: epochMs, p: price}`; screen position is re-derived every frame 
 drawings cannot disagree. `window.__chart` exposes `frame() shapes() zoom() tool() selected()
 key() repaint() X Y invY` read-only for replay verification scripts — nothing in the app reads it.
 Spec: `docs/spec/chart-tools-v1.md`. Fixed terms: `docs/spec/GLOSSARY.md`.
+
+## Write the docs with the Write/Edit tools, not a bash heredoc
+`cat > docs/... <<'EOF'` on a long markdown table died with ``unexpected EOF while looking for
+matching `'`` — the docs here are full of backticks, pipes and apostrophes, and one of them ends
+the heredoc early. Write and Edit handle the same content without escaping. Git also rewrites LF to
+CRLF on these files, so a diff that looks whole-file is usually just line endings.
+
+## Phase order is an instruction, not a preference
+P10 (the TradingView-style UI redesign) runs **after** P7, P8 and P9 — the user said so explicitly
+on 2026-08-31. An unlocked spec is not a licence to start, and a redesign that lands before the
+three data phases has to be reopened three times to make room for their columns and panels.

@@ -142,3 +142,20 @@ row 3 of the spec rather than a note. And both new client files need their row i
 allow-list in `src/server/index.ts`; without it the module 404s and the failure presents as the
 whole client dying, not as a missing file. Writing the spec against the real code is what surfaced
 them; neither is visible from the requirements alone.
+
+## 2026-08-31 — P10 (terminal UI redesign) is boarded last and stays unlocked until its turn
+The user asked for a total TradingView-style rebuild of the screen — the option chain as one
+scrollable table showing the whole strike list, and the latency data presented some different way —
+and in the same breath said it runs **after** the recording-derived phases, not before. That
+ordering is recorded as an instruction, not as a preference, because it is the difference between
+a redesign that has P7/P8/P9's columns and panels to design around and one that has to be reopened
+three times to make room for them.
+The spec is deliberately **not** locked now, for a reason beyond the standing "no undefined
+adjectives" rule: a spec locked today would be written against a screen that is about to grow a
+peak-OI column, a scanner overlay and an option-candle chart mode. Locking it early guarantees
+churn. The three things that must become numbers before any UI file is touched: what
+"TradingView-like" fixes (row height, column set, pane behaviour, what stays pinned), what the
+latency panel's new form actually is, and how the existing P2-P6 acceptance criteria are re-proved
+against a rebuilt screen rather than quietly dropped.
+The row also carries `~12` files against the 8-file rule, so it splits into P10a / P10b at
+spec-lock time. That is recorded now so a future session does not absorb it in one go.
