@@ -68,6 +68,8 @@ export type Subscription = {
   mode: 'ticker' | 'quote' | 'full';
   /** Replay only: where this instrument's price should sit. Ignored on the live feed. */
   base?: number;
+  /** Replay only: this contract's open interest, seeded from the snapshot. */
+  oiBase?: number;
 };
 
 const MAX_PER_MESSAGE = 100;      // Dhan: at most 100 instruments per subscribe message
@@ -299,6 +301,13 @@ export class FeedClient extends EventEmitter {
   private startReplay() {
     if (this.replayTimer) clearInterval(this.replayTimer);
     const last = new Map<string, number>();
+    /**
+     * OI used to be a fresh uniform random number on every tick, so a contract's open interest
+     * teleported between 1 L and 41 L ten times a second and had nothing to do with the OI the
+     * chain reported for that same strike. Seeded from the snapshot and walked slowly instead -
+     * open interest is a position count, it does not jump 30x between prints.
+     */
+    const lastOi = new Map<string, number>();
     this.setStatus({ state: 'live', since: Date.now(), instruments: this.subs.size });
 
     this.replayTimer = setInterval(() => {
@@ -319,12 +328,20 @@ export class FeedClient extends EventEmitter {
         const drift = base * (Math.random() - 0.5) * (s.mode === 'full' ? 0.01 : 0.0008);
         const ltp = Math.max(0.05, Math.round((base + drift) * 100) / 100);
         last.set(k, ltp);
+
+        let oi: number | null = null;
+        if (s.mode === 'full') {
+          const prev = lastOi.get(k) ?? s.oiBase ?? 1e5;
+          oi = Math.max(1, Math.round(prev * (1 + (Math.random() - 0.48) * 0.002)));
+          lastOi.set(k, oi);
+        }
+
         this.ticksEmitted++;
         this.emit('tick', {
           seg: s.seg, securityId: s.securityId, at: Date.now(),
           ltp, ltt: Math.floor(Date.now() / 1000),
           volume: s.mode === 'ticker' ? null : Math.floor(1e6 + Math.random() * 9e6),
-          oi: s.mode === 'full' ? Math.floor(1e5 + Math.random() * 4e6) : null,
+          oi,
           open: null, high: null, low: null, close: null,
         } satisfies Tick);
       }

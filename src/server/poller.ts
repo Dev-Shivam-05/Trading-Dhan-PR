@@ -173,7 +173,7 @@ class ChainPoller {
         peaks: pv.peaks, peakProgress: pv.progress,
       };
       this.emit({ type: 'snapshot', data: this.last });
-    }, 2000);
+    }, 750);
   }
 
   on(fn: Listener) {

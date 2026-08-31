@@ -128,6 +128,10 @@ function select(id, expiry) {
   state.centred = false;
   state.peaks = {};
   state.peakDate = null;
+  // The chip is per-instrument: leaving the old count up until the first snapshot of the new one
+  // would attribute one chip's backfill to another chip's chain.
+  $('peakChip').hidden = true;
+  $('peakChip').textContent = '';
   state.prevLtp.clear();
   state.ticks = [];
   state.rowByStrike.clear();

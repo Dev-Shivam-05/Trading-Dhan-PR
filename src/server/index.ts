@@ -190,9 +190,12 @@ app.get('/api/stream', (req, reply) => {
         if (!c) continue;
         wants.push({
           seg: c.seg, securityId: c.securityId, mode: 'full',
-          // Replay seeds each contract from its real LTP in the snapshot, so a synthetic tick
-          // on a far OTM strike does not print the same price as an ATM one.
+          // Replay seeds each contract from its real LTP and OI in the snapshot, so a synthetic
+          // tick on a far OTM strike does not print the same price - or the same open interest -
+          // as an ATM one. P7 compares OI against a per-contract peak, so an unanchored OI makes
+          // that whole column meaningless.
           base: isReplay() ? ((side === 'CE' ? row.ce.ltp : row.pe.ltp) ?? undefined) : undefined,
+          oiBase: isReplay() ? ((side === 'CE' ? row.ce.oi : row.pe.oi) ?? undefined) : undefined,
         });
         cellOf.set(c.securityId, { strike: c.strike, side: side === 'CE' ? 'ce' : 'pe' });
       }
