@@ -49,6 +49,9 @@
   </div>
   <span class="grow"></span>
   <span class="statechip" id="stateChip" hidden></span>
+  <span class="statechip flat" id="peakChip" hidden></span>
+  <button class="tog" id="breachBtn" type="button" aria-pressed="false"
+          title="Show only strikes whose OI is above yesterday's peak (P)">Breached</button>
   <label class="srch">
     <span class="sr-only">Search strike</span>
     <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
@@ -105,15 +108,17 @@
         <colgroup id="cg"></colgroup>
         <thead>
           <tr class="sides">
-            <th class="side ce" colspan="11">CALLS · CE</th>
+            <th class="side ce" colspan="12">CALLS · CE</th>
             <th class="spine" rowspan="2">STRIKE</th>
-            <th class="side pe" colspan="11">PUTS · PE</th>
+            <th class="side pe" colspan="12">PUTS · PE</th>
           </tr>
           <tr class="cols">
-            <th>Vega</th><th>Theta</th><th>Gamma</th><th>Delta</th><th>OI</th><th>OI Chg</th>
+            <th>Vega</th><th>Theta</th><th>Gamma</th><th>Delta</th><th>OI</th>
+            <th title="Live OI as a percentage of yesterday's peak OI">Pk %</th><th>OI Chg</th>
             <th>Volume</th><th>Vol Chg%</th><th>IV</th><th>LTP Chg</th><th class="ltp">LTP</th>
             <th class="ltp">LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg%</th><th>Volume</th>
-            <th>OI Chg</th><th>OI</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th>
+            <th>OI Chg</th><th title="Live OI as a percentage of yesterday's peak OI">Pk %</th>
+            <th>OI</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th>
           </tr>
         </thead>
         <tbody id="ocBody"></tbody>

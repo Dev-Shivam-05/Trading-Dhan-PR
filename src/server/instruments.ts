@@ -237,6 +237,25 @@ let cachedRows: MasterRow[] = [];
 
 export type OptionContract = { strike: number; optionType: 'CE' | 'PE'; securityId: number; seg: Seg };
 
+/**
+ * The master's own instrument type for this chip's option contracts - OPTIDX / OPTSTK / OPTFUT.
+ * Read from the registry rather than re-derived from the segment, so the two cannot drift.
+ * `/v2/charts/intraday` needs it alongside the exchange segment.
+ */
+export function optionInstrument(instrumentId: string): string | null {
+  return REGISTRY.find(e => e.id === instrumentId)?.options.instrument ?? null;
+}
+
+/**
+ * The instrument type of the UNDERLYING itself - INDEX or EQUITY, and FUTCOM for MCX, whose
+ * options hang off a futures contract rather than a spot index (SPIKE-01).
+ */
+export function underlyingInstrument(instrumentId: string): string | null {
+  const e = REGISTRY.find(x => x.id === instrumentId);
+  if (!e) return null;
+  return e.assert?.instrument ?? (e.underlyingSeg === 'MCX_COMM' ? 'FUTCOM' : null);
+}
+
 /** Every live option contract for one instrument and expiry, with the segment to subscribe on. */
 export function optionContracts(instrumentId: string, expiry: string): OptionContract[] {
   const entry = REGISTRY.find(e => e.id === instrumentId);

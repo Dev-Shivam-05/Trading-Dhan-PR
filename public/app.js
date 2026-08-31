@@ -43,6 +43,15 @@ function pctText(v) {
 
 const cls = (v) => (v === null || v === undefined || !Number.isFinite(v)) ? 'dim' : v > 0 ? 'up' : v < 0 ? 'down' : 'dim';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** 2026-08-28 -> "28 Aug". Only ever used for the peak-OI tooltip. */
+function dayLabel(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  return `${Number(d)} ${MONTHS[Number(m) - 1] ?? ''}`;
+}
+
 /** value with its percentage in a smaller tail: "-107.10 (-20.03%)" */
 function signedPair(v, p, d) {
   if (v === null || !Number.isFinite(v)) return '<span class="dim">—</span>';
@@ -65,6 +74,10 @@ const state = {
   clientStages: { transport: null, render: null },
   prevLtp: new Map(),
   filter: '',
+  // P7 peak OI
+  breachOnly: false,
+  peaks: {},
+  peakDate: null,
   // tick feed
   ticks: [],                 // underlying: [{t, p}]
   chartRange: Number(localStorage.getItem('chartRange') ?? 300000),
@@ -113,6 +126,8 @@ function select(id, expiry) {
   state.expiry = expiry ?? inst.nearestExpiry;
   state.snapshot = null;
   state.centred = false;
+  state.peaks = {};
+  state.peakDate = null;
   state.prevLtp.clear();
   state.ticks = [];
   state.rowByStrike.clear();
@@ -176,8 +191,16 @@ function setConn(kind) {
 
 /* -------------------------------------------------------------- rendering */
 
-const CE_COLS = [40, 46, 52, 38, 56, 106, 56, 56, 38, 100, 60];
+/* Vega Theta Gamma Delta OI Pk% OI-Chg Volume Vol-Chg% IV LTP-Chg LTP — mirrored for PE. */
+const CE_COLS = [40, 46, 52, 38, 56, 48, 106, 56, 56, 38, 100, 60];
 const SPINE = 92;
+const COLS = CE_COLS.length * 2 + 1;
+
+/* Column indices into a rendered <tr>. 25 cells: 12 CE, the spine at 12, then 12 PE mirrored. */
+const CELL = {
+  ce: { ltp: 11, vol: 7, oi: 4, pk: 5 },
+  pe: { ltp: 13, vol: 17, oi: 20, pk: 19 },
+};
 
 function buildColgroup() {
   const cg = $('cg');
@@ -191,7 +214,7 @@ function skeleton() {
   $('expState').hidden = true;
   $('gridScroll').style.display = '';
   $('spotPill').hidden = true;
-  const cells = '<td><span></span></td>'.repeat(23);
+  const cells = '<td><span></span></td>'.repeat(COLS);
   $('ocBody').innerHTML = `<tr class="skel">${cells}</tr>`.repeat(15);
 }
 
@@ -228,6 +251,37 @@ function cell(html, extra = '') {
   return `<td class="${extra}">${html}</td>`;
 }
 
+/* --------------------------------------------------- peak OI (docs/spec/peak-oi-v1.md) */
+
+/**
+ * One `Pk %` cell from a live OI and that contract's peak. The single place the ratio and the
+ * breach are decided, so the 3 s poll and the 10 Hz tick path cannot disagree about a cell.
+ */
+function pkCell(oi, pk, sessionDate) {
+  const peak = pk && Number.isFinite(pk.peak) ? pk.peak : null;
+  if (peak === null || peak <= 0) {
+    return { text: '—', breach: false, title: (pk && pk.why) || 'no peak available' };
+  }
+  const day = dayLabel(sessionDate);
+  const title = `peak ${abbr(peak)}${pk.at ? ` at ${pk.at}` : ''}${day ? ` · ${day}` : ''}`;
+  if (oi === null || oi === undefined || !Number.isFinite(oi)) {
+    return { text: '—', breach: false, title };
+  }
+  const breach = oi > peak;
+  return { text: `${breach ? '▲' : ''}${Math.round((oi / peak) * 100)}%`, breach, title };
+}
+
+function pkTd(k, extra) {
+  return `<td class="pk ${k.breach ? 'breach ' : ''}${extra}" title="${k.title.replace(/"/g, '')}">${k.text}</td>`;
+}
+
+/** Where yesterday's peak sits on the OI bar's own scale. */
+function pkMark(peak, max, side) {
+  if (!peak || !max) return '';
+  const pct = Math.min(100, (100 * peak) / max).toFixed(1);
+  return `<i class="pkmark" style="${side === 'ce' ? 'right' : 'left'}:${pct}%"></i>`;
+}
+
 function renderGrid(s) {
   buildColgroup();
   const rows = s.rows;
@@ -243,9 +297,15 @@ function renderGrid(s) {
     const itmPe = r.strike > s.spot ? 'itm' : '';
     const isAtm = r.strike === s.atmStrike;
     const spotline = i < rows.length - 1 && r.strike < s.spot && rows[i + 1].strike > s.spot;
-    const hidden = q && !String(r.strike).includes(q);
 
     const c = r.ce, p = r.pe;
+    const pk = state.peaks[r.strike] ?? {};
+    const pkC = pkCell(c.oi, pk.ce, state.peakDate);
+    const pkP = pkCell(p.oi, pk.pe, state.peakDate);
+
+    const hidden = (q && !String(r.strike).includes(q))
+      || (state.breachOnly && !pkC.breach && !pkP.breach);
+
     const barCe = maxCe ? `<i class="bar" style="width:${(100 * (c.oi ?? 0) / maxCe).toFixed(1)}%"></i>` : '';
     const barPe = maxPe ? `<i class="bar" style="width:${(100 * (p.oi ?? 0) / maxPe).toFixed(1)}%"></i>` : '';
 
@@ -254,7 +314,8 @@ function renderGrid(s) {
       + cell(fx(c.theta, 2), itmCe)
       + cell(fx(c.gamma, 5), itmCe)
       + cell(fx(c.delta, 2), itmCe)
-      + cell(`${barCe}<span class="v">${abbr(c.oi)}</span>`, `oi r ${itmCe}`)
+      + cell(`${barCe}${pkMark(pk.ce?.peak, maxCe, 'ce')}<span class="v">${abbr(c.oi)}</span>`, `oi r ${itmCe}`)
+      + pkTd(pkC, itmCe)
       + cell(signedPair(c.oiChg, c.oiChgPct, 'abbr'), itmCe)
       + cell(abbr(c.volume), itmCe)
       + cell(`<span class="${cls(c.volChgPct)}">${pctText(c.volChgPct)}</span>`, itmCe)
@@ -268,7 +329,8 @@ function renderGrid(s) {
       + cell(`<span class="${cls(p.volChgPct)}">${pctText(p.volChgPct)}</span>`, itmPe)
       + cell(abbr(p.volume), itmPe)
       + cell(signedPair(p.oiChg, p.oiChgPct, 'abbr'), itmPe)
-      + cell(`${barPe}<span class="v">${abbr(p.oi)}</span>`, `oi ${itmPe}`)
+      + pkTd(pkP, itmPe)
+      + cell(`${barPe}${pkMark(pk.pe?.peak, maxPe, 'pe')}<span class="v">${abbr(p.oi)}</span>`, `oi ${itmPe}`)
       + cell(fx(p.delta, 2), itmPe)
       + cell(fx(p.gamma, 5), itmPe)
       + cell(fx(p.theta, 2), itmPe)
@@ -287,7 +349,7 @@ function renderGrid(s) {
     const strike = Number(tr.dataset.strike);
     const row = rows.find(r => r.strike === strike);
     if (!row) continue;
-    for (const [side, idx] of [['ce', 10], ['pe', 12]]) {
+    for (const [side, idx] of [['ce', CELL.ce.ltp], ['pe', CELL.pe.ltp]]) {
       const key = `${strike}|${side}`;
       const now = row[side].ltp;
       if (state.prevLtp.has(key) && state.prevLtp.get(key) !== now) tr.children[idx].classList.add('flash');
@@ -297,6 +359,26 @@ function renderGrid(s) {
 
   state.spotIdx = -1;
   placeSpotPill(s);
+}
+
+/**
+ * The backfill takes ~1 s per contract, so an 82-contract chain fills over more than a minute.
+ * A column that arrives in pieces looks broken without a count beside it (spec row 17).
+ */
+function renderPeakChip(s) {
+  const chip = $('peakChip');
+  const p = s.peakProgress;
+  if (!s.peakSessionDate) {
+    chip.hidden = false;
+    chip.textContent = 'PEAK OI —';
+    chip.title = s.peakNote ?? '';
+    return;
+  }
+  if (!p || !p.total) { chip.hidden = true; return; }
+  const complete = p.done + p.skipped >= p.total;
+  chip.hidden = complete && p.skipped === 0;
+  chip.textContent = `PEAK OI ${p.done} / ${p.total}` + (p.skipped ? ` · ${p.skipped} skipped` : '');
+  chip.title = `Peaks are from ${dayLabel(s.peakSessionDate)}`;
 }
 
 function placeSpotPill(s) {
@@ -318,9 +400,12 @@ function scrollToAtm(behavior = 'smooth') {
 function onSnapshot(s) {
   state.snapshot = s;
   state.lastReceivedAt = Date.now();
+  state.peaks = s.peaks ?? {};
+  state.peakDate = s.peakSessionDate ?? null;
 
   const t0 = performance.now();
   renderHeader(s);
+  renderPeakChip(s);
   renderGrid(s);
   requestAnimationFrame(() => {
     state.clientStages.render = Math.round((performance.now() - t0) * 10) / 10;
@@ -504,6 +589,13 @@ $('search').addEventListener('input', (e) => {
   if (state.snapshot) renderGrid(state.snapshot);
 });
 
+/** Spec row 15: ANDs with the strike search, it does not replace it. */
+$('breachBtn').addEventListener('click', () => {
+  state.breachOnly = !state.breachOnly;
+  $('breachBtn').setAttribute('aria-pressed', String(state.breachOnly));
+  if (state.snapshot) { renderGrid(state.snapshot); placeSpotPill(state.snapshot); }
+});
+
 const applyTheme = (t) => {
   if (t) document.documentElement.setAttribute('data-theme', t);
   else document.documentElement.removeAttribute('data-theme');
@@ -538,6 +630,7 @@ document.addEventListener('keydown', (e) => {
   const n = Number(e.key);
   if (n >= 1 && n <= state.instruments.length) { select(state.instruments[n - 1].id); return; }
   if (e.key === '/') { e.preventDefault(); $('search').focus(); }
+  if (e.key.toLowerCase() === 'p') $('breachBtn').click();
   if (e.key.toLowerCase() === 'l') setPanel(document.body.classList.contains('nopanel'));
   if (e.key.toLowerCase() === 't') $('themeBtn').click();
   if (e.key.toLowerCase() === 'e') $('expiry').focus();
@@ -561,8 +654,6 @@ loadInstruments().catch(err => {
    The feed carries LTP, volume and OI only. IV and greeks have no tick source
    at all, so those columns keep coming from the 3 s snapshot, and the legend
    above the chart says which is which. */
-
-const CELL = { ce: { ltp: 10, vol: 6, oi: 4 }, pe: { ltp: 12, vol: 16, oi: 18 } };
 
 function onFeed(fs) {
   state.feed = fs;
@@ -677,6 +768,15 @@ function applyCellTick(it) {
   if (it.o !== null && it.o !== undefined) {
     const span = tr.children[idx.oi].querySelector('.v');
     if (span) span.textContent = abbr(it.o);
+
+    // The OI cell moves at 10 Hz while the chain poll is 3 s, so Pk % has to follow the tick
+    // or the screen would print 97% beside an OI that has already crossed the peak.
+    const td = tr.children[idx.pk];
+    if (td) {
+      const k = pkCell(it.o, (state.peaks[it.s] ?? {})[it.k], state.peakDate);
+      td.textContent = k.text;
+      td.classList.toggle('breach', k.breach);
+    }
   }
 }
 

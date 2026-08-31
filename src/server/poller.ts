@@ -14,6 +14,7 @@ import {
   type CallTiming, type Credentials, type OptionChainResponse,
 } from './dhan.ts';
 import { derive, ivChangePct, type Baseline, type Derived } from './derive.ts';
+import { PeakOiStore, type PeakView } from './peakoi.ts';
 import { isReplay, replayChain, replayLatency, replayPrevClose } from './replay.ts';
 import { daysToExpiry, sessionState, todayIso, type ResolvedInstrument } from './instruments.ts';
 
@@ -90,6 +91,11 @@ export type Snapshot = {
   totals: { ceOi: number; peOi: number };
   rows: Derived['rows'];
   strikes: number;
+  /** P7. Yesterday's peak OI per strike, filled in progressively - see peakoi.ts. */
+  peakSessionDate: PeakView['sessionDate'];
+  peakNote: PeakView['note'];
+  peaks: PeakView['peaks'];
+  peakProgress: PeakView['progress'];
   receivedAt: number;
   session: ReturnType<typeof sessionState>;
   replay: boolean;
@@ -111,6 +117,7 @@ class ChainPoller {
   readonly key: string;
   private timer: NodeJS.Timeout | null = null;
   private stopTimer: NodeJS.Timeout | null = null;
+  private peakTimer: NodeJS.Timeout | null = null;
   private subscribers = 0;
   private failures = 0;
   private tick = 0;
@@ -128,6 +135,7 @@ class ChainPoller {
   private readonly creds: Credentials | null;
   private readonly bus: TelemetryBus;
   private readonly baselines: BaselineStore;
+  private readonly peaks: PeakOiStore;
 
   constructor(
     instrument: ResolvedInstrument,
@@ -135,13 +143,37 @@ class ChainPoller {
     creds: Credentials | null,
     bus: TelemetryBus,
     baselines: BaselineStore,
+    peaks: PeakOiStore,
   ) {
     this.instrument = instrument;
     this.expiry = expiry;
     this.creds = creds;
     this.bus = bus;
     this.baselines = baselines;
+    this.peaks = peaks;
     this.key = `${instrument.id}|${expiry}`;
+    this.peaks.onProgress(() => this.refreshPeaks());
+  }
+
+  /**
+   * Re-emit the last snapshot with the peaks that have landed since. Throttled to 2 s, because
+   * 82 contracts landing one per second must not become 82 grid re-renders - and because on a
+   * closed market this is the ONLY thing that ever updates the column.
+   */
+  private refreshPeaks() {
+    if (!this.last || this.peakTimer) return;
+    this.peakTimer = setTimeout(() => {
+      this.peakTimer = null;
+      const prev = this.last;
+      if (!prev) return;
+      const pv = this.peaks.view(this.instrument, this.expiry, prev.rows.map(r => r.strike));
+      this.last = {
+        ...prev,
+        peakSessionDate: pv.sessionDate, peakNote: pv.note,
+        peaks: pv.peaks, peakProgress: pv.progress,
+      };
+      this.emit({ type: 'snapshot', data: this.last });
+    }, 2000);
   }
 
   on(fn: Listener) {
@@ -270,6 +302,13 @@ class ChainPoller {
     const prevClose = await underlyingPrevClose(this.instrument, this.creds);
     const spotChange = prevClose !== null ? d.spot - prevClose : null;
 
+    // P7: enqueue whatever peaks this strike list still needs and read what is already cached.
+    // Deliberately NOT awaited - the backfill spends its own 1 req/s budget in the background and
+    // must never push this poll past its 3 s cadence.
+    const strikeList = d.rows.map(r => r.strike);
+    void this.peaks.track(this.instrument, this.expiry, strikeList, d.atmStrike).catch(() => { /* the column degrades to a dash */ });
+    const pv = this.peaks.view(this.instrument, this.expiry, strikeList);
+
     const snapshot: Snapshot = {
       key: this.key,
       instrument: {
@@ -291,6 +330,10 @@ class ChainPoller {
       totals: d.totals,
       rows: d.rows,
       strikes: d.strikes,
+      peakSessionDate: pv.sessionDate,
+      peakNote: pv.note,
+      peaks: pv.peaks,
+      peakProgress: pv.progress,
       receivedAt: Date.now(),
       session,
       replay: isReplay(),
@@ -375,16 +418,22 @@ export class PollerHub {
   readonly bus = new TelemetryBus();
   private readonly pollers = new Map<string, ChainPoller>();
   private readonly baselines = new BaselineStore();
+  private readonly peaks: PeakOiStore;
 
   private readonly creds: Credentials | null;
 
-  constructor(creds: Credentials | null) { this.creds = creds; }
+  constructor(creds: Credentials | null) {
+    this.creds = creds;
+    // One store for the whole process: the peak cache and its single 1 req/s slot are shared by
+    // every instrument, and P8 will reuse the same fetcher for its OI baseline.
+    this.peaks = new PeakOiStore(creds);
+  }
 
   get(instrument: ResolvedInstrument, expiry: string): ChainPoller {
     const key = `${instrument.id}|${expiry}`;
     let p = this.pollers.get(key);
     if (!p) {
-      p = new ChainPoller(instrument, expiry, this.creds, this.bus, this.baselines);
+      p = new ChainPoller(instrument, expiry, this.creds, this.bus, this.baselines, this.peaks);
       this.pollers.set(key, p);
     }
     return p;
