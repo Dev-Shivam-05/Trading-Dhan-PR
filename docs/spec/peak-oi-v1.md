@@ -1,7 +1,8 @@
 # SPEC LOCK — P7 peak-OI tracking
 
-Status: **awaiting approval**. Reply `go` to build all of it, or `change 4,11` with your values.
-Build is additionally blocked on the Data API plan (`dataPlan: Deactive`, token expired 2026-08-28).
+Status: **locked and built** 2026-08-31. Approved with `go`; rows 21 and 22 were added during the
+build and are marked as such. Verified in `REPLAY=1` only — the live path has never run, because
+the Data API plan is inactive and the token expired 2026-08-28.
 
 A future session with no memory of the approving conversation must be able to build the identical
 thing from this file. Implementation may not introduce a value that is not in this table.
@@ -40,6 +41,8 @@ grid next to live OI, and flags the moment live OI crosses it.
 | 18 | GOLD / MCX | Attempted like any other contract with `instrument: OPTFUT`. If Dhan rejects it, every GOLD cell degrades to `—` with the error in the tooltip and the chip reads `82 skipped` | MCX intraday-with-OI is unverified. Declaring it out of scope in advance would be guessing in the other direction; degrading is honest either way |
 | 19 | Replay behaviour | `REPLAY=1` synthesises the **full candle payload** — `timestamp` + `open_interest` arrays for 375 1-minute candles across the previous session and today — from a fixed seed per `(securityId, date)`. The peak comes out of the **same `max()` code path** as live. Seeded so that **exactly 5** contracts (3 CE, 2 PE) are breached on the first NIFTY snapshot | Synthesising the peak directly would test nothing. Synthesising the series means the done-when criterion ("peak equals the hand-computed max") is checkable today, and the live path differs only in transport |
 | 20 | Cost of the column in width | `table.oc` min-width goes **1392px → 1484px**. Below that the grid scrolls horizontally, which is already its behaviour with the latency panel open | 44px of horizontal scroll at 1440px. If that is unacceptable, the cheapest trade is dropping `Vol Chg%` (56px × 2 = 112px) — say so and it goes. P10 owns the final column layout either way |
+| **21** | **Added during the build.** What updates the column between polls | The store fires on every contract that lands; the poller re-emits its **last snapshot** with the new peaks, throttled to **750 ms** | On a **closed market** the poller takes one snapshot and then only re-checks the session every 60 s — it never emits again. Without this the column would stay empty until the next trading day for anyone who opens the app after 15:30. During a session the 3 s poll would carry the peaks anyway, so this costs nothing there |
+| **22** | **Added during the build.** What OI the replay tick feed prints | Seeded from that contract's OI in the snapshot (`oiBase` on the subscription) and random-walked **±0.2% per tick**. Replay chain OI drift also changed from a flat `900/poll` to **0.025%/poll of the contract's own OI** | The feed drew a fresh uniform random `1e5 + rand*4e6` for **every contract on every tick**, so a strike's OI teleported between 1 L and 41 L ten times a second with no relation to the chain. Any ratio taken against it — which is exactly what `Pk %` is — was noise. The flat chain drift had the same flaw at the wings: +900/poll on a 24 K strike is +3.7%, so a wing crossed any fixed peak within minutes |
 
 ## Out of scope (will NOT build)
 
@@ -62,6 +65,29 @@ grid next to live OI, and flags the moment live OI crosses it.
 - [ ] A contract with no peak renders `—` with a reason in its `title`, and the chip's `skipped` count equals the number of such contracts.
 - [ ] Cold backfill of an 82-contract chain completes in **≤ 90 s**; a second run with the cache warm issues **0** calls and the column is fully populated on the first snapshot.
 - [ ] Screenshots in both themes: column populated, a breached row, the backfill chip mid-fill, the `Breached` filter on.
+
+## Verification — `REPLAY=1`, 2026-08-31, 1440x900
+
+23/23 checks pass: 7 against the SSE payload (`.cache/verify-peak.mjs`) and 16 in the browser
+(`.cache/shots-peak.mjs`). Both harnesses recompute the number and compare; neither trusts a field
+because the server sent it.
+
+| Criterion | Measured |
+|---|---|
+| AC1 peak = hand-computed max | NIFTY 23100 CE: **52,884 = 52,884** over 375 candles. GOLD 156500 CE: **136,909 = 136,909** |
+| AC2 today's candles excluded | a today-dated candle at **99x** the peak leaves it at 52,884 |
+| AC3 exactly 5 breached | **3 CE, 2 PE** in the payload and **5** cells on screen, all carrying `▲`, at the seeded offsets (NIFTY 24000/24150/24300 CE, 23950/24350 PE) |
+| AC4 tick path | 3 distinct OI values over 9 s on GOLD, **0** cells inconsistent with their OI and tooltip peak |
+| AC5 filter | Breached alone → 5 rows; Breached + `23950` → **1** row; Breached + a non-breached strike → **0** rows. `P` toggles it |
+| AC6 chain cadence | **min 3133 ms** per key across 10 gaps / 12 calls **while the backfill ran** |
+| AC7 no lies | 82/82 cells agree with the OI cell and the tooltip peak within 2pp of abbreviation rounding; **0** cells read `0%`, `NaN` or `Infinity` |
+| AC8 cold / warm | cold **6.5 s** for 82 contracts (NIFTY), **5.0 s** for 62 (GOLD); warm cache serves **82/82 on snapshot 1** with 0 calls |
+| AC9 screenshots | 6 reviewed in both themes: column populated, breached row, mid-fill chip at `PEAK OI 9 / 82`, filter on |
+| — | 25 cells / 25 cols / colspan 12+12, table **1484px**, 82 peak markers on the OI bars, **zero** console errors |
+
+Two numbers here are replay artefacts, not measurements of the live path: the cold backfill time
+(replay has no transport, so a 60 ms delay per contract stands in for the 1 req/s slot key — live
+is bounded at ~82 s for 82 contracts), and every OI value on the screen.
 
 ## Risks
 

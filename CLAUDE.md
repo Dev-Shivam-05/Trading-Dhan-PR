@@ -88,6 +88,29 @@ drawings cannot disagree. `window.__chart` exposes `frame() shapes() zoom() tool
 key() repaint() X Y invY` read-only for replay verification scripts — nothing in the app reads it.
 Spec: `docs/spec/chart-tools-v1.md`. Fixed terms: `docs/spec/GLOSSARY.md`.
 
+## Replay data must be anchored, or any ratio computed from it is noise
+The replay tick feed used to draw a fresh uniform random OI for every contract on every tick, so a
+strike's open interest teleported between 1 L and 41 L ten times a second with no relation to the
+chain's OI for that same strike. Four phases never noticed, because nothing compared OI to
+anything. P7's `Pk %` did, and 24 of 82 cells showed a false breach at ratios up to 2358%.
+Both ends are anchored now (`oiBase` on the subscription; proportional drift in `replayChain`).
+**Before building anything that takes a ratio of two replayed numbers, check that both ends are
+anchored to the same base.** A synthetic value that only has to look plausible on its own is not
+the same as one that has to stay consistent with another.
+
+## The poller stops emitting when the market is closed
+`ChainPoller.loop()` takes one snapshot and then, if the session is shut, only re-checks every
+60 s — it never emits again. Anything that arrives **after** that first snapshot and rides the
+snapshot to the browser (P7's peaks; anything P8/P9 add) needs its own push, or it is invisible
+until the next trading day. P7 does this with `PeakOiStore.onProgress` -> re-emit `last`,
+throttled to 750 ms. Most work on this project happens outside 09:15-15:30, so this is the normal
+case, not the edge case.
+
+## `dhanPost`'s rate gate is per key — one key per item means no gate at all
+`waitForSlot(key, cadenceMs)` in `src/server/dhan.ts` holds a slot **per key**. A loop that calls
+82 contracts with `key: \`thing:${securityId}\`` dispatches all 82 simultaneously. Anything doing a
+fan-out shares ONE key (P7 uses `peak:oi`, P8's spec locks `scan:quote` / `scan:oi`).
+
 ## Write the docs with the Write/Edit tools, not a bash heredoc
 `cat > docs/... <<'EOF'` on a long markdown table died with ``unexpected EOF while looking for
 matching `'`` — the docs here are full of backticks, pipes and apostrophes, and one of them ends

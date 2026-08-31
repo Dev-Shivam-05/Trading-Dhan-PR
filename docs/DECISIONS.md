@@ -159,3 +159,53 @@ latency panel's new form actually is, and how the existing P2-P6 acceptance crit
 against a rebuilt screen rather than quietly dropped.
 The row also carries `~12` files against the 8-file rule, so it splits into P10a / P10b at
 spec-lock time. That is recorded now so a future session does not absorb it in one go.
+
+## 2026-08-31 — "Yesterday" is read off the candle data, never off a calendar
+P7 needs the previous **trading** session. `today - 1` is wrong every Monday and every exchange
+holiday, and a hardcoded holiday table is wrong the first time the exchange changes one. So the
+date is derived from the data: request the last 7 calendar days of candles, bucket the timestamps
+into IST dates, and take the latest one strictly before today. Seven days covers a two-day holiday
+plus a weekend. One call on the **underlying** settles it per instrument per day and every contract
+call for that instrument reuses the answer, because the trading calendar is a property of the
+exchange, not of the contract.
+The same reasoning fixes the other end: the fetch window runs `fromDate = that date, toDate = today`,
+so today's candles arrive too and are **discarded** by date. The peak must mean "yesterday's
+high-water mark"; letting today leak in would compare a number against itself.
+
+## 2026-08-31 — One rate-gate key for the whole peak backfill
+`waitForSlot` in `dhan.ts` gates **per key**. The obvious `peak:<securityId>` would have given
+every one of the 82 contracts its own gate, so all 82 would have dispatched simultaneously and
+tripped the 1 req/s quote limit on the first snapshot. They all share `peak:oi` instead, which
+makes the backfill strictly serial at 1 req/s and leaves the chain poll's own 3 s key untouched.
+This is the same pattern `scanner-v1.md` row 4 locked for P8, and P8 will reuse this fetcher.
+
+## 2026-08-31 — A progressive column needs a push, not just a poll
+Discovered by testing rather than by reading: on a **closed market** the poller takes one snapshot
+and then only re-checks the session every 60 s — it never emits again. Since the peaks ride the
+snapshot, the column would have stayed empty until the next trading day for anyone opening the app
+after 15:30, which is most of the time this project is actually used. The store now notifies as
+each contract lands and the poller re-emits its last snapshot with the new peaks, throttled to
+750 ms. During a live session the 3 s poll would have carried them anyway, so this costs nothing
+where it is not needed.
+
+## 2026-08-31 — Replay must synthesise the candle series, not the peak
+P7's whole acceptance criterion is "the peak equals the hand-computed max of that day's candle OI".
+Had replay handed the peak over directly, that criterion would have tested nothing — it would have
+compared an asserted number to itself. Replay generates the full parallel-array payload instead,
+shaped so its maximum over the previous session lands on exactly one candle, and the peak comes out
+of the **same `max()`** the live path uses. Today's replay candles deliberately carry 1.4x the peak,
+so a reader that ever stops discarding them inflates every peak by 40% and the seeded breaches
+vanish — a loud failure rather than a quiet one.
+
+## 2026-08-31 — Replay OI is a position count, so it may not teleport
+The P5 replay feed drew `1e5 + random*4e6` fresh for **every contract on every tick**: a strike's
+open interest jumped between 1 L and 41 L ten times a second with no relation to the OI the chain
+reported for that same strike. Nothing had ever compared OI against anything, so it was invisible
+for four phases. P7's `Pk %` is exactly that comparison, and against a random number it is noise —
+24 of 82 cells showed a false breach at ratios up to 2358%.
+Fixed at both ends: the tick feed seeds each contract's OI from the snapshot and random-walks it
+±0.2%, and the chain's own drift changed from a flat `+900/poll` to `+0.025%/poll of that
+contract's OI`. The flat version added the same absolute size to a 24 K wing strike as to a 3 M ATM
+strike, so wings grew ~4% per poll and crossed any fixed peak within minutes. This cost two files
+outside P7's plan and took the phase to nine code files, one over the guideline — taken knowingly,
+because without it P7's acceptance criteria could not be measured in the only mode available.
