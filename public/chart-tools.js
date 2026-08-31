@@ -234,11 +234,8 @@ function shapeSvg(s, sel) {
 }
 
 /** row 14 — a level is only useful if you can read its price off the axis. */
-function hlinePill(s) {
-  const f = st.frame;
-  const w = f.W - PAD_R, h = f.H - PAD_B;
-  const y = Y(s.a.p);
-  if (y < 9 || y > h - 9) return '';
+function hlinePill(s, y) {
+  const w = st.frame.W - PAD_R;
   return `<rect x="${n(w + 2)}" y="${n(y - 9)}" width="${PAD_R - 6}" height="18" rx="3" `
     + `fill="var(--accent)"/>`
     + `<text x="${n(w + 7)}" y="${n(y + 3.5)}" fill="var(--accent-fg)" font-family="${MONO}" `
@@ -265,17 +262,18 @@ export function renderDrawings() {
   // One <path> per style instead of one node per shape. At the 200-shape cap (row 24) the
   // difference is 200 nodes to parse every frame versus 3, which is the whole paint budget.
   let solid = '', dashed = '', boxes = '', body = '', pills = '';
+  const levels = [];
   for (const s of list) {
     if (offPlot(s, w, h)) continue;
     if (s.id === st.selected || s === st.draft) {
       body += shapeSvg(s, s.id === st.selected);
-      if (s.kind === 'hline') pills += hlinePill(s);
+      if (s.kind === 'hline') levels.push(s);
       continue;
     }
     const g = pixelsOf(s);
     if (s.kind === 'hline') {
       dashed += `M0 ${n(g.y)}L${n(g.w)} ${n(g.y)}`;
-      pills += hlinePill(s);
+      levels.push(s);
     } else if (s.kind === 'rect') {
       const x = Math.min(g.x1, g.x2), y = Math.min(g.y1, g.y2);
       boxes += `M${n(x)} ${n(y)}h${n(Math.abs(g.x2 - g.x1))}v${n(Math.abs(g.y2 - g.y1))}`
@@ -298,6 +296,20 @@ export function renderDrawings() {
   if (boxes) {
     body = `<path d="${boxes}" fill="var(--accent-wash)" stroke="var(--accent)" `
       + `stroke-width="1.4"/>` + body;
+  }
+
+  // row 28 — the pill is 18px tall, so one within 18px of another is fully hidden behind it.
+  // Dropping those costs no readable information and is the difference between 400 nodes and 20.
+  if (levels.length > 1 && st.selected) {
+    levels.sort((a, b) => (b.id === st.selected ? 1 : 0) - (a.id === st.selected ? 1 : 0));
+  }
+  const taken = [];
+  for (const s of levels) {
+    const y = Y(s.a.p);
+    if (y < 9 || y > h - 9) continue;
+    if (taken.some(v => Math.abs(v - y) < 18)) continue;
+    taken.push(y);
+    pills += hlinePill(s, y);
   }
 
   let handles = '';

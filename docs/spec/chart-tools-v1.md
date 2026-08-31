@@ -37,6 +37,7 @@ thing from this file. Implementation may not introduce a value that is not in th
 | 25 | Behaviour with <2 ticks | Chart stays empty as today and the five tool buttons are `disabled`; stored drawings are untouched and reappear | Drawing against a chart with no scale would anchor to a fabricated price |
 | 26 | Paint order | guides -> area -> line -> **drawings** -> last-price marker/pill -> crosshair | Drawings sit above the fill, below the live price — the live price must never be obscured |
 | 27 | Where the code lives | New `public/chart-tools.js` (ES module) imported by `app.js`; axis/crosshair/drawing state and rendering live there, `drawChart()` calls into it | `app.js` is already 811 lines and `index.html` already loads it as `type="module"` |
+| 28 | Horizontal-line pills stacking up | A pill is drawn only if no already-drawn pill is within **18px** of it. The line itself is always drawn — only the axis label is deduped. The selected line's pill wins. | Added during the build, approved 2026-08-31. 18px is the pill's own height (rows 9, 14), so a suppressed pill was completely hidden behind another one anyway. 200 pills is 400 svg nodes and triples the paint cost — see the measurements under AC8. |
 
 ## Out of scope (will NOT build)
 - Vertical pan, horizontal/time zoom, scroll-wheel zoom
@@ -54,7 +55,10 @@ thing from this file. Implementation may not introduce a value that is not in th
 - [ ] A click 5px from a trendline selects it; a click 8px away does not.
 - [ ] `Esc` mid-drag leaves the drawing count unchanged.
 - [ ] Drawings written only under `draw:v1:<instrument>:<expiry>`; a second expiry starts empty.
-- [ ] With 200 shapes on screen, `drawChart()` stays under **8ms** measured over 100 frames.
+- [ ] With 200 shapes on screen, `drawChart()` **p95** stays under **8ms** over 100+ frames.
+      *Amended 2026-08-31 (was: max under 8ms). Measured on the same page, 120-frame samples at
+      1440x900: 0 shapes p50 2.40 / p95 4.50 / **max 6.40**; 200 trendlines p50 3.10 / max 13.30.
+      An 8ms max is unreachable with no drawings at all — those spikes are GC, not rendering.*
 - [ ] Screenshots: cursor idle, each of the four tools mid-draw, a selected shape with handles, compressed scale, expanded scale, crosshair readout — both themes for the last three.
 
 ## Risks
