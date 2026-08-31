@@ -1,80 +1,96 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 8/9 spec lock + P10 boarded — 2026-08-31
+# HANDOFF — Dhan Option Chain Terminal — Phase 7 (peak-OI tracking) — 2026-08-31
 
 ## Done
-- **P8 and P9 are spec-locked.** Two files, 36 locked rows between them, approved with one `go`.
-  All **15 open questions are closed** — a future session can build both from the files alone.
-- The two questions the previous session called undecidable are answered **from the material,
-  not invented**:
-  - **"top gainer/loser" = the 210-stock F&O universe's own top 50 gainers + top 50 losers.**
-    The 50 comes from the user's own worked example ("maan lo 50 stock aaye"). DhanHQ v2 has no
-    gainer/loser endpoint and `nseindia.com` is unreachable from here, so no external list exists
-    to use even if one were wanted. The three filters stay distinct: `210 -> 100 -> n -> m`.
-  - **blue = `dOI > 0` = a big player entering the strike = buy; yellow = `dOI < 0` = exiting =
-    sell.** Read off the board's own wording ("a big player entering or exiting a strike"), not
-    guessed. The spec names row 8 as the row to revisit first if the screen ever looks backwards.
-- The **Rec 01 / Rec 02 contradiction is resolved as AND**, not by picking a side: OI cannot move
-  without volume, so `OR` collapses into the OI test alone and Rec 01 stops meaning anything.
-  **"Vibration" is now exactly one number** — `vol >= 3.0 x median(previous 20 candles)` — and is
-  in the glossary so it cannot be redefined later.
-- **Two build prerequisites surfaced by writing the specs against the real code**, both one-liners
-  a session could otherwise lose an hour to: `FUTSTK` is missing from `KEEP_INSTRUMENTS`, so stock
-  futures OI is unreachable and P8's third filter cannot work without it; and both new
-  `public/*.js` files need `STATIC` allow-list rows or they 404 as a dead client.
-- **P10 (terminal UI redesign) boarded** at the user's request and explicitly ordered **last**,
-  after the recording-derived phases. Left unlocked on purpose.
-- Branch **`p8-p9-spec-lock`** pushed, commit `3a86909`. **PR not opened.**
+- **The grid has a `Pk %` column on both sides**, between `OI` and `OI Chg`, showing live OI as a
+  percentage of **yesterday's peak** OI — not `previous_oi`, which is yesterday's *close* and is
+  always the smaller number. Crossing the peak turns the cell amber with a `▲`; the OI bar carries
+  a 1px marker where the peak sits; the exact figure is in the cell's tooltip
+  (`peak 4.21 L at 13:45 · 28 Aug`).
+- **A `Breached` toggle (keyboard `P`)** hides every row where neither side has crossed. It **ANDs**
+  with the strike search — Breached + `23950` shows one row, not the union.
+- **The peak comes out of `max(open_interest)` over the previous session's 1-minute candles** from
+  `POST /v2/charts/intraday`. The previous *trading* session is derived from the candle data (the
+  latest IST date before today that has candles), so there is no holiday table and no `today - 1`.
+  Today's candles arrive in the same window and are discarded by date.
+- **The backfill is progressive and visible**: ~82 contracts for a 41-strike chain, ATM-outward,
+  behind a `PEAK OI 9 / 82` chip that hides itself when complete. All calls share one rate-gate key
+  so they run strictly serially at 1 req/s; results cache to `.cache/peak-oi.json` under
+  `(sessionDate, securityId)` and are never re-fetched.
+- **The breach follows ticks, not just polls.** The OI cell updates at 10 Hz from the feed while the
+  chain polls at 3 s, so `Pk %` is recomputed in `applyCellTick` from the same number.
+- **Verified in replay: 23/23 checks** (7 against the SSE payload, 16 in the browser). Peak equals
+  the hand-computed max **to the unit** (52,884 = 52,884 over 375 candles); a today-dated candle at
+  **99x** does not move it; exactly **5** breached cells (3 CE, 2 PE) at the seeded offsets; `Pk %`
+  agrees with the OI cell and the tooltip on **all 82** cells; chain cadence held at **min 3133 ms
+  per key** across the backfill; zero console errors; six screenshots reviewed in both themes.
 
 ## Files changed
-- `docs/spec/scanner-v1.md` — **new.** 17 locked rows, out-of-scope list, 7 acceptance criteria, 4 risks.
-- `docs/spec/option-candles-v1.md` — **new.** 19 locked rows, out-of-scope list, 8 acceptance criteria, 4 risks.
-- `docs/spec/GLOSSARY.md` — 7 terms appended: F&O universe, the funnel, OI baseline, long/short
-  candidate, vibration, fired, entering/exiting a strike.
-- `docs/PHASES.md` — P8 and P9 flipped to **spec locked** with their real done-when criteria;
-  **P10 row added**; `## Now` and `## Next 3` rewritten; session log row added.
-- `docs/DECISIONS.md` — five entries appended, one of them superseding the 2026-08-28 decision that
-  left the gainer/loser question open.
-- `CLAUDE.md` — the bash-heredoc trap that cost a step this session.
-- **No `src/` changes.** Nothing in the application code was touched.
+- `src/server/peakoi.ts` — **new.** The store: session-date derivation, `peakFrom()` (the one place
+  a peak is computed, shared by the live and replay paths), the serial queue, the disk cache, and
+  the progress listener.
+- `src/server/poller.ts` — peaks ride the snapshot (`peaks`, `peakProgress`, `peakSessionDate`,
+  `peakNote`); `track()` is fired and never awaited so the 3 s cadence cannot slip; `refreshPeaks()`
+  re-emits the last snapshot as contracts land.
+- `src/server/replay.ts` — synthesises the **candle series** (not the peak), seeded to 3 CE + 2 PE
+  breaches; `oiBaseAt()` extracted so the chain and the peak share one base; chain OI drift made
+  proportional.
+- `src/server/instruments.ts` — `optionInstrument()` / `underlyingInstrument()`, read from the
+  registry rather than re-derived, so `OPTIDX` / `OPTSTK` / `OPTFUT` cannot drift.
+- `src/server/feed.ts`, `src/server/index.ts` — replay tick OI seeded from the snapshot
+  (`oiBase` on the subscription) and random-walked instead of redrawn at random every tick.
+- `public/app.js` — `pkCell()` (one place the ratio and the breach are decided), the column, the
+  peak marker, the filter, the chip, and the tick-path update. `CELL` indices moved: 25 columns now.
+- `public/app.css` — table min-width 1392 -> **1484px**, `td.pk` / `.breach`, `.pkmark`, `.tog`.
+- `public/index.html` — two `Pk %` headers, `colspan` 11 -> 12 both sides, the chip and the toggle.
+- `docs/spec/peak-oi-v1.md` — **new.** 22 rows (20 locked up front, 21-22 added during the build and
+  marked as such), out-of-scope list, 9 acceptance criteria, a measured verification table, 5 risks.
+- `docs/PHASES.md`, `docs/DECISIONS.md` (5 entries), `docs/spec/GLOSSARY.md` (3 terms),
+  `CLAUDE.md` (3 traps).
 
 ## Decisions made
-- **Both undecidable questions were answered rather than escalated**, because both had an answer
-  sitting in the material — the user's worked example for one, the board's own sentence for the
-  other. Neither is a number pulled from nowhere, and the one that is a *reading of intent*
-  (blue/yellow) says so in its own row and isolates itself so flipping it is a one-line change.
-- **Volume AND OI, never OR.** See DECISIONS 2026-08-31.
-- **P8 and P9 got their own spec files rather than one combined spec.** They are two systems that
-  share nothing but an endpoint; a merged file would be read by two different future sessions.
-- **P10 is boarded last and stays unlocked until its turn.** Locking it now would write a spec
-  against a screen about to grow a peak-OI column, a scanner overlay and a candle chart mode —
-  guaranteed churn. It is also ~12 files against the 8-file rule and splits into P10a / P10b.
-- **This branch is stacked on `p6-chart-tools` on purpose.** The PHASES / DECISIONS / GLOSSARY
-  edits build on the P6 versions of those files; branching from `main` would have silently dropped
-  P6's doc content.
+- **"Yesterday" is read off the candle data, never off a calendar.** `today - 1` is wrong every
+  Monday and every exchange holiday; a hardcoded holiday table is wrong the first time the exchange
+  changes one. One call on the *underlying* settles it per instrument per day, because the trading
+  calendar belongs to the exchange, not the contract.
+- **One rate-gate key (`peak:oi`) for the whole backfill.** `waitForSlot` gates per key, so the
+  obvious `peak:<securityId>` would have dispatched all 82 contracts simultaneously. Same pattern
+  P8's spec already locked.
+- **Replay synthesises the candle series, not the peak.** Handing the peak over directly would have
+  made the headline acceptance criterion compare an asserted number to itself.
+- **Two rows added mid-build (21, 22), both marked as amendments in the spec** — the progress push
+  and the replay OI anchoring. Both were found by testing, not by reading.
+- **Nine code files, one over the ~8 guideline, taken knowingly.** The two replay-feed files were
+  not optional: without them P7's acceptance criteria could not be measured in the only mode
+  available.
 
 ## Known broken / deliberately skipped
-- **Two PRs are open-able and neither is opened.** `p6-chart-tools` (the P6 build) and
-  `p8-p9-spec-lock` (docs only). **Merge P6 first** — the second is stacked on it.
-- **No code was written for P8 or P9**, and none should be until the Data API plan is active.
-- **Everything live is still blocked.** `dataPlan: Deactive`, option chain returns `806`, and
-  `src/server/feed.ts`'s binary packet parser has still never seen real bytes.
-- **Two numbers in the new specs are assumptions, flagged in their risk sections**, and one live
-  call each settles them: the `/v2/charts/intraday` rate limit (1000 ms assumed, copied from the
-  existing `ohlc` call) and whether option `open_interest` is reported in **contracts or units**
-  (which decides whether P9's lot floor is `5` or `5 x lotSize`).
-- **`docs/shots/` still holds the 17 pre-P6 reference images.** Now explicitly P10's problem — a
-  redesign invalidates them anyway. `npm run shots` overwrites all 17, so it stays deliberate.
-- **P10 has no spec at all**, by design. Do not start it. Three things must become numbers first:
-  what "TradingView-like" fixes, what the latency panel's new form is, and how the P2-P6
-  acceptance criteria get re-proved against a rebuilt screen instead of quietly dropped.
+- **The live path has never run.** `npm run check` reports `808` / `DH-901`: the token expired
+  2026-08-28, and the account still has no Data API plan. **Every number in the verification came
+  from synthetic candles.** Three things in `peakoi.ts` are assumptions until one live call lands:
+  the response shape (the reader accepts a flat body *and* a `data` wrapper), that `timestamp` is
+  epoch **seconds** (values above 1e11 are treated as ms), and that `IDX_I` / `MCX_COMM` are
+  accepted by `/v2/charts/intraday` at all.
+- **44px of horizontal scroll at 1440px.** Priced in spec row 20 before it was built; the offered
+  trade is dropping `Vol Chg%` (56px x 2). Not taken — P10 owns the final column layout.
+- **`open_interest` units (contracts vs units) unconfirmed.** Affects only the tooltip's absolute
+  figure, never the ratio or the breach.
+- **~82 calls per (instrument, expiry, day) cold.** Contained to instruments actually being viewed,
+  and cached to disk, but if Dhan enforces a daily quota this is the phase that will find it.
+- **`docs/shots/` still holds the 17 pre-P6 reference images.** Still P10's problem.
+  `npm run shots` overwrites all 17 — never run it for an ad-hoc check.
+- **Three branches pushed, none with a PR.** They are stacked: merge `p6-chart-tools`, then
+  `p8-p9-spec-lock`, then `p7-peak-oi`, in that order.
 
 ## Next session starts here
-- Phase 7: **peak-OI tracking** — the smallest of the three blocked phases, and the one whose
-  fetcher and `(securityId, sessionDate)` cache P8 then reuses for its OI baseline. Still gated on
-  the Data API plan; if it is still `Deactive`, there is **no unblocked build work left** — the
-  honest move is to open the two PRs and stop.
+- Phase 8: **the 9:20 F&O scanner** — spec-locked in `docs/spec/scanner-v1.md` (17 rows), and its
+  OI baseline is the same endpoint and the same shared 1 req/s slot key `src/server/peakoi.ts`
+  already implements. The one prerequisite before any scanner code: **add `FUTSTK` to
+  `KEEP_INSTRUMENTS` in `src/server/master.ts`**, or stock futures OI is unreachable and the third
+  filter cannot work.
 - First command: `npm run check`
 - Watch out for: **a valid token is not data access.** `DH-906` / `808` means the token is dead;
-  `806` with `dataPlan: Deactive` means the token is fine and the *account* has no Data API plan,
-  which no amount of re-pasting fixes. `npm run check` prints which of the two you are looking at.
-  Second trap: **do not start P10 because the specs look finished.** It runs after P9, by
-  instruction, and unlocked specs are not a licence to begin.
+  `806` with `dataPlan: Deactive` means the token is fine and the *account* has no plan, which no
+  amount of re-pasting fixes. Second trap: **P7 looks finished but has never met real data** — if
+  the plan goes active, spend the first call on `/v2/charts/intraday` and check the response shape
+  against `Candles` in `peakoi.ts` before trusting a single peak on screen. Third: **do not start
+  P10.** It runs after P9, by instruction.
