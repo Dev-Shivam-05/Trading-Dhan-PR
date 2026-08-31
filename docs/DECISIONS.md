@@ -65,3 +65,38 @@ The alternative is to compute OI change % from Dhan for all 210 stocks: today's 
 (`"oi": true`) — the same "latest OI vs previous OI" NSE itself publishes, with no scraping and no
 top-25 cap. This was **presented, not adopted**: the user asked for NSE Spurt by name, and swapping
 a named data source for a computed equivalent is their call, not a detail to absorb quietly.
+
+
+## 2026-08-31 — Chart drawings are stored as (time, price), never as pixels
+P6's whole "done when" — a trendline survives an instrument switch, a reload and a scale drag —
+is a storage decision, not a rendering one. A shape stores `{t: epochMs, p: price}` and its screen
+position is re-derived every frame through the same `X()`/`Y()` the price line uses. That transform
+was moved into `public/chart-tools.js` and `drawChart()` now calls into it, so the line and the
+drawings cannot disagree by construction. Measured after a zoom drag to 0.46x: every endpoint
+within **0.048px** of the recomputed anchor. Storing pixels would have required a migration on
+every range switch and would still have drifted.
+
+## 2026-08-31 — A frame-time budget is stated as p95, never as max
+`chart-tools-v1.md` AC8 originally read "drawChart stays under 8ms measured over 100 frames",
+meaning max. Profiling showed that is unreachable with **zero** drawings on the page: 0 shapes,
+120-frame samples at 1440x900, gives p50 2.40 / p95 4.50 / **max 6.40 ms**, and a 21-node page
+spikes to 13.3 ms. Those spikes are GC, not paint. The row was amended to **p95 under 8ms** with
+the user's approval rather than quietly relaxed, and the measurements are recorded in the spec
+next to the criterion. Any future performance criterion in this project gets stated the same way.
+
+## 2026-08-31 — Two drawing optimisations came out of that measurement, not out of taste
+The profiling that exposed AC8 also located the real costs, so both fixes are load-bearing rather
+than speculative. One `<path>` per style instead of one node per shape turns the 200-shape cap
+from 200 svg nodes per frame into 3. Horizontal-line price pills are deduped at **18px** — the
+pill's own height, already locked in rows 9 and 14 — because a pill within 18px of another was
+completely hidden behind it; 50 levels now draw 8 pills instead of 50, i.e. 16 nodes instead of
+100. Result at the cap: **p50 1.70 / p95 2.70 / max 7.40 ms**, faster than the old zero-shape
+baseline. The 18px is not a new invented number, which is why it was acceptable as an amendment.
+
+## 2026-08-31 — Off-plot live-price marker is dropped, its pill is pinned
+Not in the approved table; added during the build and reported. At `zoom < 1` the view is narrower
+than the data, so the live price can sit outside the plot, and the chart svg is `overflow:visible`
+— it would paint over the header. The dot and its dashed rule are now omitted when off-plot while
+the price pill sticks to the nearest edge. Rationale: on a trading screen a marker drawn at a
+price it is not at is worse than no marker, but the number itself must stay readable. Six lines in
+`public/app.js`; change it if you would rather clamp the dot too.

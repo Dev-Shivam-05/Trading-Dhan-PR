@@ -67,3 +67,23 @@ from Dhan.
 It is a trading screen. "It compiled" is not done, and a number that is silently wrong is worse
 than a visible error. Any derived value gets recomputed from the payload and compared before it is
 called done — see the replay verifications in `docs/PHASES.md`.
+
+## Adding a file under `public/` — it will 404 until you say so
+`src/server/index.ts` serves the UI from an **explicit allow-list**, not a static directory (no
+path joining from user input, no traversal surface). A new `public/*.js` or `*.css` is invisible
+until it has a row in `STATIC`, and the failure looks like the whole client dying, not like a
+missing file.
+
+## Frame-time budgets are stated as p95, never as max
+Measured on this machine at 1440x900, 120-frame samples, `drawChart()` with **zero** drawings:
+p50 2.40 / p95 4.50 / **max 6.40 ms**, and a 21-node page still spikes to 13.3 ms. Those spikes
+are GC, not paint. A criterion written as "max under 8 ms" is therefore unpassable no matter how
+fast the code is — P6's AC8 had to be amended for exactly this. With the 200-shape cap on screen
+the chart now runs p50 1.70 / p95 2.70 / max 7.40 ms.
+
+## Chart drawings are (time, price), and there is a test seam
+Anchors are `{t: epochMs, p: price}`; screen position is re-derived every frame through the
+`X()`/`Y()` that `public/chart-tools.js` owns and `drawChart()` borrows, so the price line and the
+drawings cannot disagree. `window.__chart` exposes `frame() shapes() zoom() tool() selected()
+key() repaint() X Y invY` read-only for replay verification scripts — nothing in the app reads it.
+Spec: `docs/spec/chart-tools-v1.md`. Fixed terms: `docs/spec/GLOSSARY.md`.

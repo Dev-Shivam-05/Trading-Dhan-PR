@@ -1,83 +1,80 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 8/9 spec capture — 2026-08-28
+# HANDOFF — Dhan Option Chain Terminal — Phase 6 — 2026-08-31
 
 ## Done
-- Six voice recordings turned into a written requirements set. They describe **two separate
-  systems**, not one, and they are now on the board as P8 and P9.
-- Rec 03 and Rec 04 are word-for-word duplicates, so the scanner has **three** filter steps, not four.
-- Feasibility of both systems verified end to end against the real instrument master and the
-  DhanHQ v2 docs. No numbers were invented; both specs are deliberately left **unlocked**.
-- A wrong claim made earlier the same day was found and corrected across three files.
+- The tick chart's **price axis is draggable**. Drag the 76px right gutter down to compress the
+  scale, up to expand it; double-click resets to exactly 1. The zoom multiplies the half-span of
+  the auto-fit range about its midpoint, so the chart keeps tracking price — it never freezes on a
+  stale absolute range. Persisted in `localStorage.chartZoom`.
+- A **crosshair** follows the pointer over the plot, snapping its vertical line to a real tick
+  within 24px. Price reads off the axis in a muted pill (never the live-price colour), time reads
+  off the bottom.
+- **Four drawing tools** — trendline (`D`), horizontal line (`H`), ray (`R`), rectangle (`B`),
+  cursor (`V`). Draw by dragging; the tool returns to the cursor after each shape. Click within
+  6px to select, drag the end handles to re-anchor, `Delete` to remove, `Esc` to cancel mid-draw,
+  `✕` twice to clear all.
+- **Drawings survive**: switch instrument and come back, reload the page, drag the scale — they
+  stay on the same price and the same time. They are stored as `{t, p}` anchors, never pixels, so
+  this is structural rather than patched.
+- Verified in `REPLAY=1`: **19 of 19 acceptance checks pass, zero console errors**. Endpoints land
+  within **0.048px** of `X(a.t)/Y(a.p)` recomputed from storage after a zoom drag to 0.46x; the
+  crosshair pill equals `invY(pointerY)` to 2 dp; a click 5px away selects and 8px does not.
+  12 screenshots reviewed in both themes.
+- Branch **`p6-chart-tools`** is pushed. Two commits, `f733bae` and `5241f09`. **PR not opened.**
 
 ## Files changed
-- `docs/PHASES.md` — P8 (9:20 F&O scanner) and P9 (option candle colouring) added, both marked
-  **spec NOT locked**; P7 rewritten now that peak OI turns out to be fetchable; `## Now` /
-  `## Next 3` rewritten; session log row added.
-- `docs/DECISIONS.md` — appended: the superseding peak-OI entry, why P8/P9 were boarded unlocked,
-  and why NSE Spurts will not be scraped without an explicit decision.
-- `CLAUDE.md` — added the verified F&O-universe facts and the nseindia.com unreachability, so the
-  next session does not re-derive them.
-- **No `src/` changes.** Nothing in the application code was touched.
+- `public/chart-tools.js` — **new.** The whole feature: scale, crosshair, hit-testing, the four
+  tools, persistence, key hygiene. Kept out of `app.js`, which was already 811 lines.
+- `public/app.js` — `drawChart()` now takes its transform from chart-tools so the price line and
+  the drawings share one `X()`/`Y()`; drawings and crosshair inserted in the locked paint order;
+  off-plot live-price marker guarded; paint time recorded for the verification script; `select()`
+  sets the drawing scope; the keydown handler forwards the tools' keys first.
+- `public/index.html` — the `.tools` button group in the chart header, plus the `#chartSurface`
+  and `#chartAxis` pointer overlays.
+- `public/app.css` — `.tools` reuses the existing `.range` button look; the two overlays; the
+  `sure?` confirm state.
+- `src/server/index.ts` — **`/chart-tools.js` added to the static allow-list.** Without this the
+  module 404s and the whole client dies; the list is explicit on purpose (no path traversal).
+- `docs/spec/chart-tools-v1.md` — **new.** 28 locked rows, out-of-scope list, 9 acceptance
+  criteria, risks. The contract a future session builds from.
+- `docs/spec/GLOSSARY.md` — **new.** plot area, price zoom, anchor, scope key, one-shot tool,
+  handle, replay mode.
+- `docs/PHASES.md`, `docs/DECISIONS.md` — P6 marked done, session log row, five decisions appended.
 
 ## Decisions made
-- **Both specs left unlocked on purpose.** The recordings are mostly thresholds, and the standing
-  rule is that a number or colour that is not written down does not get invented. Fifteen open
-  questions are listed below.
-- **NSE Spurts not swapped for a Dhan-computed equivalent.** The equivalent was presented and it is
-  strictly better on both blockers, but the user named NSE Spurt specifically, so replacing a named
-  data source is their call, not something to absorb quietly.
-- **P9's trigger left undecided** rather than picking one. Rec 01 says volume triggers the colour,
-  Rec 02 says OI does. They are different signals — a candle can carry huge volume with no OI change
-  at all, which is the exact opposite of a big player taking a position.
-
-## Verified this session (facts, not estimates)
-- The NSE F&O stock universe is **exactly 210** — `FUTSTK` and `OPTSTK` underlyings are identical
-  after dropping 18 `NSETEST` dummy scrips the master ships.
-- All 210 fit in **one** `POST /v2/marketfeed/quote` call (limit 1000, 1 req/sec), which returns
-  `net_change` against previous close — so scanner filters 1 and 2 cost roughly one second against
-  the user's two-minute budget. DhanHQ v2 has **no** top-gainer/loser endpoint and does not need one.
-- `POST /v2/charts/intraday` accepts `NSE_FNO` with `OPTSTK` / `OPTIDX` / `FUTSTK`, takes
-  `"oi": true`, and returns `open_interest` per candle at 1/5/15/25/60 min for up to 90 days.
-- `nseindia.com` refuses connection from this machine (**HTTP 000**) while example.com and
-  dhanhq.co return 200 on the same run; its OI Spurts page lists only the **top 25** underlyings.
+- **Spec-locked before writing a line.** 27 rows approved with one `go`, then built. Two rows were
+  added mid-build and both went back for approval instead of being absorbed: row 28 (pill dedupe)
+  and the AC8 restatement.
+- **AC8 was restated from `max` to `p95`, not quietly relaxed.** Profiling proved an 8ms *max* is
+  unreachable with zero drawings on the page (0 shapes: p50 2.40 / p95 4.50 / max 6.40ms). Every
+  future performance criterion in this project is stated as p95.
+- **Anchors are (time, price).** See DECISIONS 2026-08-31 — this is what makes the done-when true
+  by construction rather than by fixing up coordinates on every range change.
+- **No vertical pan, no whole-shape drag, no undo.** All three are in the spec's out-of-scope list.
+  Pan needs its own hit-test and would have doubled the phase; body-drag makes accidental
+  displacement easy on a live chart; handles cover re-anchoring.
+- **`window.__chart` is a deliberate read-only test seam** for the replay verification scripts.
+  Nothing in the app reads it.
 
 ## Known broken / deliberately skipped
-- **Correction to this morning's handoff.** It stated that yesterday's peak OI cannot be obtained
-  from Dhan and must be self-recorded from day one. That was wrong, and wrong in the expensive
-  direction — it would have had us build a recorder for data Dhan already serves. `/v2/charts/intraday`
-  with `"oi": true` gives per-candle `open_interest`, so yesterday's peak is a `max()` and 90 days
-  are back-fillable. P7 needs no warm-up day.
-- **Untested:** whether Dhan really retains 90 days of per-candle OI for *option* contracts, and how
-  expired contracts behave (there is a separate "Expired Options Data" API). One call settles both.
-- **Still blocked on the Data API plan** (`dataPlan: Deactive`, option chain -> `806`). Market Quote,
-  Historical Data and the tick feed all sit behind it, so P7, P8 and P9 cannot run at all yet. The
-  binary packet parser in `src/server/feed.ts` has still never seen real bytes.
-
-## Open questions — P8 (scanner)
-1. **What is "top gainer/loser" measured over?** If it is the 210-stock F&O universe itself, filters
-   1 and 2 are the same filter and the scanner is 2 steps. The worked example ("maan lo 50 stock
-   aaye") implies an external list instead. **This changes the architecture — answer it first.**
-2. Is the 2% measured against previous close (`net_change`) or against the 9:15 open?
-3. Is the 7% OI change positive-only, or absolute (|7%|)? No direction was stated.
-4. Does the scanner run once at 9:20, or repeat until 9:30?
-5. Does the output distinguish gainers from losers (long vs short candidates)?
-6. Screen only, or persisted / alerted?
-7. 9:20 or 9:25 — Rec 02 left it open, Rec 03/04/06 all say 9:20.
-
-## Open questions — P9 (candle colouring)
-8. **What separates a blue candle from a yellow one?** Both colours and both actions were given
-   (blue -> buy, yellow -> sell); the conditions were not. **Biggest single gap in the whole spec.**
-9. **Volume or OI?** Rec 01 says volume triggers, Rec 02 says OI. AND, OR, or OI-primary?
-10. What does "vibration" mean numerically? Never defined in any of the six recordings.
-11. Volume threshold value — and compared against what (previous candle, N-candle average, day average)?
-12. OI threshold value — absolute contracts, or % change, and against which baseline?
-13. Candle interval — 1, 5, 15, 25 or 60 min are what Dhan offers; none was chosen.
-14. Which contracts get charted — ATM only, ATM +/- N strikes, or all 41? Which expiry?
-15. Colour decided on candle **close** (confirmed but late) or **during formation** (early but can flip)?
+- **PR not opened** — pushing is as far as the rules go. `p6-chart-tools` is waiting.
+- **`docs/shots/` still holds the 17 pre-P6 reference images.** None of them show the toolbar.
+  Re-baselining needs `npm run shots`, which overwrites all 17, so it is a deliberate act — not
+  something to run for a look.
+- **One guard is not in the approved table**, and was reported rather than hidden: at `zoom < 1`
+  the off-plot live-price dot and its dashed rule are dropped while the pill pins to the edge
+  (`public/app.js` ~L713-722, six lines). Change it if you would rather clamp the dot too.
+- **Everything live is still blocked.** `dataPlan: Deactive`, option chain returns `806`. P7, P8
+  and P9 all sit behind it, and `src/server/feed.ts`'s binary packet parser has still never seen
+  real bytes.
+- **P8 and P9 specs are still NOT locked** — 15 open questions and one contradiction, listed in
+  the 2026-08-28 handoff and in DECISIONS. No code for either until they are answered.
+- A replay server was left running on **port 8787** at the user's request. `REPLAY=1`, synthetic
+  data, no credentials touched.
 
 ## Next session starts here
-- Spec-lock P8 and P9. Questions 1 and 8 first — nothing downstream of them can be designed.
+- Phase 7: **peak-OI tracking** — but only after the Data API plan is active; until then the only
+  unblocked work is spec-locking P8/P9 or re-baselining the screenshots.
 - First command: `npm run check`
-- Watch out for: the temptation to start building P8 because it "sounds simple". Question 1 decides
-  whether it is a two-step or three-step scanner, and question 8 has no defensible default at all —
-  guessing which colour means buy would put a wrong signal on a trading screen, which is the one
-  failure mode this project explicitly refuses.
+- Watch out for: **a valid token is not data access.** `DH-906` / `808` means the token is dead;
+  `806` with `dataPlan: Deactive` means the token is fine and the *account* has no Data API plan,
+  which no amount of re-pasting fixes. `npm run check` prints which of the two you are looking at.
