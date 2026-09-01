@@ -143,6 +143,14 @@ case, not the edge case.
 82 contracts with `key: \`thing:${securityId}\`` dispatches all 82 simultaneously. Anything doing a
 fan-out shares ONE key (P7 uses `peak:oi`, P8's spec locks `scan:quote` / `scan:oi`).
 
+## `pkill` does not kill the dev server here — use `taskkill`, then verify
+`pkill -f "node.*src/server/index"` reports success and kills nothing on this machine. The old
+server keeps port 8787, the new one dies with `EADDRINUSE` **into the log file**, and every
+subsequent curl silently hits the STALE build — which is how a tuning change to `replay.ts` was
+measured against the code it replaced and read as having no effect. Use
+`taskkill //F //IM node.exe`, then re-check `/api/...` before trusting any number. A restart that
+you did not confirm is a measurement of the previous commit.
+
 ## Write the docs with the Write/Edit tools, not a bash heredoc
 `cat > docs/... <<'EOF'` on a long markdown table died with ``unexpected EOF while looking for
 matching `'`` — the docs here are full of backticks, pipes and apostrophes, and one of them ends
