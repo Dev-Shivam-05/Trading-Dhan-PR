@@ -209,3 +209,51 @@ contract's OI`. The flat version added the same absolute size to a 24 K wing str
 strike, so wings grew ~4% per poll and crossed any fixed peak within minutes. This cost two files
 outside P7's plan and took the phase to nine code files, one over the guideline — taken knowingly,
 because without it P7's acceptance criteria could not be measured in the only mode available.
+
+## 2026-09-01 — A cash row is only the share if `SERIES = 'EQ'`
+The scanner needs each F&O stock's NSE_EQ security id, and the obvious lookup — the master row with
+`INSTRUMENT = EQUITY` and that `UNDERLYING_SYMBOL` — is wrong for two of the 210. `CHOLAFIN` and
+`MOTHERSON` each also list an **NCD** under the same symbol with the same instrument type
+(`INSTRUMENT_TYPE = DEB`, `SERIES = D1`). Whichever row the scan happened to hit first would have
+supplied a debenture's last traded price and net change as the stock's, and the stock would have
+been ranked, filtered and printed on that number with nothing on screen to suggest it was wrong.
+`MasterRow` grew a `series` field and `fnoUniverse()` requires `SERIES = 'EQ'`. Verified: with the
+filter, all 210 resolve to exactly one cash row; without it, two resolve to two.
+A number that is silently wrong is worse than a visible error, and this is what that looks like in
+practice — it took reading the actual master rows, not the API docs, to find.
+
+## 2026-09-01 — The scanner is verified by a second implementation, not by its own output
+`scanner.ts` computing 6 survivors and a test asserting it computed 6 survivors proves only that
+the code is deterministic. So P8's acceptance test is a **separate implementation** of the whole
+funnel (`.cache/recompute-scan.ts`) that reads the same replay payload, does its own sort, its own
+top-50 cut, its own two thresholds and its own candle reducer, and never imports `scanner.ts`. It
+agrees on all ten comparisons including both candidate lists by name.
+The replay seeding is built the same way round: nothing tells the scanner who passes. Every stock
+gets a % change from the same hash the rest of replay uses, and the six are designated **by rank in
+the sorted list**, not by name — so the scanner still has to sort all 210 correctly to find them.
+Same principle as P7 synthesising a candle series instead of a peak.
+
+## 2026-09-01 — A seeded replay must make every filter reject something
+The first working version of P8's replay spread % change uniformly over +/-6%. Every one of the top
+50 therefore cleared the 2% threshold, the funnel read `210 -> 100 -> 100 -> 6`, and filter 2 was
+never once exercised as a rejector — a bug in that threshold would have passed the acceptance test.
+The distribution is now squared (`sign(v) * 5 * v^2`), which puts most stocks inside +/-1% the way a
+real session does and cuts the bottom ~13 of the ranked 100. The funnel reads `210 -> 100 -> 87 -> 6`
+and all three filters do work.
+**A seeded fixture that only exercises the last stage of a pipeline tests the last stage of a
+pipeline.** Check the intermediate counts, not just the final one.
+
+## 2026-09-01 — AC5 is reported unverified rather than quietly passed
+P8's fifth criterion is that the chain poll's minimum gap stays at or above 3000 ms across a full
+scan. It cannot be measured here for two independent reasons: on a closed market `ChainPoller`
+takes one snapshot and then only re-checks every 60 s, so there are no two consecutive polls to
+measure a gap between; and **replay makes no `dhanPost` calls at all**, so the rate gate — the
+mechanism by which a scan could starve the poll — is not exercised in this mode even with the
+market open. A test that returned `n/a` and was scored as a pass would have been the worst of the
+three options.
+What was measured instead is the two things that would have to hold anyway: a static read of
+`scanner.ts` confirming it only ever uses `scan:quote` / `scan:oi` and never a `chain:` key, and
+`/api/scan/status` probed every 100 ms throughout a cold scan (p50 17.0 / p95 17.9 / max 18.0 ms),
+which rules out the scan blocking the event loop. The criterion itself stays open until the market
+is open with a live plan.
+

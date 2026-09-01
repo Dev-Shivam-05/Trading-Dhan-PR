@@ -38,6 +38,9 @@ and prints the survivors as two short named lists with counts.
 | 15 | Replay behaviour | `REPLAY=1` synthesises all 210 stocks from a fixed seed such that **exactly 6** pass all three filters — **4 long, 2 short** | Live data is blocked on the Data API plan. Without a deterministic replay path this phase has no acceptance test at all |
 | 16 | New code | `src/server/scanner.ts`, route `GET /api/scan`, `public/scan.js` **plus its row in the `STATIC` allow-list** in `src/server/index.ts` | A `public/*.js` file with no `STATIC` row 404s, and the failure looks like the whole client dying rather than a missing file |
 | 17 | Interaction with the 3 s chain poll | Every scanner call goes through `dhanPost` with its own slot key. The chain poll's cadence is untouched and must not stall while a scan runs | The completion-scheduled 3000 ms cadence is a P1 acceptance criterion and must not regress |
+| 18 | **AMENDED during the build.** Progress while a scan runs | `GET /api/scan/status` returns `{running, stage, done, total, elapsedMs}`; the panel polls it every 400 ms and shows the stage plus a `done / total` bar | The spec was silent, and a live cold scan is ~90 s of serial calls. A panel that says nothing for a minute and a half reads as hung. Same lesson as P7's `PEAK OI 9 / 82` chip |
+| 19 | **AMENDED during the build.** The cash row of a stock | The `EQUITY` row must also have `SERIES = 'EQ'`; `MasterRow` grew a `series` field to carry it | `CHOLAFIN` and `MOTHERSON` each list an **NCD** under the same symbol with `INSTRUMENT = EQUITY`. Matching on symbol alone quotes a debenture's price as the share's — a silently wrong number on a trading screen, which is the one failure mode this project refuses |
+| 20 | **AMENDED during the build.** When the button is enabled | Row 9's rule, **or** `REPLAY=1` | Row 9 as written makes the whole phase untestable outside 09:15-15:30 IST, and almost all work on this project happens outside it. Replay data is synthetic and has no session, so gating it on a real session gates it on nothing meaningful |
 
 ## Out of scope (will NOT build)
 - Auto-running at 9:20, or any scheduler
@@ -48,16 +51,45 @@ and prints the survivors as two short named lists with counts.
 - Any `nseindia.com` scraping — unreachable from here (HTTP 000) and it only publishes the top 25
 
 ## Acceptance criteria (binary, testable in `REPLAY=1`)
-- [ ] A scan of all 210 returns in under **120 s** cold, and under **5 s** with the OI baseline cache warm.
-- [ ] The seeded replay returns **exactly 6** stocks: 4 under `Long candidates`, 2 under `Short candidates`.
-- [ ] Every returned stock independently satisfies all three filters when recomputed by hand from the same payload: inside the top 50 of its side, `abs(chgPct) >= 2.0`, `abs(oiPct) >= 7.0`.
-- [ ] The funnel counts reconcile: `skipped + m + rejected = 210`.
-- [ ] The chain poll's minimum gap stays at or above 3000 ms across a full scan, read from the telemetry log.
-- [ ] No `NSETEST` scrip appears in the universe, the results, or the skipped list.
-- [ ] Screenshots in both themes: results with both sections populated, the zero-result funnel state, the skipped disclosure open.
+- [x] A scan of all 210 returns in under **120 s** cold, and under **5 s** with the OI baseline cache warm.
+- [x] The seeded replay returns **exactly 6** stocks: 4 under `Long candidates`, 2 under `Short candidates`.
+- [x] Every returned stock independently satisfies all three filters when recomputed by hand from the same payload: inside the top 50 of its side, `abs(chgPct) >= 2.0`, `abs(oiPct) >= 7.0`.
+- [x] The funnel counts reconcile: `skipped + m + rejected = 210`.
+- [ ] The chain poll's minimum gap stays at or above 3000 ms across a full scan, read from the telemetry log. — **NOT MEASURABLE on a closed market**, see below.
+- [x] No `NSETEST` scrip appears in the universe, the results, or the skipped list.
+- [x] Screenshots in both themes: results with both sections populated, the zero-result funnel state, the skipped disclosure open.
+
+## Verification (replay, 2026-09-01)
+
+`32/33` checks pass; the 33rd is not measurable in this mode and is reported as unverified rather
+than as a pass. Three scripts, all throwaway in `.cache/`:
+
+| What | Measured |
+|---|---|
+| Universe | **210** stocks from the master, 18 `NSETEST` scrips dropped, all 210 with one `EQ`-series cash row and a live near-month future |
+| The funnel | `210 -> 208 scored -> 100 ranked -> 87 -> 6`. All three filters reject: 108 fail the rank cut, 13 fail 2%, 78 fail 7% |
+| Survivors | **4 long, 2 short** — DRREDDY, ICICIGI, ASHOKLEY, BHARATFORG / MARICO, PAYTM |
+| AC3, the hard way | A **second implementation** (`.cache/recompute-scan.ts`) rebuilds the whole funnel from the same replay payload with its own arithmetic and its own candle reducer, never importing `scanner.ts`. It agrees on all 10 comparisons: universe, scored, both filter counts, both candidate lists by name, the skipped set, the rejected count, and that every survivor sits inside the top 50 of its own side |
+| AC1 | cold **4.2 s** (87 OI calls), warm **43 ms** (1 call, 86 cached) |
+| AC4 | `3 skipped + 6 survivors + 201 rejected = 210`, computed independently and by the server |
+| Row 14 | 3 skipped, each with a reason: `no OI baseline` (1), `no quote` (2) — all three seeded deliberately so the disclosure is exercised |
+| Rate-gate keys | Static read of `scanner.ts`: only `scan:quote` and `scan:oi` appear, never a `chain:` key, and the whole OI fan-out shares **one** key |
+| Server responsiveness under load | `/api/scan/status` probed every 100 ms throughout a cold scan: p50 **17.0** / p95 **17.9** / max **18.0 ms** |
+| UI | 22/22 browser checks: `S` opens, `Esc` closes, headings match the payload, the on-screen percentages equal the payload's to 2 dp, the funnel is printed, the grid underneath still renders 41 rows, zero console errors |
+| Screenshots | 5, reviewed in both themes: results, zero state, running state |
+
+**AC5 is unverified.** The criterion needs two consecutive chain polls to measure a gap between,
+and on a closed market `ChainPoller` emits one snapshot and then only re-checks every 60 s. Worse,
+**replay makes no `dhanPost` calls at all**, so the rate gate — the mechanism by which a scan could
+starve the poll — is not exercised in this mode even with the market open. What was measured
+instead is the two things that would have to be true anyway: the scanner never touches a `chain:`
+slot key, and the server stays responsive (max 18 ms) throughout a scan. **Re-run this one the
+first time the market is open with a live plan.**
 
 ## Risks
 - **The `/v2/charts/intraday` rate limit is unverified.** 1000 ms is assumed from the existing `ohlc` call. One live call settles it and may let step 3 run several times faster.
 - **A daily historical endpoint carrying OI would collapse step 3 into a single call.** Also one call to check — worth checking before building the 100-call loop.
-- **Adding `FUTSTK` to the master parse grows the retained row count.** Check parse time and cache size in the same run.
+- ~~Adding `FUTSTK` to the master parse grows the retained row count.~~ **Measured**: +1,270 rows on ~170,465, a 0.7% increase. Not worth optimising.
 - **`open_interest` units** (contracts vs units) affect only the displayed OI column, not the percentage — but confirm before labelling it.
+- **A live cold scan is projected at ~90 s, not measured.** 87 baseline calls at the assumed 1 req/s plus the quote call. That is inside the 120 s criterion by only ~25%, and the projection rests on the unverified rate limit above. If the real limit is slower, this criterion fails on the first live run.
+- **The `/v2/marketfeed/quote` response shape is unverified.** The reader accepts a flat body and a `data` wrapper, and reads `last_price` / `net_change` / `volume` / `oi` per segment-keyed map. Nothing has confirmed it against a live plan.

@@ -41,13 +41,17 @@ the project root. Put it in `.cache/`.
 - Expiry dates in the UI are always in the future — that is what an option expiry is. They come
   from the real instrument master even in replay mode. Only prices/OI/IV/greeks are synthetic.
 
-## Scanner / F&O universe facts (verified 2026-08-28 against the real master)
+## Scanner / F&O universe facts (verified 2026-08-28, re-verified 2026-09-01)
 - The NSE F&O stock universe is **exactly 210 stocks**. `FUTSTK` and `OPTSTK` underlying lists are
-  identical once you drop the junk. Do not hardcode "about 200".
+  identical once you drop the junk. Do not hardcode "about 200". Use `fnoUniverse()` in
+  `src/server/instruments.ts` — it reads the master and is memoised per day.
 - The master ships **18 fake `NSETEST` scrips** (`011NSETEST` ...) inside `FUTSTK`. Filter them or
   the scanner will try to quote instruments that do not exist.
-- `KEEP_INSTRUMENTS` in `src/server/master.ts` does **not** include `FUTSTK` / `FUTIDX` today, so
-  stock futures are dropped at parse time. Anything needing futures OI has to add them first.
+- `KEEP_INSTRUMENTS` in `src/server/master.ts` now **does** include `FUTSTK` (added by P8; it costs
+  +1,270 rows on ~170,465). `FUTIDX` is still dropped — anything needing index futures OI must add
+  it first.
+- Filter every NSE `FUTSTK` / `EQUITY` query on `exchId === 'NSE'`. BSE lists futures under the
+  same symbols, so an unfiltered lookup returns 6 RELIANCE futures rows instead of 3.
 - Every row of the master has exactly 33 comma-separated fields, so awk-style column parsing is
   safe for one-off analysis — but keep using the quoted splitter in code, a company name with a
   comma would silently shift every column.
@@ -55,6 +59,34 @@ the project root. Put it in `.cache/`.
   `last_price`, `ohlc`, `volume`, `oi` and `net_change` (absolute change from previous close).
   All 210 F&O stocks therefore fit in **one** call — there is no top-gainer/loser endpoint in
   DhanHQ v2 and none is needed; sort locally.
+
+## An `EQUITY` row is not necessarily a share — check `SERIES`
+`CHOLAFIN` and `MOTHERSON` each list an **NCD** in the master with `INSTRUMENT = EQUITY` under the
+same `UNDERLYING_SYMBOL` as the share (`INSTRUMENT_TYPE = DEB`, `SERIES = D1`). Matching on symbol
+and instrument alone can hand you a debenture's `last_price` and quote it as the stock's, ranked
+and filtered and printed with nothing on screen to say it is wrong. **NSE cash rows must also match
+`SERIES = 'EQ'`** — `MasterRow.series` exists for exactly this. With the filter all 210 F&O stocks
+resolve to one row each; without it, two resolve to two.
+
+## A seeded replay must make every filter reject something
+P8's first replay spread % change uniformly, so all 100 ranked stocks cleared the 2% threshold and
+the funnel read `210 -> 100 -> 100 -> 6`. The final count was right and the middle filter was never
+exercised as a rejector — a bug in it would have passed. **Check the intermediate counts of a
+seeded fixture, not just the final one.** The distribution is squared now and the funnel reads
+`210 -> 100 -> 87 -> 6`.
+
+## Replay makes no `dhanPost` calls, so nothing rate-gate-shaped is testable in it
+`dhanPost`'s slot gate, and therefore any acceptance criterion about cadence under load, is
+**not exercised at all** in replay — the replay paths return synthesised payloads directly.
+Combined with the closed-market poller (one snapshot, then a 60 s re-check), P8's AC5 could not be
+measured at all and is recorded as unverified rather than as a pass. Where a criterion is about
+transport, say so and leave it open; do not score an `n/a` as green.
+
+## A CSS layout rule outranks the `hidden` attribute
+`.scan{position:fixed;display:flex}` beat the UA stylesheet's `[hidden]{display:none}`, so the
+scanner panel was on screen from page load and neither `Esc` nor its close button could put it
+away. Any element toggled with the `hidden` attribute that also gets a `display:` rule needs an
+explicit `.thing[hidden]{display:none}`. The failure looks like broken JavaScript, not like CSS.
 
 ## nseindia.com is not reachable from a server here
 Plain fetch/curl to `nseindia.com` returns **HTTP 000** (connection refused) while example.com and
