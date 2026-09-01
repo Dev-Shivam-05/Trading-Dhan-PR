@@ -29,7 +29,7 @@ by a **second implementation** that recomputes the whole rule without importing 
 **Every recording-derived phase is now built.** P7, P8 and P9 are all replay-verified with **no
 live run** - the account still has no Data API plan. P8's AC5 remains the one open criterion, and
 it needs an open market to measure. **P10 runs LAST and is still unlocked.**
-**Five branches are pushed or pending, none with a PR**: `p6-chart-tools`, then `p8-p9-spec-lock`,
+**Five branches are pushed and none has a PR**: `p6-chart-tools`, then `p8-p9-spec-lock`,
 then `p7-peak-oi`, then `p8-scanner`, then `p9-option-candles`. Stacked in that order - merge
 them in it.
 

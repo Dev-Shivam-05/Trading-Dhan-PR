@@ -123,6 +123,13 @@ path joining from user input, no traversal surface). A new `public/*.js` or `*.c
 until it has a row in `STATIC`, and the failure looks like the whole client dying, not like a
 missing file.
 
+## Create the phase's branch before the first commit, not after
+Branches here are **stacked**, one per phase, and each is pushed at its own head. P9's first commit
+landed on `p8-scanner` because the session started on it — recovering meant `git branch -f
+p8-scanner <its pushed sha>` after moving the work onto a new branch, which is safe only because
+the sha was still on the remote. `git checkout -b p<N>-<name>` is the first command of a build
+session, before any file is touched.
+
 ## A wholesale `el.className = '...'` silently drops classes another phase added
 P9 hides the tick-chart header items in option-candle mode with a `tickonly` class. `paintSpot()`
 sets `chartChg.className = 'cchg mono ' + klass` and `onFeed()` sets `pill.className = 'feedpill
