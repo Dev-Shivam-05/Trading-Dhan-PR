@@ -391,3 +391,101 @@ body.nochart #chartBtn{transform:rotate(-90deg)}
 @keyframes tickdown{from{background:color-mix(in srgb,var(--down) 34%,transparent)}to{background:transparent}}
 td.tup{animation:tickup 520ms cubic-bezier(.16,1,.3,1)}
 td.tdn{animation:tickdown 520ms cubic-bezier(.16,1,.3,1)}
+
+/* --------------------------------------------------------- scanner (P8) */
+/* Overlay, not a route: a route change would tear down the chain poll and the tick feed.
+   scanner-v1.md row 12. */
+.scan{
+  position:fixed;inset:52px 0 0 0;z-index:40;display:flex;justify-content:center;
+  padding:20px 20px 24px;background:color-mix(in srgb,var(--bg-base) 78%,transparent);
+  backdrop-filter:blur(2px);
+}
+/* `display:flex` above outranks the UA's [hidden]{display:none}, so without this the panel is
+   on screen from page load and neither Esc nor the close button can put it away. */
+.scan[hidden]{display:none}
+.scan-box{
+  width:100%;max-width:1180px;display:flex;flex-direction:column;min-height:0;
+  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;
+  box-shadow:var(--shadow-md);overflow:hidden;
+}
+.scan-h{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-bottom:1px solid var(--border);background:var(--bg-subtle);
+}
+.scan-h h2{
+  margin:0;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--fg-base);
+}
+.scan-hint{font-size:10.5px;color:var(--fg-faint);letter-spacing:.03em}
+.scan-meta{font-size:10.5px;color:var(--fg-muted)}
+a.tog{text-decoration:none;display:inline-flex;align-items:center}
+a.tog.off{opacity:.45;pointer-events:none}
+
+.scan-funnel{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;
+}
+.scan-funnel.bad{background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.fstep{display:flex;align-items:baseline;gap:5px}
+.fstep b{font-size:15px;font-weight:700;color:var(--fg-base)}
+.fstep.last b{color:var(--accent)}
+.fstep em{font-style:normal;font-size:10px;color:var(--fg-faint);letter-spacing:.04em}
+.farrow{font-style:normal;color:var(--fg-faint)}
+.fnote{font-size:10.5px;color:var(--fg-faint)}
+
+.scan-body{flex:1;min-height:0;overflow:auto;padding:14px}
+.scan-sec{margin:0 0 18px}
+.scan-sec h3{
+  margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:baseline;gap:6px;
+}
+.scan-sec.long h3{color:var(--up)}
+.scan-sec.short h3{color:var(--down)}
+.scan-sec h3 span{color:var(--fg-faint);font-weight:600;letter-spacing:.04em}
+.scan-none{margin:0;font-size:11.5px;color:var(--fg-faint)}
+
+table.scan-t{
+  border-collapse:separate;border-spacing:0;width:100%;font-size:11px;
+  font-variant-numeric:tabular-nums;
+}
+table.scan-t th{
+  position:sticky;top:0;z-index:1;text-align:right;font-weight:600;font-size:9.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint);
+  padding:6px 8px;background:var(--bg-panel);border-bottom:1px solid var(--border-strong);
+}
+table.scan-t td{
+  text-align:right;padding:7px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-base);
+}
+table.scan-t th.l,table.scan-t td.l{text-align:left}
+table.scan-t tbody tr:hover td{background:var(--bg-subtle)}
+table.scan-t td .nm{display:block;font-size:9.5px;color:var(--fg-faint);font-family:Archivo,sans-serif}
+table.scan-t td.up{color:var(--up)}
+table.scan-t td.down{color:var(--down)}
+table.scan-t td.flat{color:var(--flat)}
+table.scan-t td.dim{color:var(--fg-faint)}
+
+.scan-skip{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
+.scan-skip summary{
+  cursor:pointer;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  font-weight:600;color:var(--fg-muted);
+}
+.skgroup{display:flex;gap:8px;align-items:baseline;padding:6px 0 0 14px;font-size:11px}
+.skreason{color:var(--warn);white-space:nowrap;font-size:10.5px}
+.skl{color:var(--fg-muted);font-size:10.5px}
+
+.scan-run,.scan-zero,.scan-err{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:52px 16px;text-align:center;
+}
+.scan-run b,.scan-zero b{font-size:14px}
+.scan-run span,.scan-zero span{font-size:11.5px;color:var(--fg-muted);max-width:520px}
+.scan-run .dim,.zf{color:var(--fg-faint)}
+.zface{font-size:26px;color:var(--accent);letter-spacing:.08em}
+.spin{
+  width:20px;height:20px;border-radius:999px;border:2px solid var(--border-strong);
+  border-top-color:var(--accent);animation:spin 800ms linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pbar{width:280px;height:4px;border-radius:999px;background:var(--bg-inset);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--accent);transition:width 200ms linear}
+.scan-err{color:var(--crit)}
+.scan-err span{color:var(--fg-muted);font-size:11px;max-width:620px}

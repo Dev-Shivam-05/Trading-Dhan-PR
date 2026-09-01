@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const trimZeros = (s) => s.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
 
 /** Indian abbreviation: <1e3 raw, <1e5 K, <1e7 L, >=1e7 Cr. */
-function abbr(v) {
+export function abbr(v) {
   if (v === null || v === undefined || !Number.isFinite(v)) return '—';
   const sign = v < 0 ? '-' : '';
   const a = Math.abs(v);
@@ -26,7 +26,7 @@ function fx(v, d) {
 }
 
 /** Indian digit grouping: 24,078.30 / 1,63,940.00 */
-function inr(v, d = 2) {
+export function inr(v, d = 2) {
   if (v === null || v === undefined || !Number.isFinite(v)) return '—';
   const sign = v < 0 ? '-' : '';
   const parts = Math.abs(v).toFixed(d).split('.');

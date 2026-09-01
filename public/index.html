@@ -52,6 +52,8 @@
   <span class="statechip flat" id="peakChip" hidden></span>
   <button class="tog" id="breachBtn" type="button" aria-pressed="false"
           title="Show only strikes whose OI is above yesterday's peak (P)">Breached</button>
+  <button class="tog" id="scanBtn" type="button"
+          title="Scan the 210-stock NSE F&amp;O universe (S)">Scan</button>
   <label class="srch">
     <span class="sr-only">Search strike</span>
     <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
@@ -98,6 +100,23 @@
     <div class="chart-axis" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
   </div>
   <div class="chart-grip" id="chartGrip" title="Drag to resize"></div>
+</section>
+
+<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+  <div class="scan-box">
+    <header class="scan-h">
+      <h2 id="scanTitle">F&amp;O SCANNER</h2>
+      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
+      <span class="statechip flat" id="scanMode" hidden></span>
+      <span class="grow"></span>
+      <span class="scan-meta mono" id="scanMeta"></span>
+      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
+      <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
+      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
+    </header>
+    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
+    <div class="scan-body" id="scanBody"></div>
+  </div>
 </section>
 
 <main class="work" id="work">
@@ -189,5 +208,6 @@
 </main>
 
 <script type="module" src="/app.js"></script>
+<script type="module" src="/scan.js"></script>
 </body>
 </html>
