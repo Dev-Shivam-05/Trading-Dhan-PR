@@ -1,99 +1,83 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 9 (option candle colouring) — 2026-09-01
+# HANDOFF — Dhan Option Chain Terminal — Phase 10 (spec lock, **not** build) — 2026-09-01
 
 ## Done
-- **Clicking the CE half or the PE half of a strike row charts that one contract's own candles.**
-  The existing chart strip switches mode — one strip, one grip, one paint budget. Header reads
-  `NIFTY 50 24,100 CE · 01 Sep` with a `← underlying` button; `Esc` also leaves. The charted half
-  of the row carries a `var(--ring)` outline that survives the 3 s snapshot re-render.
-- **Candles are recoloured blue where a big player is entering the strike and yellow where one is
-  exiting** — `vol >= 3.0 × median20` **AND** `|dOI| >= 5% of oi[i-1]` **AND** `|dOI| >= 5 × lot`,
-  with `dOI > 0` blue and `dOI < 0` yellow. Two legend chips in the header, so the colour is never
-  guessed.
-- **The in-progress candle is never coloured.** A colour that appears and then vanishes mid-candle
-  is a false signal, so only closed candles are judged.
-- **The tooltip prints the exact inputs the colour was computed from** — O/H/L/C, volume,
-  `median20`, `vol / median` against its threshold, OI, `oi[i-1]`, `ΔOI` and `ΔOI %` against both
-  of theirs, and `fired: blue / yellow / no`. This is what makes the acceptance criteria checkable
-  by hand rather than by trusting the code that ran them.
-- **Interval switchable 1 / 5 / 15 min**, persisted, re-fetching and re-colouring with nothing
-  stale left on screen. Re-fetch also every 60 s while an option chart is open.
-- **An illiquid contract gets a named empty state**, not an error and not a blank chart:
-  `no trades in this contract today — NIFTY 50 23,100 PE`.
-- **Verified in replay: 22/22 checks**, zero console errors. Every acceptance criterion passed;
-  none was scored `n/a`.
+- **`docs/spec/terminal-redesign-v1.md` exists — 22 rows, and it says `PROPOSED, NOT LOCKED` in
+  its own first line.** The table was emitted for approval and **no `go` came back**, so it was
+  persisted with that status rather than as a locked spec. Nothing was built.
+- **The P10 row is split into P10a and P10b in `docs/PHASES.md`, at 5 code files each.** The old
+  row carried `~12` against the 8-file rule and said in its own text that it splits at spec-lock
+  time. The cut is chosen so **nothing built in P10a is thrown away in P10b**: P10a builds the
+  shell and the chain and leaves the `.lat` right dock working and untouched inside it; P10b
+  deletes the dock and adds the rail and drawer.
+- **The three things `DECISIONS.md` said had to become numbers first now have answers.**
+  "TradingView-like" is **five binary facts** (row 1): a resizable multi-pane shell, zero-gap 1px
+  pane seams, a spine pinned so it cannot scroll out of view, a default column set that fits
+  1440px, and dark by default. The latency panel's new form is a **26px always-on status rail plus
+  a closed-by-default horizontal four-column drawer**, with the 380px right dock deleted (rows
+  12–14). The P2–P6 re-proof is a **named, scripted checklist** (`.cache/p10-verify.js`) covering
+  P2 through P9, not a promise.
+- **Three answers changed because the proposal was written against the real screen, not the
+  requirements.** They are the reason this session was worth a session.
+- **Zero `src/` and zero `public/` files were touched.** Only docs and the new spec.
 
 ## Files changed
-- `src/server/candles.ts` — **new.** The rule in one place, over the whole 5-day window; the
-  `/v2/charts/intraday` request; the latest-session cut; per-`(contract, interval)` rate-gate key;
-  in-flight dedupe.
-- `src/server/replay.ts` — `replayOptionCandles()`: multi-day seeded series anchored to the same
-  `oiBaseAt` the chain and P7's peaks use, with 3 blue, 2 yellow and one volume-only candle
-  designated by **fraction of the session** so the counts hold at 1, 5 and 15 min alike.
-- `src/server/index.ts` — `GET /api/candles` with parameter validation, and the `candles.js`
-  `STATIC` row.
-- `public/candles.js` — **new.** The panel: row click, mode switch, candlestick renderer, tooltip,
-  interval group, 60 s refresh, `window.__candles` test seam.
-- `public/app.css` — `--big-in` / `--big-out` and their derived `-line` strokes in all three theme
-  blocks; the `.opt` / `.tickonly` display toggles; the tooltip; the selected-half outline.
-- `public/index.html` — the option-mode header items, the second `<svg>`, the script tag.
-- `public/app.js` — three small hooks: dispatch `chain-scope` / `chain-render`, return early from
-  `drawChart()` in option mode, and **carry `tickonly` through the two wholesale `className`
-  assignments** (see the bug below).
-- `docs/spec/option-candles-v1.md` (3 amendment rows, a 16-row verification table, 3 risks),
-  `docs/PHASES.md`, `docs/DECISIONS.md` (4 entries), `docs/spec/GLOSSARY.md` (4 terms),
-  `CLAUDE.md` (2 traps).
+- `docs/spec/terminal-redesign-v1.md` — **new.** The 22-row table, out-of-scope list, three blocks
+  of acceptance criteria, four risks. Marked `PROPOSED, NOT LOCKED`.
+- `docs/PHASES.md` — the P10 row replaced by P10a and P10b rows; `## Now` and `## Next 3`
+  rewritten; one session-log row appended.
+- `docs/DECISIONS.md` — five entries appended (append-only, as always).
+- `CLAUDE.md` — two traps added: the centred-spine sticky geometry, and reading the code before
+  writing a redesign spec.
 
 ## Decisions made
-- **The option chart is a second `<svg>`, not a second branch inside `drawChart()`.** Folding it in
-  would put a whole second renderer inside a function four phases depend on; importing `candles.js`
-  from `app.js` would make an ESM cycle, because `candles.js` imports the number formatters the way
-  `scan.js` does. `body.optmode` decides which renderer is on screen and three `CustomEvent`s carry
-  the handover, so `app.js` still imports nothing downstream of itself.
-- **`now` is an argument to the rule, not `Date.now()`.** On a closed market — almost every session
-  on this project — no seeded candle is ever still forming, so row 11's branch is unreachable and
-  AC4 would pass vacuously. Replay injects the last seeded candle's open + 1 s. Recorded as
-  amendment row 21, not left implicit.
-- **The fixture's volume spike is 8× the top of the ordinary band, not a multiple of a median it
-  computed itself.** A fixture that recomputed the production median would reproduce a bug in
-  `medianOf()` identically on both sides and pass. Same principle as P7 synthesising a candle
-  series instead of a peak, and P8 designating survivors by rank instead of by name.
-- **Only the latest session is drawn**, with the earlier days feeding `median20` and then dropped.
-  Rows 3, 12 and 18 imply it and none of them says it, so it became row 20 rather than an
-  implementation choice — the acceptance criterion depends on the answer.
-- **Seven code files**, inside the ~8 guideline.
+- **The spec is persisted as `PROPOSED`, not as `locked`.** A file that claims approval nobody gave
+  is worse than no file, because the next session builds from it without asking. The status line is
+  the first thing in the file for that reason.
+- **"No ATM window, no hidden rows" is an invariant, not a rebuild.** The grid **already** renders
+  the complete strike list in one scrollable table with a sticky header; nothing windows strikes on
+  the server (`derive.ts` sorts and pads-filters, no slice) or on the client. So row 8 states it as
+  a rule — `tr.hidden` is only ever set by an explicit filter, and when a filter hides anything the
+  header reads `showing n of N strikes` — instead of specifying work that is already done.
+- **The sticky spine needs `left:0` AND `right:0`.** The obvious `position:sticky;left:0` does
+  nothing on this screen: the spine is column 13 of 25, sits at x≈696, and the horizontal overflow
+  at 1440px is 44px, so it would need ~700px of scroll before it ever pinned. Symmetric offsets pin
+  it in both directions and only conflict if the scrollport is narrower than the 92px cell — far
+  below the 1024px floor.
+- **Greeks hidden by default (row 7)**, giving 17 columns / 1132px. The 1484px table does not fit
+  the 1440px floor; the P2 deviation row already priced this as "44px of horizontal scroll" and
+  handed the final column layout to P10. This is that debt being paid.
+- **Dark as the default theme (row 11).** One line in `applyTheme()`, fully reversible, and the
+  loudest available "terminal" signal.
 
 ## Known broken / deliberately skipped
-- **The live path has never run.** `dataPlan: Deactive`; every number came from synthetic candles.
-  Three assumptions ride on the first live call: the `/v2/charts/intraday` response shape for
-  `OPTIDX` / `OPTSTK`, whether Dhan really retains 5 days of per-candle OI for an option contract,
-  and **the `open_interest` unit** — row 7's floor is `5 × lotSize` = 325 for NIFTY if OI is in
-  units and must become **5** if it is in contracts.
-- **A fired candle with a flat body renders as a one-pixel mark.** The wick carries the colour too,
-  so it is visible, but a doji that fires reads as a thin line rather than a coloured candle. The
-  seeded price walk is independent of the OI seeding, so it happens here; on live data a 12% OI
-  move usually carries a real price move. Look at it with live data before adding a minimum body
-  height — the header count (`3 blue · 2 yellow`) is the disclosure until then.
-- **Drawing tools are not available on the option chart** (row 17, deliberate). Anchors are
-  `(t, p)`, so it stays possible later without rework.
+- **The spec is not approved.** It needs one word — `go`, or `change 7,11` with values. **No UI
+  file may be opened until the file stops saying PROPOSED.**
+- **Rows 7 and 11 are readings, not measurements**, and are flagged in the file itself as the
+  likely vetoes. Row 7 hides the greeks by default; row 11 makes dark the default theme. Each is
+  one flag. Every other row cites a value already in the codebase or an existing spec row.
+- **Nothing was built and nothing was measured.** No `npm run dev`, no browser, no screenshots.
+  There is nothing to verify in this session's output except the file itself.
+- **Three risks in the spec are unproven guesses about the code** and should be checked before
+  building, not after: whether `td.spine` ever receives `.flash` (its `background:transparent`
+  end-state would defeat the sticky cell), whether `.spotpill`'s `z-index:4` collides with the new
+  sticky header spine, and the ~20 element ids inside `.lat` that `app.js` writes to — one missing
+  node after P10b deletes the dock presents as the whole page dying, not as a missing panel.
 - **P8's AC5 is still the one open criterion in the project** — the chain poll's 3000 ms gap across
   a scan. It needs an open market and a live plan; replay makes no `dhanPost` calls at all.
-- **`docs/shots/` still holds the 17 pre-P6 reference images.** Still P10's problem. `npm run shots`
-  overwrites all 17 — never run it for an ad-hoc check.
-- **Five branches pushed, none with a PR.** Stacked: merge `p6-chart-tools`, then
-  `p8-p9-spec-lock`, then `p7-peak-oi`, then `p8-scanner`, then `p9-option-candles`, in that order.
-- A dev server may still be running on port 8787 from this session's verification.
+- **The live path has never run for P7, P8 or P9.** `dataPlan: Deactive`.
+- **`docs/shots/` still holds the 17 pre-P6 reference images.** Spec row 22 puts the single
+  deliberate `npm run shots` at the **end of P10b**. Never run it for an ad-hoc check.
+- **Six branches, none with a PR.** Stacked: merge `p6-chart-tools`, then `p8-p9-spec-lock`, then
+  `p7-peak-oi`, then `p8-scanner`, then `p9-option-candles`, then `p10-spec-lock`, in that order.
 
 ## Next session starts here
-- Phase 10: **the TradingView-style terminal redesign** — and it is **not** spec-locked. Every
-  recording-derived phase is now built, so P10 is next by the user's own ordering, but the row in
-  `PHASES.md` says ~12 files against the 8-file rule and "TradingView-like" is three undefined
-  adjectives. **Spec-lock it first and split it into P10a / P10b at lock time.** Do not open a UI
-  file before the table exists.
+- Phase 10a: **build the terminal shell and the chain** — but only after the spec is approved;
+  read `docs/spec/terminal-redesign-v1.md` and get one word on it first.
 - First command: `npm run check`
-- Watch out for: **P10 rewrites a screen carrying eight phases of passing acceptance criteria.**
-  Its own done-when says every P2–P6 criterion must still pass afterwards, and P7's column, P8's
-  overlay and P9's chart mode all live on that screen too. Before touching layout, read
-  `option-candles-v1.md` row 2 and `scanner-v1.md` row 12 — both phases deliberately reuse the one
-  chart strip and the one grid, and a redesign that splits either of them reopens both.
-  Second: **a valid token is not data access** — `DH-906` / `808` means the token is dead, `806`
-  with `dataPlan: Deactive` means the account has no plan and re-pasting tokens will not fix it.
+- Watch out for: **the spec file says PROPOSED and that is not a formality.** Two of its 22 rows
+  change what the screen looks like on first paint (greeks off, dark default) and were chosen by
+  reading, not by measurement. Building from an unapproved table is how a redesign gets reopened.
+  Second: **P10a rewrites a screen carrying nine phases of passing acceptance criteria.** Write
+  `.cache/p10-verify.js` — the re-proof block covering P2 through P9 — **before** the first CSS
+  change, not after; it is most of the phase, and it is the only thing that will tell you the
+  rebuild broke P5's orphan count or P6's anchors.

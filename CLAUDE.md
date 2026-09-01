@@ -194,3 +194,23 @@ CRLF on these files, so a diff that looks whole-file is usually just line ending
 P10 (the TradingView-style UI redesign) runs **after** P7, P8 and P9 — the user said so explicitly
 on 2026-08-31. An unlocked spec is not a licence to start, and a redesign that lands before the
 three data phases has to be reopened three times to make room for their columns and panels.
+
+## A centred sticky column needs `left:0` AND `right:0`, or it never pins
+The strike spine is column 13 of 25, sits at x≈696, and the table overflows the 1440px floor by
+only 44px. `position:sticky;left:0` — the reflex — would need ~700px of horizontal scroll before it
+ever engaged, so it does nothing here and looks like sticky "not working". Symmetric offsets
+(`left:0;right:0`) pin the cell in both scroll directions and only conflict when the scrollport is
+narrower than the cell (92px), far below the supported floor. Sticky also needs a painted
+background and `border-collapse:separate` — the spine already has both. Watch `td.flash`, which
+animates `background` to `transparent`: a sticky cell that ends transparent lets columns scroll
+through it.
+
+## Read the screen before writing a redesign spec — three P10 rows changed because of it
+Written from the requirements alone, P10's spec would have specified work that is already done and
+missed the work that is actually needed. The grid **already** renders the complete strike list in
+one scrollable table with a sticky header — nothing windows strikes in `derive.ts` or `app.js` — so
+"no ATM window, no hidden rows" is an invariant to state, not a rebuild to schedule. The sticky
+spine's obvious implementation is inert (above). And the real unmet need was never in the
+requirements at all: 25 columns need 1484px against a 1440px floor, which the P2 deviation row had
+already priced and handed forward. **A spec row whose "why" cannot cite a value in the codebase or
+an existing spec row is a guess — mark it as one so it can be vetoed in one word.**

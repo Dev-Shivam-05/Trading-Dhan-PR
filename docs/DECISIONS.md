@@ -297,3 +297,43 @@ count ambiguous; drawing one and computing the rule over five is what both rows 
 It is now row 20 rather than an implementation choice, because a future session rebuilding from
 the spec would otherwise have a coin flip to make, and the acceptance criterion depends on the
 answer.
+
+## 2026-09-01 — P10's spec is written but NOT locked; the table was emitted and no `go` came back
+The session's whole output is `docs/spec/terminal-redesign-v1.md`, 22 rows, marked **PROPOSED, NOT
+LOCKED** in its own first line. That status is deliberate and is not a formality: the spec-lock
+rule is one approval, and the approval did not arrive. A file that says "locked" when nobody
+approved it is worse than no file, because the next session builds from it without asking.
+No `src/` and no `public/` file was touched.
+
+## 2026-09-01 — "TradingView-like" is resolved as exactly five facts, not as a style
+Row 1 of the proposal fixes the phrase to: a resizable multi-pane shell, zero-gap 1px-seamed pane
+chrome, a strike spine pinned so it cannot scroll out of view, a default column set that fits
+1440px without horizontal scroll, and dark as the default theme. Everything else a person might
+mean by the phrase is either already built here (drawing tools, a chart strip, a replay banner) or
+is listed under out-of-scope. The point of enumerating it is that each of the five is a pass/fail
+measurement, and none of them is a screenshot compared against taste.
+
+## 2026-09-01 — The latency panel's new form is a bottom rail plus a closed drawer, not a narrower dock
+The P10 done-when says the latency numbers must be readable "without giving up chain width", and a
+right-hand dock is the one shape that cannot satisfy that at any width — the chain is 1484px wide
+on a 1440px screen before the dock takes its 380. So the dock is deleted. The three P3 big numbers
+and the two P5 feed numbers move to an always-on 26px status rail, which costs zero width; the
+waterfall, sparkline, percentiles and 20-row call log move to a drawer that is closed by default
+and takes height, not width, when opened. Same data, different form, and the criterion becomes a
+pixel comparison of `#gridScroll.clientWidth` rather than a judgement.
+
+## 2026-09-01 — The sticky strike spine needs `left:0` AND `right:0`, and the reason is geometry
+The obvious implementation, `position:sticky;left:0`, does nothing on this screen. The spine is
+column 13 of 25 and sits at x≈696; the horizontal overflow at 1440px is 44px, so the cell would
+need about 700px of scroll before it ever pinned. Symmetric offsets (`left:0;right:0`) pin it in
+both directions and only conflict if the scrollport is narrower than the 92px cell, which is far
+below the 1024px floor. The spine already paints `--bg-inset` and the table already sets
+`border-collapse:separate`, so the whole row is two declarations — but it is two declarations that
+are wrong in the obvious form, which is why it is a spec row and not an implementation detail.
+
+## 2026-09-01 — P10a leaves the right dock alone so the split has no rework in it
+The phase splits at 5 code files each. The tempting cut is "shell in P10a, polish in P10b", which
+would have P10a build a pane system around a dock that P10b then deletes. Instead P10a builds the
+shell and the chain and leaves `.lat` working exactly as it is inside it, and P10b deletes the dock
+and adds the rail and drawer. Each sub-phase is independently shippable and verifiable, and nothing
+built in P10a is thrown away in P10b.
