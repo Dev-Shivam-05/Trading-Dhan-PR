@@ -388,6 +388,115 @@ export function replayFuturesCandles(
   return { open, high, low, close, volume, timestamp, open_interest };
 }
 
+/* ---------------------------------------------------- option candles (P9) */
+
+/**
+ * option-candles-v1.md row 18: the seeded replay day must contain EXACTLY 3 blue and 2 yellow
+ * candles, or P9 has no acceptance test at all while the Data API plan is inactive.
+ *
+ * The seeding is indirect, the same way P7's and P8's are. Nothing here says "this candle is
+ * blue": the generator sets a volume and an open interest, and `colourCandles()` in candles.ts
+ * has to compute its own 20-candle median, its own dOI against the previous candle, and both
+ * thresholds to arrive at the colour. In particular the volume spike is 8x the TOP of the
+ * ordinary band rather than a multiple of the median this fixture computed - a fixture that
+ * recomputed the production median would be testing itself.
+ */
+
+/** Designated by FRACTION of the session, so the counts hold identically at 1, 5 and 15 minutes
+ *  and no index can ever land on the last candle, which row 11 keeps uncoloured. */
+const BLUE_AT = [0.30, 0.55, 0.78];
+const YELLOW_AT = [0.40, 0.88];
+/** AC3 needs one candle that passes the volume test and FAILS the OI test. */
+const VOLONLY_AT = [0.62];
+
+/** Ordinary volume band. Narrow on purpose: the widest possible ordinary ratio is
+ *  30,000 / 20,000 = 1.5, which cannot reach 3.0 however the median falls. */
+const VOL_LO = 20_000;
+const VOL_SPAN = 10_000;
+/** 8x the top of the band. At most 5 spikes ever sit inside a 20-candle window, so the median
+ *  stays inside the ordinary band and the ratio stays at or above 8. */
+const VOL_SPIKE = 8 * (VOL_LO + VOL_SPAN);
+
+/** Row 15's empty state has to be reachable in replay or it can never be screenshotted.
+ *  Strikes this far from the money return no candles at all. */
+const ILLIQUID_OFFSET = 15;
+
+/** 09:15 to 15:30 IST is 375 minutes, so a session holds exactly 375/interval candles. */
+function candlesPerDay(intervalMin: number): number {
+  return Math.max(1, Math.floor(SESSION_MINUTES / intervalMin));
+}
+
+/**
+ * A multi-day intraday payload for ONE option contract, in the endpoint's parallel-array shape.
+ *
+ * Earlier days are not decoration: row 12 exists so the first candle of the rendered session
+ * already has 20 predecessors, and only the LAST day carries the designated candles.
+ *
+ * Open interest is anchored to the SAME `oiBaseAt` the chain and P7's peaks use, so a strike's
+ * candle OI cannot disagree with its own row in the grid.
+ */
+export function replayOptionCandles(
+  key: string, strike: number, side: 'ce' | 'pe', intervalMin: number, dates: string[],
+): Candles | null {
+  const shape = SHAPES[key] ?? SHAPES.NIFTY!;
+  const atm = Math.round(shape.spot / shape.step) * shape.step;
+  const off = Math.round((strike - atm) / shape.step);
+  if (Math.abs(off) >= ILLIQUID_OFFSET) return null;         // row 15
+  if (!dates.length) return null;
+
+  const per = candlesPerDay(intervalMin);
+  const lastDay = dates.length - 1;
+  const at = (fracs: number[]) => new Set(fracs.map(f => Math.round(f * (per - 1))));
+  const iBlue = at(BLUE_AT), iYellow = at(YELLOW_AT), iVolOnly = at(VOLONLY_AT);
+
+  const timestamp: number[] = [];
+  const open_interest: number[] = [];
+  const volume: number[] = [];
+  const open: number[] = [];
+  const high: number[] = [];
+  const low: number[] = [];
+  const close: number[] = [];
+
+  const pxBase = 40 + hash(key, strike, side, 'px0') * 60;
+  let px = pxBase;
+  let oi = oiBaseAt(key, strike, side, off, shape.strikes) * 0.7;
+
+  for (let d = 0; d < dates.length; d++) {
+    for (let j = 0; j < per; j++) {
+      const seeded = d === lastDay;
+      const blue = seeded && iBlue.has(j);
+      const yellow = seeded && iYellow.has(j);
+      const volOnly = seeded && iVolOnly.has(j);
+
+      // OI moves FIRST, because the rule reads it against the previous candle's value.
+      if (blue) oi *= 1.12;                       // +12% - clears the 5% test with room
+      else if (yellow) oi *= 0.86;                // -14%
+      else if (volOnly) oi *= 1.01;               // +1% - fails the 5% test on purpose
+      else oi *= 0.995 + hash(key, strike, side, `oi${d}-${j}`) * 0.01;   // +/-0.5%, never fires
+
+      const vol = (blue || yellow || volOnly)
+        ? VOL_SPIKE
+        : Math.round(VOL_LO + hash(key, strike, side, `v${d}-${j}`) * VOL_SPAN);
+
+      const drift = (hash(key, strike, side, `m${d}-${j}`) - 0.5) * 0.024;
+      const next = Math.min(pxBase * 2.5, Math.max(0.05, px * (1 + drift)));
+      const o = Math.round(px * 100) / 100;
+      const c = Math.round(next * 100) / 100;
+      px = next;
+
+      timestamp.push(istEpochSeconds(dates[d]!, j * intervalMin));
+      open_interest.push(Math.round(oi));
+      volume.push(vol);
+      open.push(o);
+      close.push(c);
+      high.push(Math.round(Math.max(o, c) * (1 + hash(key, strike, side, `h${d}-${j}`) * 0.008) * 100) / 100);
+      low.push(Math.round(Math.min(o, c) * (1 - hash(key, strike, side, `l${d}-${j}`) * 0.008) * 100) / 100);
+    }
+  }
+
+  return { open, high, low, close, volume, timestamp, open_interest };
+}
+
 /** Plausible network latency so the panel's percentiles and waterfall have real spread. */
 export async function replayLatency(): Promise<number> {
   const base = 120 + Math.random() * 140;

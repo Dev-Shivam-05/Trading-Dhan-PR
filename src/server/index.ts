@@ -12,6 +12,7 @@ import {
 } from './instruments.ts';
 import { readCredentials } from './dhan.ts';
 import { Scanner, scanCsv } from './scanner.ts';
+import { CandleService, INTERVALS, type Interval } from './candles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
@@ -25,6 +26,7 @@ const hub = new PollerHub(creds);
 const feed = new FeedClient(creds);
 const history = new TickHistory();
 const scanner = new Scanner(creds);
+const candles = new CandleService(creds);
 
 /**
  * Which instruments each open SSE connection wants ticks for. The feed holds ONE socket, so it
@@ -64,6 +66,7 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/app.js': { file: 'app.js', type: 'text/javascript; charset=utf-8' },
   '/chart-tools.js': { file: 'chart-tools.js', type: 'text/javascript; charset=utf-8' },
   '/scan.js': { file: 'scan.js', type: 'text/javascript; charset=utf-8' },
+  '/candles.js': { file: 'candles.js', type: 'text/javascript; charset=utf-8' },
 };
 
 for (const [route, { file, type }] of Object.entries(STATIC)) {
@@ -163,6 +166,40 @@ app.get('/api/scan.csv', async (_req, reply) => {
   return reply.type('text/csv; charset=utf-8')
     .header('content-disposition', 'attachment; filename="dhan-scan.csv"')
     .send(scanCsv(scanner.last));
+});
+
+/* ------------------------------------------------------ option candles (P9) */
+
+/**
+ * One option contract's own candles, coloured by option-candles-v1.md rows 5-8.
+ *
+ * There is no session gate here: candles are history, and a contract's last session is exactly
+ * what a reader wants to see after the close. The rate gate lives in `dhanPost`, keyed per
+ * (contract, interval) by `CandleService`.
+ */
+app.get('/api/candles', async (req, reply) => {
+  const q = req.query as Record<string, string>;
+  const inst = findInstrument(q.key ?? '');
+  if (!inst) return reply.code(404).send({ error: `unknown instrument ${q.key}` });
+
+  const expiry = q.expiry || inst.nearestExpiry;
+  if (!expiry) return reply.code(400).send({ error: `${inst.id} has no expiry` });
+
+  const strike = Number(q.strike);
+  if (!Number.isFinite(strike) || strike <= 0) {
+    return reply.code(400).send({ error: `bad strike ${q.strike}` });
+  }
+  if (q.side !== 'ce' && q.side !== 'pe') {
+    return reply.code(400).send({ error: `side must be ce or pe, got ${q.side}` });
+  }
+  // Row 4. An unknown interval is a client bug, not something to silently coerce - the tooltip's
+  // arithmetic depends on which interval the numbers came from.
+  const interval = (q.interval ?? '5') as Interval;
+  if (!(INTERVALS as readonly string[]).includes(interval)) {
+    return reply.code(400).send({ error: `interval must be one of ${INTERVALS.join(' / ')}` });
+  }
+
+  return candles.get(inst, expiry, strike, q.side, interval);
 });
 
 /* ----------------------------------------------------------------- SSE */

@@ -152,6 +152,12 @@ function select(id, expiry) {
     sel.appendChild(o);
   }
 
+  // candles.js charts one contract of THIS instrument and expiry (option-candles-v1.md row 1).
+  // A custom event rather than an import, so app.js depends on nothing downstream of it.
+  document.dispatchEvent(new CustomEvent('chain-scope', {
+    detail: { id: inst.id, label: inst.label, expiry: state.expiry, lot: inst.lot },
+  }));
+
   renderHeader(null);
   skeleton();
   connect();
@@ -363,6 +369,9 @@ function renderGrid(s) {
 
   state.spotIdx = -1;
   placeSpotPill(s);
+
+  // The tbody was just replaced wholesale, which drops candles.js's selected-half outline.
+  document.dispatchEvent(new CustomEvent('chain-render'));
 }
 
 /**
@@ -659,23 +668,25 @@ loadInstruments().catch(err => {
    at all, so those columns keep coming from the 3 s snapshot, and the legend
    above the chart says which is which. */
 
+/* `tickonly` rides along in every className below on purpose: it is what hides these two in
+   candles.js's option-candle mode, and a bare `className =` assignment silently drops it. */
 function onFeed(fs) {
   state.feed = fs;
   const pill = $('feedPill');
   const label = pill.lastElementChild;
   if (fs.state === 'live') {
-    pill.className = 'feedpill live';
+    pill.className = 'feedpill tickonly live';
     label.textContent = `feed live · ${fs.instruments} instruments`;
     pill.title = 'Tick-by-tick over Dhan WebSocket';
   } else if (fs.state === 'connecting') {
-    pill.className = 'feedpill';
+    pill.className = 'feedpill tickonly';
     label.textContent = 'feed connecting';
   } else if (fs.state === 'error') {
-    pill.className = 'feedpill bad';
+    pill.className = 'feedpill tickonly bad';
     label.textContent = `feed down · ${fs.code}`;
     pill.title = fs.message ?? '';
   } else {
-    pill.className = 'feedpill';
+    pill.className = 'feedpill tickonly';
     label.textContent = 'feed off';
   }
 }
@@ -745,7 +756,7 @@ function paintSpot(p) {
 
   const c = $('chartChg');
   c.textContent = text;
-  c.className = 'cchg mono ' + klass;
+  c.className = 'cchg mono tickonly ' + klass;
 
   const h = $('uChg');
   h.textContent = text;
@@ -787,6 +798,10 @@ function applyCellTick(it) {
 /* ------------------------------------------------------------------ chart */
 
 function drawChart() {
+  // In option-candle mode candles.js owns the strip. The drawing tools stay bound to the
+  // underlying tick chart and are disabled here — option-candles-v1.md row 17.
+  if (document.body.classList.contains('optmode')) { tools.setEnabled(false); return; }
+
   const svg = $('chartSvg');
   const box = svg.getBoundingClientRect();
   const W = Math.max(1, Math.round(box.width));
@@ -949,3 +964,7 @@ $('chartBtn').addEventListener('click', () => setChart(document.body.classList.c
 }
 
 window.addEventListener('resize', () => { state.chartDirty = true; });
+
+/* candles.js took the strip over, or handed it back. One repaint either way: leaving the tick
+   chart's last frame behind would show a price line that is no longer being updated. */
+document.addEventListener('optmode', () => { state.chartDirty = true; });

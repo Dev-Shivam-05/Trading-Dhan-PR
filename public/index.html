@@ -67,17 +67,30 @@
 
 <section class="chart" id="chartWrap">
   <div class="chart-h">
-    <span class="ct">LIVE TICK CHART</span>
-    <span class="cpx mono" id="chartPx">—</span>
-    <span class="cchg mono" id="chartChg">—</span>
-    <span class="legend">
+    <button class="tog opt" id="candleBack" type="button"
+            title="Back to the underlying chart (Esc)">&larr; underlying</button>
+    <span class="ct opt" id="candleTitle"></span>
+    <span class="legend opt">
+      <span><i class="dot bigin"></i>blue: big player entering</span>
+      <span><i class="dot bigout"></i>yellow: exiting</span>
+    </span>
+    <span class="ct tickonly">LIVE TICK CHART</span>
+    <span class="cpx mono tickonly" id="chartPx">—</span>
+    <span class="cchg mono tickonly" id="chartChg">—</span>
+    <span class="legend tickonly">
       <span><i class="dot tick"></i>tick: LTP · Volume · OI</span>
       <span><i class="dot slow"></i>3&nbsp;s: IV · Greeks</span>
     </span>
     <span class="grow"></span>
-    <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
-    <span class="tickrate mono" id="tickRate">0 t/s</span>
-    <span class="tools" id="chartTools" role="group" aria-label="Drawing tools">
+    <span class="candlecount mono opt" id="candleCount"></span>
+    <span class="range opt" id="candleInterval" role="group" aria-label="Candle interval">
+      <button type="button" data-iv="1">1m</button>
+      <button type="button" data-iv="5" aria-pressed="true">5m</button>
+      <button type="button" data-iv="15">15m</button>
+    </span>
+    <span class="feedpill tickonly" id="feedPill"><i></i><span>feed off</span></span>
+    <span class="tickrate mono tickonly" id="tickRate">0 t/s</span>
+    <span class="tools tickonly" id="chartTools" role="group" aria-label="Drawing tools">
       <button type="button" data-tool="cursor" aria-pressed="true" title="Cursor (V)" aria-label="Cursor">↖</button>
       <button type="button" data-tool="trend" aria-pressed="false" title="Trendline (D)" aria-label="Trendline">╱</button>
       <button type="button" data-tool="hline" aria-pressed="false" title="Horizontal line (H)" aria-label="Horizontal line">—</button>
@@ -85,7 +98,7 @@
       <button type="button" data-tool="rect" aria-pressed="false" title="Rectangle (B)" aria-label="Rectangle">▭</button>
       <button type="button" id="chartClear" title="Clear all drawings — click twice" aria-label="Clear all drawings">✕</button>
     </span>
-    <span class="range" id="chartRange" role="group" aria-label="Chart window">
+    <span class="range tickonly" id="chartRange" role="group" aria-label="Chart window">
       <button type="button" data-range="60000">1m</button>
       <button type="button" data-range="300000" aria-pressed="true">5m</button>
       <button type="button" data-range="900000">15m</button>
@@ -94,10 +107,14 @@
     <button class="icon" id="chartBtn" type="button" title="Collapse chart (C)" aria-label="Collapse chart">▾</button>
   </div>
   <div class="chart-body" id="chartBody">
-    <svg id="chartSvg" preserveAspectRatio="none" aria-label="Live tick chart"></svg>
-    <div class="chart-empty" id="chartEmpty">waiting for the first tick…</div>
-    <div class="chart-surface" id="chartSurface"></div>
-    <div class="chart-axis" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
+    <svg id="chartSvg" class="tickonly" preserveAspectRatio="none" aria-label="Live tick chart"></svg>
+    <div class="chart-empty tickonly" id="chartEmpty">waiting for the first tick…</div>
+    <div class="chart-surface tickonly" id="chartSurface"></div>
+    <div class="chart-axis tickonly" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
+    <svg id="candleSvg" class="opt" preserveAspectRatio="none" aria-label="Option candles"></svg>
+    <div class="chart-empty opt" id="candleMsg" hidden></div>
+    <div class="chart-surface opt" id="candleSurface"></div>
+    <div class="candletip mono" id="candleTip" hidden></div>
   </div>
   <div class="chart-grip" id="chartGrip" title="Drag to resize"></div>
 </section>
@@ -209,5 +226,6 @@
 
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
+<script type="module" src="/candles.js"></script>
 </body>
 </html>
