@@ -257,3 +257,43 @@ What was measured instead is the two things that would have to hold anyway: a st
 which rules out the scan blocking the event loop. The criterion itself stays open until the market
 is open with a live plan.
 
+
+## 2026-09-01 — The option chart is a second `<svg>`, not a second module in `drawChart()`
+P9 needed a candlestick renderer where P2-P6's tick line already lives. Folding it into app.js's
+`drawChart()` would have put a whole second renderer inside a function four phases already depend
+on; importing `candles.js` from app.js would have made an ESM cycle, because `candles.js` imports
+app.js's number formatters the way `scan.js` does.
+So `candles.js` owns its own `<svg>` layered inside the same `.chart-body`, and the two never run
+at once: `body.optmode` decides which is on screen, `drawChart()` returns early when it is set, and
+three `CustomEvent`s carry everything else (`chain-scope` and `chain-render` out of app.js,
+`optmode` back in). app.js still imports nothing downstream of itself.
+The cost is that both display toggles need `!important`, because `.chart-empty` and
+`.chart-body svg` set their own `display` — the same rule that kept P8's scanner panel on screen.
+
+## 2026-09-01 — `now` is injected, so "never colour the forming candle" is testable
+Row 11 says the in-progress candle is never blue or yellow. Read off `Date.now()`, that branch is
+unreachable in the only mode this project can run: the market is shut for almost every session, so
+no seeded candle is ever "still forming" and AC4 would be vacuous rather than passing.
+`colourCandles()` therefore takes `nowMs`. Live it is the wall clock. In replay it is the last
+seeded candle's open + 1 s, so exactly one candle is forming and the branch is exercised. This is
+the same deviation, for the same reason, as `scanner-v1.md` row 20 enabling the Scan button in
+replay — and it is recorded as an amendment row (21), not left implicit.
+
+## 2026-09-01 — The fixture's volume spike is a multiple of the band, not of the median
+The seeded replay day has to make exactly 3 candles blue and 2 yellow *through the production
+rule*, which computes its own 20-candle median. The obvious fixture — set the spike to
+`3.4 x median(previous 20)` — would have had the fixture compute the median the rule is being
+tested on, so a bug in `medianOf()` would have been reproduced identically on both sides and the
+test would have passed. The spike is instead `8 x` the top of the ordinary volume band (a fixed
+240,000 against a 20,000-30,000 band), which clears `3.0 x` whatever median the rule arrives at,
+with margin, and shares no arithmetic with it. Same principle as P7 synthesising a candle series
+instead of a peak, and P8 designating survivors by rank instead of by name.
+
+## 2026-09-01 — Only the latest session is drawn, and that had to become a spec row
+Row 3 fetches 5 calendar days and row 12 explains why: so the session's 09:15 candle already has
+20 predecessors. Row 18 then speaks of "a 75-candle 5-min day". Nothing said which of the five
+days is on screen. Drawing all of them would put 375 candles on a 5-minute chart and make row 18's
+count ambiguous; drawing one and computing the rule over five is what both rows imply.
+It is now row 20 rather than an implementation choice, because a future session rebuilding from
+the spec would otherwise have a coin flip to make, and the acceptance criterion depends on the
+answer.

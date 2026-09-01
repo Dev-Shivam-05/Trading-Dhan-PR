@@ -95,6 +95,23 @@ publishes only the **top 25** underlyings on the OI Spurts page. Treat any NSE-s
 blocked-and-lossy until proven otherwise with a real Chromium, and prefer computing the same number
 from Dhan.
 
+## "Now" is an argument, not a clock, wherever a rule depends on it
+P9's rule must never colour the candle that is still forming, and the market is shut for almost
+every session on this project — so with `Date.now()` that branch is unreachable and the criterion
+is unmeasurable. `colourCandles()` takes `nowMs`; live it is the wall clock, in replay it is the
+last seeded candle's open + 1 s. Same shape as P8's replay session gate. **Any rule that reads the
+clock has an acceptance criterion that cannot be run outside 09:15–15:30 IST unless the clock is
+injected.**
+
+## Two modules can share the chart strip without importing each other
+`public/candles.js` draws into its own `<svg>` layered inside the same `.chart-body`; `body.optmode`
+plus `body:not(.optmode) .opt{display:none!important}` / `body.optmode .tickonly{...}` decides which
+is on screen, and two `CustomEvent`s (`chain-scope`, `chain-render` out of app.js; `optmode` back)
+carry the rest. app.js imports nothing downstream of itself, so there is no ESM cycle — the same
+one-directional shape `scan.js` uses. The `!important` is load-bearing: `.chart-empty` and
+`.chart-body svg` set their own `display`, and this is the same trap that kept P8's scanner panel
+on screen.
+
 ## Verification bar for this project
 It is a trading screen. "It compiled" is not done, and a number that is silently wrong is worse
 than a visible error. Any derived value gets recomputed from the payload and compared before it is
@@ -105,6 +122,15 @@ called done — see the replay verifications in `docs/PHASES.md`.
 path joining from user input, no traversal surface). A new `public/*.js` or `*.css` is invisible
 until it has a row in `STATIC`, and the failure looks like the whole client dying, not like a
 missing file.
+
+## A wholesale `el.className = '...'` silently drops classes another phase added
+P9 hides the tick-chart header items in option-candle mode with a `tickonly` class. `paintSpot()`
+sets `chartChg.className = 'cchg mono ' + klass` and `onFeed()` sets `pill.className = 'feedpill
+live'` — both **replace** the class list, so the underlying's price change and the feed pill stayed
+on screen next to an option's candle header, reading as that option's numbers. The elements that
+were never reassigned (`chartPx`, `tickRate`) hid correctly, which is what makes it look like a
+CSS specificity problem rather than what it is. Prefer `classList.toggle`; if you must assign,
+carry the other phases' classes and say why in a comment.
 
 ## Frame-time budgets are stated as p95, never as max
 Measured on this machine at 1440x900, 120-frame samples, `drawChart()` with **zero** drawings:

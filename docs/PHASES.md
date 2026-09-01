@@ -14,41 +14,41 @@ absorbing the work.
 | P6 | Chart price axis + drawing tools | Draggable price axis (drag to compress/expand the scale, double-click to reset), crosshair readout, and drawing tools - trendline, horizontal price line, ray, rectangle - persisted per (instrument, expiry) | ~5 | A trendline drawn on NIFTY survives an instrument switch and a page reload, and stays anchored to its price/time coordinates after a scale drag | **done** (2026-08-31) — spec `docs/spec/chart-tools-v1.md`, 19/19 checks pass in replay |
 | P7 | Peak-OI tracking | Yesterday's per-strike **peak** OI fetched as `max(open_interest)` over yesterday's 1-min candles from `POST /v2/charts/intraday` (`"oi": true`, `NSE_FNO`), cached per (contract, date); grid column and filter comparing live OI against that peak rather than `previous_oi` (yesterday's close); breach highlight on cross | ~6 | For one strike, the fetched peak equals the hand-computed max of that day's candle OI series, and a live OI above it flags within one poll | **done (replay)** 2026-08-31 — spec `docs/spec/peak-oi-v1.md`, 22 rows, 23/23 checks pass. **The live path has never run**: the plan is inactive, so every number was measured against synthetic candles |
 | P8 | 9:20 F&O scanner | Manually triggered scanner over the 210-stock NSE F&O universe: one `POST /v2/marketfeed/quote` carrying all 210 equities **and** their 210 near-month futures, then the three filters - top 50 gainers + top 50 losers, `\|LTP change\| >= 2%`, `\|OI change\| >= 7%` vs the previous session's closing futures OI - printed as two counted lists with the full funnel `210 -> 100 -> n -> m` | ~7 | The seeded replay returns exactly 6 stocks (4 long, 2 short) inside 120 s, and every one independently satisfies all three filters when recomputed by hand from the same payload | **done (replay)** 2026-09-01 - spec `docs/spec/scanner-v1.md`, 20 rows, 32/33 checks pass. **AC5 (chain cadence under scan load) is not measurable on a closed market and stays unverified**; the live path has never run |
-| P9 | Option candle colouring | Per-candle OHLC + volume + `open_interest` for one chosen option contract from `/v2/charts/intraday`; candles green/red normally, recoloured **blue** when `vol >= 3x median20` **and** `\|dOI\| >= 5% of prior candle OI` with `dOI > 0` (big player entering), **yellow** on the same test with `dOI < 0` (exiting), so the move is visible on the option's own chart, not the spot chart | ~8 | The seeded replay day renders exactly 3 blue and 2 yellow candles, and for one of them the tooltip's `vol / median20 / dOI / oi[i-1]` recomputed by hand from the payload yield that same colour | **spec locked** 2026-08-31 - `docs/spec/option-candles-v1.md`, 19 rows; build blocked on the Data API plan |
+| P9 | Option candle colouring | Per-candle OHLC + volume + `open_interest` for one chosen option contract from `/v2/charts/intraday`; candles green/red normally, recoloured **blue** when `vol >= 3x median20` **and** `\|dOI\| >= 5% of prior candle OI` with `dOI > 0` (big player entering), **yellow** on the same test with `dOI < 0` (exiting), so the move is visible on the option's own chart, not the spot chart | ~8 | The seeded replay day renders exactly 3 blue and 2 yellow candles, and for one of them the tooltip's `vol / median20 / dOI / oi[i-1]` recomputed by hand from the payload yield that same colour | **done (replay)** 2026-09-01 - spec `docs/spec/option-candles-v1.md`, 22 rows, **22/22 checks pass**. Row 14's 60 s refresh measured at +60,016 ms. **The live path has never run** |
 | P10 | Terminal UI redesign | Full rebuild of the screen as a TradingView-style trading terminal: the option chain as **one vertically scrollable table** showing the complete strike list with a sticky header row and a sticky strike spine (no ATM window, no hidden rows), a resizable multi-pane shell around it, and the P3 latency data re-presented **in a different form** from today's right-hand dock so it can be read without giving up chain width | ~12 — **over the 8-file rule, must be split into P10a / P10b when its spec is locked** | The complete strike list is reachable by vertical scroll in a single table with the header and the strike spine pinned; the latency numbers are readable in their new form without closing or narrowing the chain; and every P2-P6 acceptance criterion still passes after the rebuild | **spec NOT locked — runs LAST.** Blocked behind P7, P8 and P9 by the user's explicit instruction (2026-08-31). Undefined until spec-locked: what "TradingView-like" fixes numerically, and what the latency panel's new form actually is |
 
 ## Now
-**P8 is built and verified in replay** (2026-09-01) - `docs/spec/scanner-v1.md`, 20 rows, 32/33
-checks. The scan funnels `210 -> 208 scored -> 100 ranked -> 87 -> 6` and returns 4 long + 2 short,
-confirmed by a **second, independent implementation** that rebuilds the whole funnel from the same
-payload without importing `scanner.ts`. `FUTSTK` is now in `KEEP_INSTRUMENTS`, so stock futures OI
-is reachable for the first time. **The one criterion that did not pass is AC5** - the chain poll's
-3000 ms gap under scan load - because a closed market gives only one poll to measure, and replay
-makes no `dhanPost` calls at all, so the rate gate is not exercised in this mode either.
-Branch `p8-scanner`, stacked on `p7-peak-oi`.
-P7 remains built-and-replay-verified with no live run. P9 is spec-locked and unbuilt; it needs the
-same `/v2/charts/intraday` client that P7 and P8 now share. **P10 runs LAST**, after P9, by the
-user's explicit instruction.
-**Four branches are pushed and none has a PR**: `p6-chart-tools`, then `p8-p9-spec-lock`, then
-`p7-peak-oi`, then `p8-scanner`. They are stacked in that order - merge them in it.
+**P9 is built and verified in replay** (2026-09-01) - `docs/spec/option-candles-v1.md`, 22 rows,
+**22/22 checks**. Clicking the CE or PE half of a strike row switches the chart strip into
+candlestick mode for that one contract; candles turn **blue** where a big player is entering the
+strike and **yellow** where one is exiting, and the tooltip prints the four numbers the colour was
+computed from so the rule can be redone by hand. The seeded day returns exactly 3 blue and 2
+yellow at 1, 5 and 15 minutes alike, confirmed both in the payload and off the DOM, and agreed on
+by a **second implementation** that recomputes the whole rule without importing `candles.ts`.
+`drawCandles()` runs p50 2.20 / p95 3.70 ms at 375 candles. Branch `p9-option-candles`.
+**Every recording-derived phase is now built.** P7, P8 and P9 are all replay-verified with **no
+live run** - the account still has no Data API plan. P8's AC5 remains the one open criterion, and
+it needs an open market to measure. **P10 runs LAST and is still unlocked.**
+**Five branches are pushed or pending, none with a PR**: `p6-chart-tools`, then `p8-p9-spec-lock`,
+then `p7-peak-oi`, then `p8-scanner`, then `p9-option-candles`. Stacked in that order - merge
+them in it.
 
 ## Next 3
 1. **Unblock live data.** Subscribe to Data APIs at web.dhan.co, then `npm run check` until it
-   reports READY. Three phases are now waiting on the same two calls: one `/v2/charts/intraday`
-   settles its response shape, its epoch units and its real rate limit (P7, P8 and P9 all assume
-   these); one `/v2/marketfeed/quote` with 420 instruments settles P8's body and response shape and
-   whether 420 in a request really is accepted. Then `npm run feed:probe` for the binary parser.
-   **P8's AC5 must also be re-run with the market open** - it is the one criterion this session
-   could not measure.
-2. **Build P9** (option candle colouring). It is the last recording-derived phase and the last
-   thing standing between here and P10. Its client already exists: `fetchIntraday` /
-   `istParts` / `closingOiOn` are exported from `src/server/peakoi.ts` and P8 consumes them.
-   Its new `public/*.js` file needs a `STATIC` row or it 404s.
-3. **Only after P9 ships: spec-lock P10** before touching a single UI file. It is a full rebuild of
-   a screen with seven phases of passing acceptance criteria on it, it is over the 8-file rule, and
-   "TradingView-like" is three undefined adjectives until it is a numbered table.
-   *(`docs/shots/` re-baselining is still P10's problem - all 17 reference images predate P6.
+   reports READY. Three phases now ride on the same two calls: one `/v2/charts/intraday` settles
+   its response shape, its epoch units, its real rate limit, how far back per-candle OI is
+   retained, and **whether `open_interest` is in units or contracts** (P9 row 7's `5 * lotSize`
+   floor becomes `5` if it is contracts); one `/v2/marketfeed/quote` with 420 instruments settles
+   P8's body and response shape. Then `npm run feed:probe` for the binary parser.
+   **P8's AC5 must be re-run with the market open** - it is the one criterion still unmeasured.
+2. **Spec-lock P10** before touching a single UI file. It is a full rebuild of a screen with eight
+   phases of passing acceptance criteria on it, it is over the 8-file rule, and "TradingView-like"
+   is three undefined adjectives until it is a numbered table. Split it into P10a / P10b at lock
+   time - the row already says so.
+   *(`docs/shots/` re-baselining is P10's problem - all 17 reference images predate P6.
    `npm run shots` overwrites all of them, so it stays a deliberate act, never an ad-hoc check.)*
+3. **Then build P10a.** Not before the lock, and not before the branches above have PRs - five
+   stacked branches with no PR is one bad merge away from a very long afternoon.
 
 ## Session log
 | Date | Phase | What happened |
@@ -69,6 +69,8 @@ user's explicit instruction.
 
 | 2026-09-01 | P8 | The 9:20 F&O scanner. `FUTSTK` added to `KEEP_INSTRUMENTS` first - the prerequisite the spec named - which made stock futures OI reachable for the first time and cost **+1,270 rows on ~170,465**, measured rather than feared. The funnel runs `210 -> 208 scored -> 100 ranked -> 87 -> 6` and returns **4 long + 2 short**. **Verified in replay: 32/33 checks** across three scripts - 10 from a **second, independent implementation** that rebuilds the whole funnel from the same payload with its own arithmetic and its own candle reducer and never imports `scanner.ts` (it agrees on the universe, both filter counts, both candidate lists by name, the skipped set, the rejected count, and that every survivor is inside the top 50 of its own side), 22 in the browser, and 5 static/responsiveness checks. Cold **4.2 s**, warm **43 ms**. Zero console errors; 5 screenshots reviewed in both themes. **Two real bugs found by testing:** the master lists an **NCD** under `CHOLAFIN` and `MOTHERSON` with `INSTRUMENT = EQUITY`, so matching on symbol alone would have quoted a debenture's price as the share's - `MasterRow` grew a `series` field and the cash row must now be `SERIES = 'EQ'`; and `.scan{display:flex}` outranked the UA's `[hidden]{display:none}`, so the panel was on screen from page load and neither Esc nor the close button could put it away. **Three spec rows added mid-build (18, 19, 20)**, all marked as amendments: the progress endpoint, the `EQ` series rule, and enabling the button in replay. **The one criterion that did not pass is AC5** - the chain poll's 3000 ms gap across a scan. A closed market gives one poll, not two, and replay makes **no `dhanPost` calls at all**, so the rate gate is not exercised in this mode even with the market open; what was measured instead is that the scanner only ever uses `scan:quote` / `scan:oi` and that the server answers in max 18 ms throughout a cold scan. **Nine code files**, one over the ~8 guideline. **The live path has never run.** Branch `p8-scanner`. |
 
+| 2026-09-01 | P9 | Option candle colouring. Clicking either half of a strike row switches the existing chart strip into candlestick mode for that one contract - `src/server/candles.ts` computes the whole rule in **one place** over the full 5-day window (`vol >= 3x median20` AND `\|dOI\| >= 5% of oi[i-1]` AND `>= 5 x lot`), renders only the latest session, and never colours the forming candle. `public/candles.js` draws into its **own svg layered inside the same `.chart-body`**, so the two renderers never run at once and neither module imports the other - `body.optmode` plus three `CustomEvent`s carry the whole handover, and app.js still imports nothing downstream of itself. **Verified in replay: 22/22 checks**, zero console errors. Exactly 3 blue and 2 yellow at **1, 5 and 15 minutes alike**, counted both in the payload and off the DOM's own path data; a **second implementation** that recomputes median, thresholds and sign without importing `candles.ts` agrees on all 55 judgeable candles; one blue candle hand-checked end to end (`vol 240,000`, `median20 25,367`, `dOI +280,887`, `oi[i-1] 2,340,724` -> `9.46x` and `12.00%` -> blue); the volume-only candle reads `fired: no`; exactly one in-progress candle, uncoloured; `drawCandles()` **p50 2.20 / p95 3.70 / max 8.00 ms** at 375 candles from eight `<path>` nodes; row 14's 60 s refresh measured at **+60,016 ms** and **0** calls after leaving the mode; 8 screenshots in both themes. **Three spec rows added mid-build (20, 21, 22)**, all marked as amendments: render the latest session only, inject `now` so row 11 is testable at all, and return no candles beyond 15 strikes from the money so row 15's empty state is reachable. **One real bug found by testing:** `app.js` reassigns `className` wholesale on `#chartChg` and `#feedPill`, which silently dropped the `tickonly` class - the underlying's price change and the feed pill stayed on screen beside an option's candle header, reading as that option's numbers. **Seven code files.** **The live path has never run.** Branch `p9-option-candles`. |
+
 ## Deviations from the locked spec, and why
 
 | Spec row | Locked | Built | Why |
@@ -78,4 +80,6 @@ user's explicit instruction.
 | Row 9 | Sparkline shows last 60 calls | Same, plus a `collecting - n of 2 calls` placeholder | An empty chart on a closed market read as broken. |
 | Row 8 (again) | 23 columns fit at 1440px with the panel closed | **25 columns, table min-width 1484px**, so the grid scrolls ~44px sideways at 1440px | `peak-oi-v1.md` row 20 priced this before it was built and offered `Vol Chg%` as the trade. P10 owns the final column layout; until then the cost is 44px of horizontal scroll on the narrowest supported screen. |
 | scanner-v1 row 9 | The `Scan` button is enabled whenever the NSE equity session is open | Enabled when the session is open **or** `REPLAY=1` | Row 9 as written makes P8 untestable outside 09:15-15:30 IST, and almost all work on this project happens outside it. Replay data is synthetic and has no session, so gating it on a real session gates it on nothing. `scanner-v1.md` row 20. |
+| option-candles-v1 row 11 | The in-progress candle is plain green/red, re-evaluated when it closes | Same, but `now` is an **argument** to the rule, not `Date.now()` | On a closed market — almost every session on this project — no seeded candle is ever still forming, so the branch is unreachable and AC4 passes vacuously. Replay injects the last seeded candle's open + 1 s. `option-candles-v1.md` row 21. |
+| option-candles-v1 rows 3, 18 | Fetch 5 calendar days; the seeded replay day has 75 candles | Fetch 5 days, **draw only the latest session**; the earlier days feed `median20` and are dropped | Nothing in the locked table said which of the five days is on screen. Drawing all of them puts 375 candles on a 5-minute chart and makes row 18's count ambiguous. `option-candles-v1.md` row 20. |
 | P5 replay feed | Contract ticks carry a plausible OI | OI is **seeded from the snapshot and random-walked ±0.2%/tick**; the chain's OI drift is proportional to each contract's own OI rather than a flat 900/poll | The feed drew `1e5 + rand*4e6` fresh for every contract on every tick — a strike's OI teleported between 1 L and 41 L ten times a second, unrelated to the chain. Nothing compared OI to anything before P7, so it was invisible. `peak-oi-v1.md` row 22. |
