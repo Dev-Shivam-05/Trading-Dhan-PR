@@ -1,96 +1,111 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 7 (peak-OI tracking) — 2026-08-31
+# HANDOFF — Dhan Option Chain Terminal — Phase 8 (9:20 F&O scanner) — 2026-09-01
 
 ## Done
-- **The grid has a `Pk %` column on both sides**, between `OI` and `OI Chg`, showing live OI as a
-  percentage of **yesterday's peak** OI — not `previous_oi`, which is yesterday's *close* and is
-  always the smaller number. Crossing the peak turns the cell amber with a `▲`; the OI bar carries
-  a 1px marker where the peak sits; the exact figure is in the cell's tooltip
-  (`peak 4.21 L at 13:45 · 28 Aug`).
-- **A `Breached` toggle (keyboard `P`)** hides every row where neither side has crossed. It **ANDs**
-  with the strike search — Breached + `23950` shows one row, not the union.
-- **The peak comes out of `max(open_interest)` over the previous session's 1-minute candles** from
-  `POST /v2/charts/intraday`. The previous *trading* session is derived from the candle data (the
-  latest IST date before today that has candles), so there is no holiday table and no `today - 1`.
-  Today's candles arrive in the same window and are discarded by date.
-- **The backfill is progressive and visible**: ~82 contracts for a 41-strike chain, ATM-outward,
-  behind a `PEAK OI 9 / 82` chip that hides itself when complete. All calls share one rate-gate key
-  so they run strictly serially at 1 req/s; results cache to `.cache/peak-oi.json` under
-  `(sessionDate, securityId)` and are never re-fetched.
-- **The breach follows ticks, not just polls.** The OI cell updates at 10 Hz from the feed while the
-  chain polls at 3 s, so `Pk %` is recomputed in `applyCellTick` from the same number.
-- **Verified in replay: 23/23 checks** (7 against the SSE payload, 16 in the browser). Peak equals
-  the hand-computed max **to the unit** (52,884 = 52,884 over 375 candles); a today-dated candle at
-  **99x** does not move it; exactly **5** breached cells (3 CE, 2 PE) at the seeded offsets; `Pk %`
-  agrees with the OI cell and the tooltip on **all 82** cells; chain cadence held at **min 3133 ms
-  per key** across the backfill; zero console errors; six screenshots reviewed in both themes.
+- **A `Scan` button (keyboard `S`) opens a full-width overlay** over the grid and runs one pass of
+  the 210-stock NSE F&O universe, funnelling
+  `210 stocks -> top 50 gainers + top 50 losers -> |LTP change| >= 2% -> |OI change| >= 7%`
+  and printing the survivors as **`Long candidates (n)`** and **`Short candidates (m)`** — Symbol,
+  LTP, Chg %, OI, OI Chg %, Volume, futures expiry. `Esc` or `✕` dismisses it; the chain poll and
+  the tick feed underneath are untouched, which is why it is an overlay and not a route.
+- **The funnel is printed on every outcome**, not just the empty one: `210 → 100 → 87 → 6` with
+  `scored · skipped · rejected` beside it. A legitimate zero gets its own expressive state naming
+  *which* step emptied it, so a quiet market and a broken scan cannot look the same.
+- **`FUTSTK` is in `KEEP_INSTRUMENTS`** — the prerequisite the spec named. Stock futures OI is
+  reachable for the first time. Measured cost: **+1,270 rows on ~170,465**, 0.7%.
+- **Equities carry no OI, so the OI leg is each stock's near-month `FUTSTK` contract**, quoted in
+  the *same* `POST /v2/marketfeed/quote` as the cash leg — 420 instruments in one request, inside
+  the 1000 limit. The baseline is the previous session's **closing** futures OI, read as the last
+  candle of `POST /v2/charts/intraday` and cached to `.cache/scan-oi.json` per
+  `(sessionDate, securityId)`.
+- **The whole baseline fan-out shares one rate-gate key (`scan:oi`)**, the quote uses `scan:quote`,
+  and neither ever touches a `chain:` key. `previousSessionIn` / `closingOiOn` / `fetchIntraday` /
+  `istParts` are now **exported from `src/server/peakoi.ts` and shared with P7** rather than written
+  twice — P9 gets the same client for free.
+- **Nothing is silently dropped.** A stock that cannot be scored appears under a `skipped (n)`
+  disclosure with its reason (`no quote`, `no previous close`, `no futures open interest`,
+  `no OI baseline`, `incomplete master rows`), and `skipped + survivors + rejected = 210` is
+  checked and shown.
+- **Verified in replay: 32/33 checks.** The 33rd is not measurable in this mode — see below.
 
 ## Files changed
-- `src/server/peakoi.ts` — **new.** The store: session-date derivation, `peakFrom()` (the one place
-  a peak is computed, shared by the live and replay paths), the serial queue, the disk cache, and
-  the progress listener.
-- `src/server/poller.ts` — peaks ride the snapshot (`peaks`, `peakProgress`, `peakSessionDate`,
-  `peakNote`); `track()` is fired and never awaited so the 3 s cadence cannot slip; `refreshPeaks()`
-  re-emits the last snapshot as contracts land.
-- `src/server/replay.ts` — synthesises the **candle series** (not the peak), seeded to 3 CE + 2 PE
-  breaches; `oiBaseAt()` extracted so the chain and the peak share one base; chain OI drift made
-  proportional.
-- `src/server/instruments.ts` — `optionInstrument()` / `underlyingInstrument()`, read from the
-  registry rather than re-derived, so `OPTIDX` / `OPTSTK` / `OPTFUT` cannot drift.
-- `src/server/feed.ts`, `src/server/index.ts` — replay tick OI seeded from the snapshot
-  (`oiBase` on the subscription) and random-walked instead of redrawn at random every tick.
-- `public/app.js` — `pkCell()` (one place the ratio and the breach are decided), the column, the
-  peak marker, the filter, the chip, and the tick-path update. `CELL` indices moved: 25 columns now.
-- `public/app.css` — table min-width 1392 -> **1484px**, `td.pk` / `.breach`, `.pkmark`, `.tog`.
-- `public/index.html` — two `Pk %` headers, `colspan` 11 -> 12 both sides, the chip and the toggle.
-- `docs/spec/peak-oi-v1.md` — **new.** 22 rows (20 locked up front, 21-22 added during the build and
-  marked as such), out-of-scope list, 9 acceptance criteria, a measured verification table, 5 risks.
-- `docs/PHASES.md`, `docs/DECISIONS.md` (5 entries), `docs/spec/GLOSSARY.md` (3 terms),
-  `CLAUDE.md` (3 traps).
+- `src/server/scanner.ts` — **new.** The engine: universe, the one quote call, the three filters,
+  the baseline fan-out, the disk cache, the funnel accounting, and `scanCsv()`.
+- `src/server/instruments.ts` — `fnoUniverse()`, memoised per day: the 210 `OPTSTK` underlyings
+  with the `NSETEST` scrips dropped, each joined to its `EQ`-series cash row and its near-month
+  `FUTSTK` contract.
+- `src/server/master.ts` — `FUTSTK` added to `KEEP_INSTRUMENTS`; `MasterRow` grew a `series` field.
+- `src/server/peakoi.ts` — the `/v2/charts/intraday` client extracted into exported
+  `fetchIntraday()` / `previousSessionIn()` / `closingOiOn()` / `istParts()` / `datesIn()`;
+  `PeakOiStore` now delegates to them. No behaviour change to P7.
+- `src/server/replay.ts` — `replayScanPlan()` and `replayFuturesCandles()`: the seeded universe.
+- `src/server/index.ts` — `GET /api/scan`, `/api/scan/status`, `/api/scan.csv`, the `scan.js`
+  `STATIC` row, and the enable gate.
+- `public/scan.js` — **new.** The panel, the progress poll, the keyboard, `window.__scan`.
+- `public/app.css` — the overlay, the two tables, the funnel strip, the zero/running/error states.
+- `public/index.html` — the `Scan` button, the panel shell, the script tag.
+- `public/app.js` — `abbr` and `inr` exported so the scanner formats numbers the same way the grid
+  does. Two words changed; nothing else touched.
+- `docs/spec/scanner-v1.md` (3 amendment rows, a verification table, 2 new risks),
+  `docs/PHASES.md`, `docs/DECISIONS.md` (4 entries), `docs/spec/GLOSSARY.md` (3 terms),
+  `CLAUDE.md` (4 traps).
 
 ## Decisions made
-- **"Yesterday" is read off the candle data, never off a calendar.** `today - 1` is wrong every
-  Monday and every exchange holiday; a hardcoded holiday table is wrong the first time the exchange
-  changes one. One call on the *underlying* settles it per instrument per day, because the trading
-  calendar belongs to the exchange, not the contract.
-- **One rate-gate key (`peak:oi`) for the whole backfill.** `waitForSlot` gates per key, so the
-  obvious `peak:<securityId>` would have dispatched all 82 contracts simultaneously. Same pattern
-  P8's spec already locked.
-- **Replay synthesises the candle series, not the peak.** Handing the peak over directly would have
-  made the headline acceptance criterion compare an asserted number to itself.
-- **Two rows added mid-build (21, 22), both marked as amendments in the spec** — the progress push
-  and the replay OI anchoring. Both were found by testing, not by reading.
-- **Nine code files, one over the ~8 guideline, taken knowingly.** The two replay-feed files were
-  not optional: without them P7's acceptance criteria could not be measured in the only mode
-  available.
+- **The scanner is verified by a second implementation, not by its own output.**
+  `.cache/recompute-scan.ts` rebuilds the entire funnel from the same replay payload with its own
+  sort, its own top-50 cut, its own thresholds and its own candle reducer, and never imports
+  `scanner.ts`. It agrees on all ten comparisons, including both candidate lists **by name**.
+  The seeding is built the same way round: the six are designated **by rank in the sorted list**,
+  never by name, so the scanner has to sort all 210 correctly to find them.
+- **A cash row is only the share if `SERIES = 'EQ'`.** `CHOLAFIN` and `MOTHERSON` each list an NCD
+  with `INSTRUMENT = EQUITY` under the same symbol. Without the filter the scan can rank and print
+  a debenture's price as the stock's, with nothing on screen to say so.
+- **A seeded fixture must make every filter reject something.** The first replay spread % change
+  uniformly, all 100 ranked stocks cleared 2%, and filter 2 was never exercised as a rejector — the
+  final count was still 6, so the test would have passed with that threshold broken. The
+  distribution is squared now and the funnel reads `210 → 100 → 87 → 6`.
+- **AC5 is reported unverified rather than quietly passed.** Scoring an `n/a` as green would have
+  been worse than either alternative.
+- **Nine code files, one over the ~8 guideline**, taken knowingly. The `peakoi.ts` extraction and
+  the two-word `app.js` export are both smaller than the duplication they prevent.
 
 ## Known broken / deliberately skipped
+- **AC5 — the chain poll's 3000 ms gap across a scan — is UNVERIFIED.** Two independent reasons:
+  on a closed market `ChainPoller` emits one snapshot and then only re-checks every 60 s, so there
+  are no two consecutive polls to measure a gap between; and **replay makes no `dhanPost` calls at
+  all**, so the rate gate is not exercised in this mode even with the market open. What *was*
+  measured: the scanner only ever uses `scan:quote` / `scan:oi` (static read), and the server
+  answers `/api/scan/status` in p50 17.0 / p95 17.9 / **max 18.0 ms** throughout a cold scan.
+  **Re-run this the first time the market is open with a live plan.**
 - **The live path has never run.** `npm run check` reports `808` / `DH-901`: the token expired
-  2026-08-28, and the account still has no Data API plan. **Every number in the verification came
-  from synthetic candles.** Three things in `peakoi.ts` are assumptions until one live call lands:
-  the response shape (the reader accepts a flat body *and* a `data` wrapper), that `timestamp` is
-  epoch **seconds** (values above 1e11 are treated as ms), and that `IDX_I` / `MCX_COMM` are
-  accepted by `/v2/charts/intraday` at all.
-- **44px of horizontal scroll at 1440px.** Priced in spec row 20 before it was built; the offered
-  trade is dropping `Vol Chg%` (56px x 2). Not taken — P10 owns the final column layout.
-- **`open_interest` units (contracts vs units) unconfirmed.** Affects only the tooltip's absolute
-  figure, never the ratio or the breach.
-- **~82 calls per (instrument, expiry, day) cold.** Contained to instruments actually being viewed,
-  and cached to disk, but if Dhan enforces a daily quota this is the phase that will find it.
-- **`docs/shots/` still holds the 17 pre-P6 reference images.** Still P10's problem.
-  `npm run shots` overwrites all 17 — never run it for an ad-hoc check.
-- **Three branches pushed, none with a PR.** They are stacked: merge `p6-chart-tools`, then
-  `p8-p9-spec-lock`, then `p7-peak-oi`, in that order.
+  2026-08-28 and the account still has no Data API plan. Every number came from synthetic data.
+  Unverified assumptions in `scanner.ts`: the `/v2/marketfeed/quote` response shape (the reader
+  accepts a flat body *and* a `data` wrapper, and reads `last_price` / `net_change` / `volume` /
+  `oi` from segment-keyed maps), that 420 instruments really are accepted in one request, and that
+  `FUTSTK` on `NSE_FNO` is accepted by `/v2/charts/intraday`.
+- **A live cold scan is projected at ~90 s, not measured** — 87 baseline calls at the *assumed*
+  1 req/s plus the quote. That is inside the 120 s criterion by only ~25%, and it rests on a rate
+  limit nothing has confirmed. If the real limit is slower, AC1 fails on the first live run.
+  Replay measured 4.2 s cold / 43 ms warm, which says nothing about transport.
+- **`open_interest` units (contracts vs units) still unconfirmed.** Affects only the displayed OI
+  column, never a percentage.
+- **The zero-state screenshots were captured by intercepting `/api/scan`** and returning the
+  server's own payload with the six survivors moved into `rejected`. The seeded universe always
+  returns six, so that state is otherwise unreachable in replay. It exercises the renderer and
+  claims nothing about data.
+- **`docs/shots/` still holds the 17 pre-P6 reference images.** Still P10's problem. `npm run shots`
+  overwrites all 17 — never run it for an ad-hoc check.
+- **Four branches pushed, none with a PR.** Stacked: merge `p6-chart-tools`, then
+  `p8-p9-spec-lock`, then `p7-peak-oi`, then `p8-scanner`, in that order.
 
 ## Next session starts here
-- Phase 8: **the 9:20 F&O scanner** — spec-locked in `docs/spec/scanner-v1.md` (17 rows), and its
-  OI baseline is the same endpoint and the same shared 1 req/s slot key `src/server/peakoi.ts`
-  already implements. The one prerequisite before any scanner code: **add `FUTSTK` to
-  `KEEP_INSTRUMENTS` in `src/server/master.ts`**, or stock futures OI is unreachable and the third
-  filter cannot work.
+- Phase 9: **option candle colouring** — spec-locked in `docs/spec/option-candles-v1.md` (19 rows).
+  It is the last recording-derived phase and the last thing before P10. Its `/v2/charts/intraday`
+  client already exists and is exported from `src/server/peakoi.ts`; P8 is the worked example of
+  consuming it. Its new `public/*.js` file needs a `STATIC` row in `src/server/index.ts` or it 404s
+  and the failure looks like the whole client dying.
 - First command: `npm run check`
-- Watch out for: **a valid token is not data access.** `DH-906` / `808` means the token is dead;
-  `806` with `dataPlan: Deactive` means the token is fine and the *account* has no plan, which no
-  amount of re-pasting fixes. Second trap: **P7 looks finished but has never met real data** — if
-  the plan goes active, spend the first call on `/v2/charts/intraday` and check the response shape
-  against `Candles` in `peakoi.ts` before trusting a single peak on screen. Third: **do not start
-  P10.** It runs after P9, by instruction.
+- Watch out for: **a valid token is not data access** — `DH-906` / `808` means the token is dead,
+  `806` with `dataPlan: Deactive` means the account has no plan and re-pasting tokens will not fix
+  it. Second: **three phases now depend on the same two unverified calls** — spend the first live
+  minute on one `/v2/charts/intraday` and one 420-instrument `/v2/marketfeed/quote` before trusting
+  anything P7 or P8 puts on screen. Third: **do not start P10.** It runs after P9, by instruction.
