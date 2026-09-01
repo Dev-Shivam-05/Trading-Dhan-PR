@@ -278,6 +278,84 @@ export function optionContracts(instrumentId: string, expiry: string): OptionCon
     .map(r => ({ strike: r.strike!, optionType: r.optionType as 'CE' | 'PE', securityId: r.securityId, seg }));
 }
 
+/* ------------------------------------------------------- F&O stock universe (P8) */
+
+/**
+ * One scannable NSE F&O stock: the cash leg the % change is measured on, and the near-month
+ * futures leg the open interest is measured on. Equities carry no OI, which is the whole
+ * reason the futures leg exists.
+ */
+export type FnoStock = {
+  symbol: string;
+  name: string;
+  /** NSE_EQ security id of the share itself. */
+  equityId: number;
+  /** NSE_FNO security id of the near-month FUTSTK contract. */
+  futureId: number | null;
+  futureExpiry: string | null;
+  lot: number | null;
+  /** Non-null means this stock cannot be scored. Never silently dropped - scanner-v1 row 14. */
+  problem: string | null;
+};
+
+const fnoUniverseCache = new Map<string, FnoStock[]>();
+
+/**
+ * The NSE F&O stock universe, from the master rather than a hardcoded list.
+ *
+ * Verified 2026-08-28 and again 2026-09-01 against the real master: the OPTSTK and FUTSTK
+ * underlying lists are identical once the 18 dummy NSETEST scrips are dropped, and the count is
+ * exactly 210. `scanner-v1.md` row 2 locks OPTSTK as the source of truth.
+ */
+export function fnoUniverse(today = todayIso()): FnoStock[] {
+  const hit = fnoUniverseCache.get(today);
+  if (hit) return hit;
+
+  const live = (r: MasterRow) => r.expiry !== null && r.expiry >= today;
+  const real = (r: MasterRow) => r.exchId === 'NSE' && !r.underlyingSymbol.includes('NSETEST');
+
+  const symbols = [...new Set(
+    cachedRows.filter(r => r.instrument === 'OPTSTK' && real(r) && live(r)).map(r => r.underlyingSymbol),
+  )].sort();
+
+  // The cash row must be the SHARE. CHOLAFIN and MOTHERSON each also list an NCD under the same
+  // symbol as instrument EQUITY, and quoting a debenture's price as the stock's would be exactly
+  // the kind of silently-wrong number this project refuses.
+  const equity = new Map<string, MasterRow>();
+  for (const r of cachedRows) {
+    if (r.instrument === 'EQUITY' && r.exchId === 'NSE' && r.series === 'EQ') equity.set(r.underlyingSymbol, r);
+  }
+
+  // Near month = the earliest FUTSTK expiry that has not passed. Stock futures roll monthly, so
+  // this is re-read every day rather than frozen.
+  const future = new Map<string, MasterRow>();
+  for (const r of cachedRows) {
+    if (r.instrument !== 'FUTSTK' || !real(r) || !live(r)) continue;
+    const prev = future.get(r.underlyingSymbol);
+    if (!prev || r.expiry! < prev.expiry!) future.set(r.underlyingSymbol, r);
+  }
+
+  const out = symbols.map<FnoStock>(symbol => {
+    const eq = equity.get(symbol);
+    const fut = future.get(symbol);
+    const problems: string[] = [];
+    if (!eq) problems.push('no NSE EQ-series cash row');
+    if (!fut) problems.push('no near-month future');
+    return {
+      symbol,
+      name: eq?.displayName || fut?.displayName || symbol,
+      equityId: eq?.securityId ?? 0,
+      futureId: fut?.securityId ?? null,
+      futureExpiry: fut?.expiry ?? null,
+      lot: fut?.lotSize ?? null,
+      problem: problems.length ? problems.join('; ') : null,
+    };
+  });
+
+  fnoUniverseCache.set(today, out);
+  return out;
+}
+
 export type Registry = {
   instruments: ResolvedInstrument[];
   meta: MasterMeta;

@@ -11,6 +11,11 @@
  *  - every call shares ONE rate-gate key, because dhan.ts gates per key and a key per contract
  *    would fire all 82 at once (row 7)
  *  - a peak is a historical fact, so it is cached to disk and never re-fetched (row 8)
+ *
+ * This file is also the project's only client for `/v2/charts/intraday`. P8's scanner needs the
+ * same endpoint for a different reduction (last candle instead of max), so the request, the
+ * response-shape reader and the IST clock are exported from here rather than written twice -
+ * scanner-v1.md row 7.
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -94,7 +99,7 @@ const PENDING: PeakCell = { peak: null, at: null, why: 'not fetched yet' };
  * value would be ~1e12, so the normalisation below keeps a shape change from silently
  * bucketing every candle into 1970.
  */
-function istParts(ts: number): { date: string; time: string } | null {
+export function istParts(ts: number): { date: string; time: string } | null {
   if (typeof ts !== 'number' || !Number.isFinite(ts) || ts <= 0) return null;
   const ms = (ts > 1e11 ? ts : ts * 1000) + 5.5 * 3600 * 1000;
   const iso = new Date(ms).toISOString();
@@ -133,7 +138,7 @@ export function peakFrom(c: Candles | null | undefined, sessionDate: string): Pe
 }
 
 /** The IST dates present in a candle payload, newest last. */
-function datesIn(c: Candles | null | undefined): string[] {
+export function datesIn(c: Candles | null | undefined): string[] {
   const ts = c?.timestamp;
   if (!Array.isArray(ts)) return [];
   const set = new Set<string>();
@@ -142,6 +147,81 @@ function datesIn(c: Candles | null | undefined): string[] {
     if (p) set.add(p.date);
   }
   return [...set].sort();
+}
+
+/* ------------------------------------------------------------- shared client */
+
+export type IntradayRequest = {
+  securityId: string;
+  seg: string;
+  instrument: string;
+  /** '1' | '5' | '15' | '25' | '60' minutes. */
+  interval: string;
+  oi: boolean;
+  fromDate: string;
+  toDate: string;
+  /** dhan.ts gates per key, so every caller in one fan-out must pass the SAME key. */
+  key: string;
+  cadenceMs: number;
+};
+
+export type IntradayResult = { candles: Candles | null; why: string | null; retryable: boolean };
+
+/**
+ * One `/v2/charts/intraday` call. UNVERIFIED against a live plan - the reader accepts both a flat
+ * body and a `data` wrapper because Dhan does both across v2, and treats a timestamp above 1e11
+ * as milliseconds. See the risk rows in peak-oi-v1.md.
+ */
+export async function fetchIntraday(creds: Credentials | null, req: IntradayRequest): Promise<IntradayResult> {
+  if (!creds) return { candles: null, why: 'no credentials', retryable: false };
+
+  const call = await dhanPost<unknown>('/v2/charts/intraday', {
+    securityId: req.securityId, exchangeSegment: req.seg, instrument: req.instrument,
+    interval: req.interval, oi: req.oi,
+    fromDate: req.fromDate, toDate: req.toDate,
+  }, { creds, key: req.key, cadenceMs: req.cadenceMs, timeoutMs: 20_000 });
+
+  if (!call.ok) {
+    return {
+      candles: null,
+      why: `request failed (${call.error?.code ?? 'UNKNOWN'})`,
+      retryable: call.error?.retryable ?? false,
+    };
+  }
+  const raw = call.data as Record<string, unknown> | null;
+  const body = (raw && typeof raw === 'object' && 'data' in raw ? raw.data : raw) as Candles | null;
+  return { candles: body, why: null, retryable: false };
+}
+
+/** The latest IST date in this payload that is strictly before `today`. The trading calendar,
+ *  read off the data instead of off a weekday table - there is no holiday list anywhere here. */
+export function previousSessionIn(c: Candles | null | undefined, today: string): string | null {
+  return datesIn(c).filter(d => d < today).pop() ?? null;
+}
+
+/**
+ * The LAST candle's open interest on `sessionDate` - i.e. that session's closing OI.
+ * P8's baseline (scanner-v1.md row 7). Candles from any other date are ignored, exactly as
+ * `peakFrom` ignores them, so today's arriving in the same window cannot contaminate it.
+ */
+export function closingOiOn(c: Candles | null | undefined, sessionDate: string): number | null {
+  const oi = c?.open_interest;
+  const ts = c?.timestamp;
+  if (!Array.isArray(oi) || !Array.isArray(ts)) return null;
+
+  let bestTs = -1;
+  let value: number | null = null;
+  const n = Math.min(oi.length, ts.length);
+  for (let i = 0; i < n; i++) {
+    const p = istParts(ts[i]!);
+    if (!p || p.date !== sessionDate) continue;
+    const v = oi[i];
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+    // Do not assume the payload is sorted: take the latest timestamp, not the last index.
+    const t = ts[i]!;
+    if (t > bestTs) { bestTs = t; value = v; }
+  }
+  return value;
 }
 
 /* ---------------------------------------------------------------- the store */
@@ -265,30 +345,14 @@ export class PeakOiStore {
 
   /* ------------------------------------------------------------------ fetch */
 
-  private async fetchCandles(
+  private fetchCandles(
     securityId: string, seg: string, instrument: string,
     fromDate: string, toDate: string, oi: boolean,
-  ): Promise<{ candles: Candles | null; why: string | null; retryable: boolean }> {
-    if (!this.creds) return { candles: null, why: 'no credentials', retryable: false };
-
-    const call = await dhanPost<unknown>('/v2/charts/intraday', {
-      securityId, exchangeSegment: seg, instrument,
-      interval: INTERVAL, oi,
-      fromDate, toDate,
-    }, { creds: this.creds, key: SLOT_KEY, cadenceMs: CADENCE_MS, timeoutMs: 20_000 });
-
-    if (!call.ok) {
-      return {
-        candles: null,
-        why: `request failed (${call.error?.code ?? 'UNKNOWN'})`,
-        retryable: call.error?.retryable ?? false,
-      };
-    }
-    // Dhan wraps some v2 responses in `data` and returns others flat. Accept both rather than
-    // guessing - the arrays are the contract, not the envelope.
-    const raw = call.data as Record<string, unknown> | null;
-    const body = (raw && typeof raw === 'object' && 'data' in raw ? raw.data : raw) as Candles | null;
-    return { candles: body, why: null, retryable: false };
+  ): Promise<IntradayResult> {
+    return fetchIntraday(this.creds, {
+      securityId, seg, instrument, interval: INTERVAL, oi, fromDate, toDate,
+      key: SLOT_KEY, cadenceMs: CADENCE_MS,
+    });
   }
 
   /* -------------------------------------------------------------- the queue */

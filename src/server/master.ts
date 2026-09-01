@@ -27,6 +27,9 @@ export type MasterRow = {
   instrument: string;        // INDEX | EQUITY | OPTIDX | OPTSTK | OPTFUT | FUTCOM ...
   underlyingSecurityId: string; // exchange-side token, NOT a Dhan security id
   underlyingSymbol: string;  // NIFTY | RELIANCE | GOLD ...
+  /** EQ | BE | D1 ... On NSE cash rows this separates a real share from an NCD listed
+   *  under the same symbol - CHOLAFIN and MOTHERSON each have both. */
+  series: string;
   symbolName: string;
   displayName: string;
   lotSize: number;
@@ -44,7 +47,9 @@ export type MasterMeta = {
 
 /** Instruments we ever care about. Everything else is dropped while streaming. */
 const KEEP_INSTRUMENTS = new Set([
-  'INDEX', 'EQUITY', 'OPTIDX', 'OPTSTK', 'OPTFUT', 'FUTCOM',
+  // FUTSTK is here for P8: equities carry no open interest, so the scanner's OI leg is the
+  // stock's near-month future. It adds ~1.3 k rows to ~170 k, which is not worth optimising.
+  'INDEX', 'EQUITY', 'OPTIDX', 'OPTSTK', 'OPTFUT', 'FUTCOM', 'FUTSTK',
 ]);
 
 /**
@@ -154,6 +159,7 @@ export async function loadMaster(opts: { force?: boolean } = {}): Promise<{ rows
       instrument,
       underlyingSecurityId: (f[header['UNDERLYING_SECURITY_ID']!] ?? '').trim(),
       underlyingSymbol: (f[header['UNDERLYING_SYMBOL']!] ?? '').trim(),
+      series: (f[header['SERIES']!] ?? '').trim(),
       symbolName: (f[header['SYMBOL_NAME']!] ?? '').trim(),
       displayName: (f[header['DISPLAY_NAME']!] ?? '').trim(),
       lotSize: num(f[header['LOT_SIZE']!]),

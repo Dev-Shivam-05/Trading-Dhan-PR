@@ -7,8 +7,11 @@
 import Fastify from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { resolveRegistry, optionContracts, type Registry, type ResolvedInstrument } from './instruments.ts';
+import {
+  resolveRegistry, optionContracts, sessionState, type Registry, type ResolvedInstrument,
+} from './instruments.ts';
 import { readCredentials } from './dhan.ts';
+import { Scanner, scanCsv } from './scanner.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
@@ -21,6 +24,7 @@ const creds = readCredentials();
 const hub = new PollerHub(creds);
 const feed = new FeedClient(creds);
 const history = new TickHistory();
+const scanner = new Scanner(creds);
 
 /**
  * Which instruments each open SSE connection wants ticks for. The feed holds ONE socket, so it
@@ -59,11 +63,12 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/app.css': { file: 'app.css', type: 'text/css; charset=utf-8' },
   '/app.js': { file: 'app.js', type: 'text/javascript; charset=utf-8' },
   '/chart-tools.js': { file: 'chart-tools.js', type: 'text/javascript; charset=utf-8' },
+  '/scan.js': { file: 'scan.js', type: 'text/javascript; charset=utf-8' },
 };
 
 for (const [route, { file, type }] of Object.entries(STATIC)) {
   app.get(route, async (_req, reply) => {
-    // Explicit allow-list of four files: no path joining from user input, no traversal surface.
+    // Explicit allow-list: no path joining from user input, no traversal surface.
     const body = await readFile(path.join(PUBLIC_DIR, file), 'utf8');
     return reply.type(type).send(body);
   });
@@ -118,6 +123,46 @@ app.get('/api/telemetry.csv', async (_req, reply) => {
   return reply.type('text/csv; charset=utf-8')
     .header('content-disposition', 'attachment; filename="dhan-latency.csv"')
     .send([head, ...lines].join('\n'));
+});
+
+/* ------------------------------------------------------------- scanner (P8) */
+
+/**
+ * Row 9: manual only. There is no timer and no 09:20 trigger anywhere in this process - the
+ * button and the `S` key are the only things that start a scan.
+ *
+ * Enabled while the NSE equity session is open, OR in replay mode. Replay is the deviation:
+ * without it the phase would be untestable outside 09:15-15:30 IST, which is when almost all
+ * work on this project happens. Recorded in scanner-v1.md.
+ */
+function scanEnabled(): { enabled: boolean; sessionOpen: boolean; reason: string } {
+  const session = sessionState('NSE_BSE_FNO');
+  if (isReplay()) return { enabled: true, sessionOpen: session.openNow, reason: 'replay mode' };
+  return { enabled: session.openNow, sessionOpen: session.openNow, reason: session.reason };
+}
+
+app.get('/api/scan/status', async () => ({
+  ...scanEnabled(),
+  mode: isReplay() ? 'replay' : 'live',
+  progress: scanner.progress,
+  hasResult: scanner.last !== null,
+}));
+
+app.get('/api/scan', async (_req, reply) => {
+  const gate = scanEnabled();
+  if (!gate.enabled) {
+    return reply.code(409).send({ error: `the NSE equity session is closed - ${gate.reason}` });
+  }
+  // A scan already running is joined rather than duplicated: the fan-out spends a shared rate
+  // limit, so two of them would be twice as slow and no more informative.
+  return scanner.run();
+});
+
+app.get('/api/scan.csv', async (_req, reply) => {
+  if (!scanner.last) return reply.code(404).send({ error: 'no scan has been run yet' });
+  return reply.type('text/csv; charset=utf-8')
+    .header('content-disposition', 'attachment; filename="dhan-scan.csv"')
+    .send(scanCsv(scanner.last));
 });
 
 /* ----------------------------------------------------------------- SSE */

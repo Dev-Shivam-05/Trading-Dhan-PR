@@ -242,6 +242,152 @@ export function replayIntraday(
   return { open, high, low, close, volume, timestamp, open_interest };
 }
 
+/* --------------------------------------------------------- F&O scanner (P8) */
+
+/**
+ * scanner-v1.md row 15: the seeded replay universe must return EXACTLY 6 survivors - 4 long and
+ * 2 short - or P8 has no acceptance test at all while the Data API plan is inactive.
+ *
+ * The seeding is deliberately indirect. Nothing here tells the scanner who passes: every stock
+ * gets a % change and an OI change from the same hash the rest of replay uses, and the six are
+ * designated BY RANK in the sorted list, not by name. The scanner still has to sort all 210
+ * itself, cut its own top-50/bottom-50, apply both thresholds and recompute both percentages
+ * from `last_price` / `net_change` / `open_interest`. Handing it the answer would test nothing -
+ * the same reason P7 synthesises a candle series instead of a peak.
+ */
+const SCAN_GAINER_RANKS = [0, 3, 7, 12];    // inside the top 50 by construction
+const SCAN_LOSER_RANKS = [2, 6];            // counted from the bottom of the sorted list
+/** Row 14 must be exercised too: two stocks return no quote, one returns no OI baseline. */
+const SCAN_NOQUOTE = 2;
+const SCAN_NOBASELINE_RANK = 20;            // a top-50 gainer, so the baseline is actually attempted
+
+export type ReplayScanQuote = {
+  ltp: number;
+  netChange: number;
+  volume: number;
+  /** Near-month futures OI as it stands "now". */
+  futOi: number;
+  /** Previous session's closing futures OI. Never handed to the scanner directly - it is the
+   *  last candle of `replayFuturesCandles`, which the production reducer has to find. */
+  baselineOi: number;
+  /** Null means this stock quotes normally. */
+  hide: 'quote' | 'baseline' | null;
+};
+
+export type ReplayScanPlan = Map<string, ReplayScanQuote>;
+
+const scanPlans = new Map<string, ReplayScanPlan>();
+
+/** Deterministic and memoised: two scans of the same universe must return the same six stocks. */
+export function replayScanPlan(symbols: string[]): ReplayScanPlan {
+  const cacheKey = symbols.join(',');
+  const hit = scanPlans.get(cacheKey);
+  if (hit) return hit;
+
+  // Squared rather than uniform, so most stocks sit within +/-1% and only the tails reach +/-5%,
+  // which is the shape a real session has. It also matters for the test: under a uniform spread
+  // every one of the top 50 clears 2% and filter 2 rejects nothing, so the middle of the funnel
+  // would never be exercised at all. At this scale it cuts the bottom ~9 of each side's 50 while
+  // leaving the designated six - the worst of them at rank 12 - far above the threshold.
+  const chg = new Map<string, number>();
+  for (const s of symbols) {
+    const v = hash(s, 'scan', 'chg') * 2 - 1;          // -1 .. 1
+    chg.set(s, Math.sign(v) * 5 * v * v);
+  }
+
+  // The two no-quote stocks are taken from the flat middle of the distribution, so removing them
+  // cannot disturb either tail and the six are unaffected.
+  const hidden = new Set(
+    symbols.filter(s => Math.abs(chg.get(s)!) < 0.5)
+      .sort((a, b) => hash(a, 'scan', 'hide') - hash(b, 'scan', 'hide'))
+      .slice(0, SCAN_NOQUOTE),
+  );
+
+  const ranked = symbols.filter(s => !hidden.has(s)).sort((a, b) => chg.get(b)! - chg.get(a)!);
+  const n = ranked.length;
+
+  const designated = new Set<string>();
+  for (const r of SCAN_GAINER_RANKS) { const s = ranked[r]; if (s) designated.add(s); }
+  for (const r of SCAN_LOSER_RANKS) { const s = ranked[n - 1 - r]; if (s) designated.add(s); }
+  const noBaseline = ranked[SCAN_NOBASELINE_RANK] ?? null;
+
+  const plan: ReplayScanPlan = new Map();
+  for (const symbol of symbols) {
+    const c = chg.get(symbol)!;
+    const ltp = Math.round((40 + hash(symbol, 'scan', 'px') * 2400) * 100) / 100;
+    // Round the change, not the close: the scanner derives prevClose as ltp - netChange, so
+    // rounding it here is what keeps its recomputed % equal to the seeded one.
+    const netChange = Math.round((ltp - ltp / (1 + c / 100)) * 100) / 100;
+
+    // Designated stocks clear 7% with room; everyone else is capped well below it, so no
+    // rounding or drift can push a non-designated stock over the line.
+    const oiPct = designated.has(symbol)
+      ? (hash(symbol, 'scan', 'oisign') > 0.5 ? 1 : -1) * (7.5 + hash(symbol, 'scan', 'oim') * 6)
+      : Math.max(-5.5, Math.min(5.5, (hash(symbol, 'scan', 'oi') - 0.5) * 11));
+
+    const baselineOi = Math.round(200_000 + hash(symbol, 'scan', 'boi') * 3_000_000);
+
+    plan.set(symbol, {
+      ltp,
+      netChange,
+      volume: Math.round(50_000 + hash(symbol, 'scan', 'vol') * 8_000_000),
+      futOi: Math.round(baselineOi * (1 + oiPct / 100)),
+      baselineOi,
+      hide: hidden.has(symbol) ? 'quote' : symbol === noBaseline ? 'baseline' : null,
+    });
+  }
+
+  scanPlans.set(cacheKey, plan);
+  return plan;
+}
+
+/** 09:15 to 15:25 IST inclusive at 5-minute candles - scanner-v1.md row 7's interval. */
+const SCAN_CANDLES = 75;
+
+/**
+ * A futures intraday payload for one stock, in the endpoint's parallel-array shape.
+ *
+ * The baseline is NOT handed over: the previous session's LAST candle carries it and
+ * `closingOiOn()` in peakoi.ts has to find it. Today's candles carry the CURRENT OI, which is a
+ * different number - so a reader that stops filtering by date reports every stock at 0% OI
+ * change and the scan returns nothing, which is a loud failure rather than a quiet one.
+ */
+export function replayFuturesCandles(
+  plan: ReplayScanPlan, symbol: string, sessionDate: string, today: string,
+): Candles | null {
+  const q = plan.get(symbol);
+  if (!q || q.hide === 'baseline') return null;
+
+  const timestamp: number[] = [];
+  const open_interest: number[] = [];
+  const volume: number[] = [];
+  const open: number[] = [];
+  const high: number[] = [];
+  const low: number[] = [];
+  const close: number[] = [];
+
+  const push = (date: string, i: number, oi: number) => {
+    timestamp.push(istEpochSeconds(date, i * 5));
+    open_interest.push(oi);
+    const px = q.ltp * (0.97 + hash(symbol, 'scan', `c${i}`) * 0.06);
+    const o = Math.round(px * 100) / 100;
+    open.push(o);
+    high.push(Math.round(px * 1.004 * 100) / 100);
+    low.push(Math.round(px * 0.996 * 100) / 100);
+    close.push(o);
+    volume.push(Math.round(5_000 + hash(symbol, 'scan', `cv${i}`) * 200_000));
+  };
+
+  for (let i = 0; i < SCAN_CANDLES; i++) {
+    // Wander around the close, then land exactly on it in the final candle.
+    const f = i === SCAN_CANDLES - 1 ? 1 : 0.90 + hash(symbol, 'scan', `coi${i}`) * 0.16;
+    push(sessionDate, i, Math.round(q.baselineOi * f));
+  }
+  for (let i = 0; i < SCAN_CANDLES; i++) push(today, i, q.futOi);
+
+  return { open, high, low, close, volume, timestamp, open_interest };
+}
+
 /** Plausible network latency so the panel's percentiles and waterfall have real spread. */
 export async function replayLatency(): Promise<number> {
   const base = 120 + Math.random() * 140;
