@@ -337,3 +337,55 @@ would have P10a build a pane system around a dock that P10b then deletes. Instea
 shell and the chain and leaves `.lat` working exactly as it is inside it, and P10b deletes the dock
 and adds the rail and drawer. Each sub-phase is independently shippable and verifiable, and nothing
 built in P10a is thrown away in P10b.
+
+## 2026-09-03 — Rows 7 and 11 were put up for veto in isolation, and that is why P10 could be built
+The spec had been sitting unlocked because two of its 22 rows were readings rather than
+measurements: greeks hidden by default, and dark as the default theme. Neither is a fact about the
+codebase; both are one flag. Emitting them as a single either/or question with the exact
+consequence of each ("17 columns / 1132px, fits 1440px with zero scroll" against "25 / 1484px, 44px
+of horizontal scroll stays") turned an open-ended approval into one word. Both were accepted as
+written. The general lesson is the one the spec-lock skill already encodes: the blocking part of a
+spec is never the whole table, it is the two or three rows that cannot be derived from the code.
+
+## 2026-09-03 — Where row 13 and the out-of-scope list contradicted each other, row 15's reason won
+Row 13 lists the conn dot, the mode badge and the clock as rail contents; the out-of-scope list
+forbids any topbar change beyond removing `#latMini`. Both cannot hold. The tie-break came from
+row 15's own stated reason — "two places showing the same number is how they come to disagree" —
+so the three readouts were MOVED into the rail rather than duplicated, ids unchanged. Recorded as
+amendment row 25 rather than done silently, because a future reader would otherwise find a topbar
+change that the spec appears to forbid.
+
+## 2026-09-03 — Row 4's three pane minimums are impossible together, so they are ranked
+Chart 70, drawer 140, chain 200. At 1024x800 the chrome wraps taller and the shell has about 483px
+for what needs 480 before the 5px splitter — the constraint set is infeasible, and the first build
+resolved it by silently crushing the chain to 59px. It is now an explicit ranking: the chart yields
+first to its own floor, then the drawer compresses to a hard floor of 88 with each column
+scrolling, and the chain's 200px is never broken. On a trading screen the chain is the product and
+the drawer is diagnostics. Recorded as amendment row 26. The general form: when a spec states
+several minimums, it has also implicitly stated a priority order, and the build should make that
+order explicit rather than discover it.
+
+## 2026-09-03 — `feed.ts` reconnects instead of unsubscribing, because the codes are not written down
+Dhan is never told to unsubscribe, so its side of the socket only ever grows toward the documented
+5,000-per-connection cap — and the failure is backwards: the old contracts keep streaming while the
+new ones are refused, so the grid goes quiet while the feed still reports healthy. The direct fix
+is an unsubscribe request, but those request codes are not in `docs/spec/dhan-api-contract.md`.
+Inventing them is precisely the guess this project's second operating rule forbids, so the socket
+is dropped and rebuilt when the wanted set shrinks: correct by construction, one reconnect per chip
+switch, and no invented protocol. If the codes are ever documented, this becomes a one-line change.
+
+## 2026-09-03 — The audit was boarded as its own phase rather than absorbed into P10
+Sixteen findings across `src/server/` and `public/` is 12 code files against a ~8-file rule. Folding
+them into P10b would have made that phase unreviewable and would have mixed "the redesign works"
+with "these sixteen things were already wrong". P11 is its own row with its own done-when, and its
+done-when is not "the bugs are fixed" but "every finding has a script that fails before the fix and
+passes after" — which is what made it possible to prove that fixing the candle rule did not
+regress the candle P9 had hand-checked.
+
+## 2026-09-03 — A self-check that cannot fail is worse than no self-check
+`scanner.ts` reported `reconciles: true` on every run. It was computed by subtracting the same
+totals it then compared, so it collapsed to `universe.length` algebraically and would have reported
+true even if the scoring loop had double-counted or dropped a stock — the one thing scanner-v1
+row 14 exists to catch. It had been green through P8's entire verification. The rule this leaves:
+a check whose inputs are derived from its own expected answer is decoration. Count at the point of
+rejection, then compare against something computed independently.

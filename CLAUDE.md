@@ -184,6 +184,20 @@ measured against the code it replaced and read as having no effect. Use
 `taskkill //F //IM node.exe`, then re-check `/api/...` before trusting any number. A restart that
 you did not confirm is a measurement of the previous commit.
 
+## A self-check whose inputs come from its own expected answer is decoration
+`scanner.ts` reported `reconciles: true` on every run through the whole of P8's verification. It
+computed `rejected` by subtracting the same totals it then compared against, so it collapsed to
+`universe.length` algebraically and would have reported true even if the scoring loop had
+double-counted or dropped a stock — the one thing `scanner-v1.md` row 14 exists to catch. **Count
+at the point of rejection, then compare against something derived independently.** The same shape
+of mistake is what "recompute from the payload with a second implementation" is guarding against
+everywhere else in this project.
+
+## When the user asks to see it running, lead with the URL
+The reply that starts with the server already up and `http://127.0.0.1:8787` on the first line is
+the one that answers the question. Credentials status, mode and verification belong under it, not
+in front of it.
+
 ## A background `npm run dev` with an `||` fallback respawns the server you just killed
 `REPLAY=1 npm run dev > log 2>&1 || mkdir -p .cache && REPLAY=1 npm run dev > log 2>&1` looks
 harmless. It is not: killing the server makes the first command *fail*, which runs the fallback
