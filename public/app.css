@@ -5,6 +5,11 @@
   --fg-base:#10151F; --fg-muted:#4E5A6E; --fg-faint:#8390A6;
   --accent:#A87516; --accent-hover:#8E620F; --accent-fg:#FFFFFF; --accent-wash:rgba(168,117,22,.12);
   --up:#0E8A5F; --down:#C33A3A; --flat:#8390A6;
+  /* P9 option candles — docs/spec/option-candles-v1.md row 9. The `-line` pair is that row's
+     "1px darker stroke": derived from the token, not invented as a fifth and sixth colour. */
+  --big-in:#1E5FD8; --big-out:#D9A400;
+  --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
+  --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
   --warn:#B3730B; --crit:#C33A3A; --ok:#0E8A5F;
   --border:#DCE2EC; --border-strong:#C2CBDA; --ring:#A87516;
   --net:#3D6EA8; --compute:#A87516; --render:#6E5AA8;
@@ -20,6 +25,9 @@
     --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
     --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.16);
     --up:#21B77E; --down:#E05252; --flat:#64708A;
+    --big-in:#5C93F0; --big-out:#F2C438;
+    --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
+    --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
     --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
     --border:#212838; --border-strong:#39445C; --ring:#C8912A;
     --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
@@ -35,6 +43,9 @@
   --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
   --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.16);
   --up:#21B77E; --down:#E05252; --flat:#64708A;
+  --big-in:#5C93F0; --big-out:#F2C438;
+  --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
+  --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
   --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
   --border:#212838; --border-strong:#39445C; --ring:#C8912A;
   --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
@@ -142,7 +153,40 @@ body{
   padding:7px 9px;min-height:32px;
 }
 .srch input{width:110px}
+.tog{
+  font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;
+  color:var(--fg-muted);background:var(--bg-subtle);border:1px solid var(--border-strong);
+  border-radius:4px;padding:7px 11px;min-height:32px;cursor:pointer;
+  transition:background 180ms cubic-bezier(.16,1,.3,1),color 180ms cubic-bezier(.16,1,.3,1);
+}
+.tog:hover{color:var(--fg-base);border-color:var(--fg-faint)}
+.tog[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:var(--accent-fg)}
+.tog:disabled{opacity:.45;cursor:default}
 .expwrap select{cursor:pointer}
+
+/* ----------------------------------------------------------------- shell */
+/* P10a — docs/spec/terminal-redesign-v1.md rows 2 and 5. Panes stacked in one column, flush:
+   no gap, no margin, no radius on a pane edge, and a single 1px seam carried by the pane below.
+   That one line is the whole visual difference between "a page with sections" and "a terminal". */
+.shell{flex:1;display:flex;flex-direction:column;min-height:0}
+.pane{min-height:0}
+/* Row 18 — the P8 trap. A pane with its own display: rule outranks the UA's [hidden]{display:none},
+   and the failure looks like broken JavaScript rather than like CSS. */
+.pane[hidden]{display:none}
+.shell > .pane + .pane{border-top:1px solid var(--border)}
+
+/* Splitter — row 3. 5px visible, 9px hit area via the pseudo-element, transparent until hovered,
+   dragged or focused. Generalises the P5 .chart-grip rather than inventing a second resize idiom. */
+.psplit{
+  flex:0 0 5px;height:5px;position:relative;z-index:6;
+  cursor:ns-resize;background:transparent;touch-action:none;
+  transition:background 120ms cubic-bezier(.16,1,.3,1);
+}
+.psplit::before{content:"";position:absolute;left:0;right:0;top:-2px;bottom:-2px}
+/* Row 18 again: .psplit sets its own display via flex, so the UA's [hidden] does not reach it. */
+.psplit[hidden]{display:none}
+.psplit:hover,.psplit.dragging,.psplit:focus-visible{background:var(--border-strong)}
+.psplit:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
 
 /* ------------------------------------------------------------------ work */
 .work{flex:1;display:flex;min-height:0;gap:0}
@@ -151,7 +195,8 @@ body{
 
 /* --------------------------------------------------------------- the grid */
 table.oc{
-  border-collapse:separate;border-spacing:0;width:100%;min-width:1392px;table-layout:fixed;
+  /* 25 columns: 2 x 696px of side + the 92px spine. Grew from 1392px when P7 added Pk %. */
+  border-collapse:separate;border-spacing:0;width:100%;min-width:1484px;table-layout:fixed;
   font-family:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;
   font-size:10.5px;font-variant-numeric:tabular-nums;
 }
@@ -166,14 +211,23 @@ thead th.side.ce{background:color-mix(in srgb,var(--net) 14%,var(--bg-subtle));b
 thead th.side.pe{background:color-mix(in srgb,var(--render) 14%,var(--bg-subtle));border-bottom:1px solid var(--border)}
 thead th.ltp{color:var(--fg-base)}
 
-/* The strike spine — the column everything is read against, so it is the loudest thing here. */
+/* The strike spine — the column everything is read against, so it is the loudest thing here.
+   P10a row 6 pins it: `left:0` AND `right:0`. The reflex `left:0` alone is inert on this table —
+   the spine sits at x≈696 of 1484 and the overflow at 1440px is 44px, so it would need ~700px of
+   horizontal scroll before it ever engaged. Symmetric offsets pin the cell in both directions and
+   only conflict when the scrollport is narrower than the 92px cell, far below the 1024px floor.
+   Sticky also needs a painted background and border-collapse:separate — both were already true.
+   td.flash would defeat it by animating background to transparent, but .flash is only ever added
+   to the two LTP cells (CELL.ce.ltp = 11, CELL.pe.ltp = 13); the spine is 12. */
 thead th.spine{
-  top:0;height:50px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.16em;
+  position:sticky;left:0;right:0;top:0;z-index:4;
+  height:50px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.16em;
   color:var(--fg-base);background:var(--bg-inset);
   border-left:2px solid var(--border-strong);border-right:2px solid var(--border-strong);
   border-bottom:1px solid var(--border-strong);
 }
 td.spine{
+  position:sticky;left:0;right:0;z-index:2;
   text-align:center;font-size:13.5px;font-weight:700;letter-spacing:.01em;color:var(--fg-base);
   background:var(--bg-inset);
   border-left:2px solid var(--border-strong);border-right:2px solid var(--border-strong);
@@ -197,6 +251,13 @@ td.ltp{font-weight:600;font-size:11px}
 td.oi{position:relative;isolation:isolate}
 td.oi .bar{position:absolute;top:4px;bottom:4px;left:2px;background:var(--accent);opacity:.14;border-radius:2px;z-index:-1}
 td.oi.r .bar{left:auto;right:2px}
+/* Where yesterday's peak sits on the same scale as the bar. Grows out of the same edge. */
+td.oi .pkmark{position:absolute;top:3px;bottom:3px;width:1px;background:var(--fg-faint);opacity:.8;z-index:-1}
+
+/* P7 — live OI against yesterday's peak. docs/spec/peak-oi-v1.md rows 11-13. */
+td.pk{color:var(--fg-muted)}
+td.pk.breach{color:var(--warn);font-weight:700;background:var(--accent-wash)}
+tbody tr:hover td.pk.breach{background:color-mix(in srgb,var(--warn) 16%,transparent)}
 
 tr.atm td{background:var(--accent-wash)}
 tr.atm td.spine{
@@ -206,6 +267,14 @@ tr.atm td.spine{
 tr.atm:hover td.spine{background:var(--accent-hover)}
 tr.spotline td{border-bottom:2px dashed var(--accent)}
 tr.hidden{display:none}
+
+/* Greeks off — row 7. 8 columns x 22px of them come off each side: 696 - 176 = 520 per side, so
+   520*2 + 92 = 1132px, the first column set that fits the 1440px floor with zero sideways scroll.
+   `display:none` on a cell removes it from the CSS table (17 generated columns, and app.js emits a
+   17-wide <colgroup> to match) but NOT from tr.children — so CELL's index constants in app.js keep
+   addressing the same <td>s, and the 10 Hz tick updater needs no branch for this. */
+body.nogreeks table.oc{min-width:1132px}
+body.nogreeks table.oc .gk{display:none}
 
 .spotpill{
   position:absolute;transform:translate(-50%,-50%);z-index:4;pointer-events:none;
@@ -249,31 +318,62 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;back
   overflow-x:auto;margin:8px 0 0;font-size:10.5px;line-height:1.55;
 }
 
-/* ---------------------------------------------------------- latency panel */
-.lat{
-  flex:0 0 380px;display:flex;flex-direction:column;min-width:0;overflow-y:auto;
-  background:var(--bg-panel);border-left:1px solid var(--border);
+/* ------------------------------------------------ status rail (P10b row 13) */
+/* 26px, full width, pinned under every pane, never closable. Zero chain width — which is the
+   whole reason the 380px right dock could be deleted. Values update in place. */
+.rail{
+  flex:0 0 26px;height:26px;display:flex;align-items:center;gap:14px;padding:0 12px;
+  background:var(--bg-subtle);border-top:1px solid var(--border-strong);
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;white-space:nowrap;overflow:hidden;
 }
-body.nopanel .lat{display:none}
-.lat-h{display:flex;align-items:center;gap:9px;padding:10px 14px;border-bottom:1px solid var(--border)}
-.lat-h .t{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint)}
+.rstat{display:flex;align-items:center;gap:5px}
+.rstat em{font-style:normal;color:var(--fg-faint);letter-spacing:.08em}
+.rv{color:var(--fg-base);font-weight:600}
+.rv small{color:var(--fg-faint);font-weight:400;margin-left:1px}
+.rv.warn{color:var(--warn)}
+.rv.crit{color:var(--crit)}
+.rail .ring{width:14px;height:14px;margin-left:1px}
+.rail .badge{font-size:9px;padding:1px 6px}
+.rail .conn{font-size:10px}
+.rail .clock{color:var(--fg-muted)}
+.rail .feedpill{font-size:9px;padding:1px 8px}
+.rail .tickrate{font-size:10px}
+.railbtn{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.05em;cursor:pointer;
+  background:var(--bg-panel);color:var(--fg-muted);border:1px solid var(--border-strong);
+  border-radius:4px;padding:1px 8px;transition:background 120ms cubic-bezier(.16,1,.3,1);
+}
+.railbtn:hover{background:var(--bg-inset);color:var(--fg-base)}
+.railbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+/* Row 20 — below 1180px the rail drops OK%, then the clock. */
+@media (max-width:1180px){ .rdrop1{display:none} }
+@media (max-width:1080px){ .rdrop2{display:none} }
+
+/* -------------------------------------------- telemetry drawer (P10b row 14) */
+/* The same four blocks the 380px stack held, side by side. It costs height, never width. */
+.drawer{
+  flex:0 0 auto;height:240px;min-height:88px;display:flex;gap:0;overflow:hidden;
+  background:var(--bg-panel);
+}
+.drawer[hidden]{display:none}
+/* Each column scrolls on its own so a drawer compressed to its hard floor at 1024x800 still
+   shows all four blocks rather than clipping them. */
+.dcol{
+  flex:1 1 0;min-width:0;padding:11px 14px;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;
+}
+.dcol:last-child{border-right:0}
+.dcol .k{display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px}
+.dcol .foot{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45;margin:9px 0 0}
+.dcol.log{flex:1.3 1 0}
+.logscroll{flex:1;min-height:0;overflow-y:auto}
 .mini{
+  align-self:flex-start;
   font-size:9.5px;font-weight:600;letter-spacing:.06em;color:var(--fg-muted);text-decoration:none;
   border:1px solid var(--border-strong);border-radius:4px;padding:3px 8px;background:var(--bg-subtle);
 }
 .mini:hover{background:var(--bg-inset);color:var(--fg-base)}
 .ring{width:22px;height:22px;flex:0 0 auto}
-.big3{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)}
-.big{padding:11px 10px;border-right:1px solid var(--border)}
-.big:last-child{border-right:0}
-.big .k{font-size:8.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
-.big .v{font-size:25px;font-weight:600;line-height:1.15;letter-spacing:-.02em}
-.big .v small{font-size:11px;font-weight:400;color:var(--fg-faint);margin-left:2px}
-.big .v.warn{color:var(--warn)}
-.big .v.crit{color:var(--crit)}
-.lat-sec{padding:12px 14px;border-bottom:1px solid var(--border)}
-.lat-sec .k{display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px}
-.lat-sec .foot{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45;margin:9px 0 0}
 .wf{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg-inset)}
 .wf i{display:block;transition:width 280ms cubic-bezier(.16,1,.3,1)}
 .wf i[data-stage="server"]{background:var(--net)}
@@ -289,7 +389,6 @@ body.nopanel .lat{display:none}
 .pct{background:var(--bg-subtle);border:1px solid var(--border);border-radius:4px;padding:5px 7px}
 .pct .k2{font-size:8px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
 .pct .v2{font-size:13px;font-weight:600}
-.log{flex:1;min-height:120px}
 .log table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:10px}
 .log th{
   position:sticky;top:0;background:var(--bg-subtle);font-family:Archivo,sans-serif;font-size:8.5px;
@@ -300,12 +399,222 @@ body.nopanel .lat{display:none}
 .log td.ok{color:var(--ok)}
 .log td.bad{color:var(--crit)}
 
-/* The panel is a right rail. It is closed by default below 1780px so the 23 columns and the
-   strike spine always fit with no horizontal scroll; the top bar keeps a live latency readout
-   so latency is never invisible while the panel is shut. */
-.latmini{display:flex;align-items:center;gap:10px;padding:3px 10px;border-radius:999px;
-  background:var(--bg-subtle);border:1px solid var(--border);font-family:"IBM Plex Mono",monospace;font-size:11px}
-.latmini span{display:flex;align-items:baseline;gap:4px;color:var(--fg-base);font-variant-numeric:tabular-nums}
-.latmini em{font-style:normal;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);font-family:Archivo,sans-serif;font-weight:600}
-.latmini span.warn{color:var(--warn)}
-.latmini span.crit{color:var(--crit)}
+/* ------------------------------------------------------------ tick chart */
+/* Sits above the chain. Height is user-draggable and remembered; C collapses it. */
+/* The seam moved to the pane below it when P10a stacked the panes (row 5): border-bottom here
+   plus border-top there would draw the 1px line twice. */
+.chart{
+  flex:0 0 auto;display:flex;flex-direction:column;
+  background:var(--bg-panel);
+}
+.chart-h{display:flex;align-items:center;gap:14px;padding:8px 16px;flex-wrap:wrap}
+.chart-h .ct{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)}
+.chart-h .cpx{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.chart-h .cchg{font-size:11.5px}
+.legend{display:flex;gap:14px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint)}
+.legend span{display:flex;align-items:center;gap:5px}
+.dot{width:6px;height:6px;border-radius:999px;display:inline-block}
+.dot.tick{background:var(--up)}
+.dot.slow{background:var(--accent)}
+.feedpill{
+  display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--fg-muted);background:var(--bg-subtle);
+  border:1px solid var(--border);border-radius:999px;padding:3px 10px;
+}
+.feedpill i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
+.feedpill.live{color:var(--ok);border-color:var(--ok)}
+.feedpill.live i{background:var(--ok);animation:pulse 2.4s infinite}
+.feedpill.bad{color:var(--crit);border-color:var(--crit)}
+.feedpill.bad i{background:var(--crit)}
+.tickrate{font-size:10.5px;color:var(--fg-faint)}
+.range,.tools{display:flex;gap:3px}
+.range button,.tools button{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;padding:3px 8px;min-height:24px;cursor:pointer;
+  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:4px;
+  transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms;
+}
+.range button:hover,.tools button:hover{background:var(--bg-inset);color:var(--fg-base)}
+.range button[aria-pressed="true"],.tools button[aria-pressed="true"]{
+  background:var(--accent);border-color:var(--accent);color:var(--accent-fg);
+}
+/* drawing tools — docs/spec/chart-tools-v1.md rows 10, 21, 25 */
+.tools button{min-width:26px;font-size:11px;line-height:1}
+.tools button:disabled{opacity:.4;cursor:not-allowed}
+.tools button:disabled:hover{background:var(--bg-subtle);color:var(--fg-muted)}
+.tools button.confirm{border-color:var(--crit);color:var(--crit);font-size:9.5px}
+
+.chart-body{position:relative;height:190px;min-height:70px;padding:0 16px 8px}
+.chart-body svg{width:100%;height:100%;display:block;overflow:visible}
+.chart-empty{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);pointer-events:none;
+}
+/* Pointer targets for the crosshair/drawings and the price axis. They line up with the svg's
+   content box: .chart-body pads 16px left/right and 8px bottom, and the axis gutter is 76px
+   (docs/spec/chart-tools-v1.md rows 1, 7). */
+.chart-surface{position:absolute;left:16px;right:92px;top:0;bottom:8px;cursor:crosshair;touch-action:none}
+.chart-axis{position:absolute;right:16px;top:0;bottom:8px;width:76px;cursor:ns-resize;touch-action:none}
+.chart-axis:hover{background:var(--accent-wash)}
+body.nochart .chart-body,body.nochart .psplit{display:none}
+body.nochart #chartBtn{transform:rotate(-90deg)}
+
+/* a cell whose price came from a tick, not from the 3 s snapshot */
+@keyframes tickup{from{background:color-mix(in srgb,var(--up) 34%,transparent)}to{background:transparent}}
+@keyframes tickdown{from{background:color-mix(in srgb,var(--down) 34%,transparent)}to{background:transparent}}
+td.tup{animation:tickup 520ms cubic-bezier(.16,1,.3,1)}
+td.tdn{animation:tickdown 520ms cubic-bezier(.16,1,.3,1)}
+
+/* ------------------------------------------------- option candles (P9) */
+/* docs/spec/option-candles-v1.md rows 2, 9, 13. The chart strip switches MODE rather than
+   opening a second chart: one grip, one resize path, one paint budget.
+
+   Both display toggles carry !important on purpose. `.chart-empty` and `.chart-body svg` set
+   their own `display`, and a plain `.opt{display:none}` loses to them exactly the way the
+   scanner panel's `display:flex` beat the UA's `[hidden]{display:none}` in P8 — the failure
+   looks like broken JavaScript, not like CSS. */
+body:not(.optmode) .opt{display:none!important}
+body.optmode .tickonly{display:none!important}
+#candleMsg[hidden]{display:none!important}
+
+.chart-h .opt.ct{font-size:11.5px;letter-spacing:.02em;text-transform:none;color:var(--fg-base);font-weight:600}
+.chart-h #candleBack{font-size:10.5px;padding:3px 9px;min-height:24px}
+.candlecount{font-size:10px;color:var(--fg-faint)}
+.dot.bigin{background:var(--big-in)}
+.dot.bigout{background:var(--big-out)}
+
+#candleSvg{width:100%;height:100%;display:block;overflow:visible}
+
+/* Row 13 — the tooltip prints the exact inputs the colour was computed from, so the rule can be
+   redone by hand without trusting the code that ran it. */
+.candletip{
+  position:absolute;z-index:6;pointer-events:none;
+  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:6px;
+  box-shadow:var(--shadow-md);padding:7px 9px;min-width:236px;
+  font-size:10.5px;color:var(--fg-muted);
+}
+.candletip .tt-h{
+  font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--fg-base);
+  padding-bottom:5px;margin-bottom:5px;border-bottom:1px solid var(--border);
+}
+.candletip table{border-collapse:collapse;width:100%}
+.candletip th{text-align:left;font-weight:400;color:var(--fg-faint);padding:1px 10px 1px 0;white-space:nowrap}
+.candletip td{text-align:right;color:var(--fg-base);white-space:nowrap}
+.candletip td.ok{color:var(--ok)}
+.candletip td.no{color:var(--fg-faint)}
+.candletip td.blue{color:var(--big-in);font-weight:600}
+.candletip td.yellow{color:var(--big-out);font-weight:600}
+
+/* Row 2 — the charted half of the row is outlined, so the chart and the chain never disagree
+   about which contract is on screen. */
+#ocBody tr.selce td:nth-child(-n+12),
+#ocBody tr.selpe td:nth-child(n+14){
+  background:var(--accent-wash);
+  box-shadow:inset 0 1px 0 var(--ring),inset 0 -1px 0 var(--ring);
+}
+#ocBody tr.selce td:nth-child(1){box-shadow:inset 1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
+#ocBody tr.selce td:nth-child(12){box-shadow:inset -1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
+#ocBody tr.selpe td:nth-child(14){box-shadow:inset 1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
+#ocBody tr.selpe td:nth-child(25){box-shadow:inset -1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
+#ocBody tr[data-strike]{cursor:pointer}
+
+/* --------------------------------------------------------- scanner (P8) */
+/* Overlay, not a route: a route change would tear down the chain poll and the tick feed.
+   scanner-v1.md row 12. */
+.scan{
+  position:fixed;inset:52px 0 0 0;z-index:40;display:flex;justify-content:center;
+  padding:20px 20px 24px;background:color-mix(in srgb,var(--bg-base) 78%,transparent);
+  backdrop-filter:blur(2px);
+}
+/* `display:flex` above outranks the UA's [hidden]{display:none}, so without this the panel is
+   on screen from page load and neither Esc nor the close button can put it away. */
+.scan[hidden]{display:none}
+.scan-box{
+  width:100%;max-width:1180px;display:flex;flex-direction:column;min-height:0;
+  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;
+  box-shadow:var(--shadow-md);overflow:hidden;
+}
+.scan-h{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-bottom:1px solid var(--border);background:var(--bg-subtle);
+}
+.scan-h h2{
+  margin:0;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--fg-base);
+}
+.scan-hint{font-size:10.5px;color:var(--fg-faint);letter-spacing:.03em}
+.scan-meta{font-size:10.5px;color:var(--fg-muted)}
+a.tog{text-decoration:none;display:inline-flex;align-items:center}
+a.tog.off{opacity:.45;pointer-events:none}
+
+/* The P8 trap once more: display:flex outranks the UA's [hidden]{display:none}, so scan.js's
+   two `hidden = true` sites left the PREVIOUS scan's funnel counts on screen through a Rescan
+   and through the error state — last run's numbers presented as this run's. */
+.scan-funnel[hidden]{display:none}
+.scan-funnel{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;
+}
+.scan-funnel.bad{background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.fstep{display:flex;align-items:baseline;gap:5px}
+.fstep b{font-size:15px;font-weight:700;color:var(--fg-base)}
+.fstep.last b{color:var(--accent)}
+.fstep em{font-style:normal;font-size:10px;color:var(--fg-faint);letter-spacing:.04em}
+.farrow{font-style:normal;color:var(--fg-faint)}
+.fnote{font-size:10.5px;color:var(--fg-faint)}
+
+.scan-body{flex:1;min-height:0;overflow:auto;padding:14px}
+.scan-sec{margin:0 0 18px}
+.scan-sec h3{
+  margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:baseline;gap:6px;
+}
+.scan-sec.long h3{color:var(--up)}
+.scan-sec.short h3{color:var(--down)}
+.scan-sec h3 span{color:var(--fg-faint);font-weight:600;letter-spacing:.04em}
+.scan-none{margin:0;font-size:11.5px;color:var(--fg-faint)}
+
+table.scan-t{
+  border-collapse:separate;border-spacing:0;width:100%;font-size:11px;
+  font-variant-numeric:tabular-nums;
+}
+table.scan-t th{
+  position:sticky;top:0;z-index:1;text-align:right;font-weight:600;font-size:9.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint);
+  padding:6px 8px;background:var(--bg-panel);border-bottom:1px solid var(--border-strong);
+}
+table.scan-t td{
+  text-align:right;padding:7px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-base);
+}
+table.scan-t th.l,table.scan-t td.l{text-align:left}
+table.scan-t tbody tr:hover td{background:var(--bg-subtle)}
+table.scan-t td .nm{display:block;font-size:9.5px;color:var(--fg-faint);font-family:Archivo,sans-serif}
+table.scan-t td.up{color:var(--up)}
+table.scan-t td.down{color:var(--down)}
+table.scan-t td.flat{color:var(--flat)}
+table.scan-t td.dim{color:var(--fg-faint)}
+
+.scan-skip{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
+.scan-skip summary{
+  cursor:pointer;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  font-weight:600;color:var(--fg-muted);
+}
+.skgroup{display:flex;gap:8px;align-items:baseline;padding:6px 0 0 14px;font-size:11px}
+.skreason{color:var(--warn);white-space:nowrap;font-size:10.5px}
+.skl{color:var(--fg-muted);font-size:10.5px}
+
+.scan-run,.scan-zero,.scan-err{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:52px 16px;text-align:center;
+}
+.scan-run b,.scan-zero b{font-size:14px}
+.scan-run span,.scan-zero span{font-size:11.5px;color:var(--fg-muted);max-width:520px}
+.scan-run .dim,.zf{color:var(--fg-faint)}
+.zface{font-size:26px;color:var(--accent);letter-spacing:.08em}
+.spin{
+  width:20px;height:20px;border-radius:999px;border:2px solid var(--border-strong);
+  border-top-color:var(--accent);animation:spin 800ms linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pbar{width:280px;height:4px;border-radius:999px;background:var(--bg-inset);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--accent);transition:width 200ms linear}
+.scan-err{color:var(--crit)}
+.scan-err span{color:var(--fg-muted);font-size:11px;max-width:620px}

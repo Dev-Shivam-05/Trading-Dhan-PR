@@ -11,16 +11,12 @@
 </head>
 <body>
 
+<!-- P10b row 15: #latMini is gone, the rail carries it. Rows 13 and 15 also move the conn dot,
+     the mode badge and the clock down into the rail rather than duplicating them here — two
+     places showing the same number is how they come to disagree. -->
 <header class="topbar">
   <span class="brand">DHAN <b>OPTION CHAIN</b></span>
-  <span class="badge" id="modeBadge">…</span>
-  <span class="conn" id="conn"><i></i><span>connecting</span></span>
   <span class="grow"></span>
-  <div class="latmini" id="latMini" title="Round trip to Dhan / age of the data on screen">
-    <span id="miniRtt">—<em>rtt</em></span>
-    <span id="miniAge">—<em>age</em></span>
-  </div>
-  <span class="clock mono" id="clock">--:--:--</span>
   <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
 </header>
 
@@ -49,6 +45,14 @@
   </div>
   <span class="grow"></span>
   <span class="statechip" id="stateChip" hidden></span>
+  <span class="statechip flat" id="peakChip" hidden></span>
+  <span class="statechip flat" id="filterChip" hidden></span>
+  <button class="tog" id="greeksBtn" type="button" aria-pressed="false"
+          title="Show the eight greek columns (G)">Greeks</button>
+  <button class="tog" id="breachBtn" type="button" aria-pressed="false"
+          title="Show only strikes whose OI is above yesterday's peak (P)">Breached</button>
+  <button class="tog" id="scanBtn" type="button"
+          title="Scan the 210-stock NSE F&amp;O universe (S)">Scan</button>
   <label class="srch">
     <span class="sr-only">Search strike</span>
     <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
@@ -57,10 +61,91 @@
     <span class="sr-only">Expiry</span>
     <select id="expiry" class="mono"></select>
   </label>
-  <button class="icon" id="panelBtn" type="button" title="Toggle latency panel (L)" aria-label="Toggle latency panel">⇥</button>
 </section>
 
-<main class="work" id="work">
+<!-- P8's scanner overlay. position:fixed, above the shell, untouched by P10 — spec row 17. It is
+     lifted out of the pane column only so that "above the shell" is true of the DOM as well. -->
+<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+  <div class="scan-box">
+    <header class="scan-h">
+      <h2 id="scanTitle">F&amp;O SCANNER</h2>
+      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
+      <span class="statechip flat" id="scanMode" hidden></span>
+      <span class="grow"></span>
+      <span class="scan-meta mono" id="scanMeta"></span>
+      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
+      <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
+      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
+    </header>
+    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
+    <div class="scan-body" id="scanBody"></div>
+  </div>
+</section>
+
+<!-- P10a terminal shell — the panes stacked in one column with 1px seams and no gap, two
+     splitters, and (from P10b) the status rail pinned beneath them. Spec rows 2 and 5. -->
+<div class="shell" id="shell">
+
+<section class="chart pane" id="chartWrap">
+  <div class="chart-h">
+    <button class="tog opt" id="candleBack" type="button"
+            title="Back to the underlying chart (Esc)">&larr; underlying</button>
+    <span class="ct opt" id="candleTitle"></span>
+    <span class="legend opt">
+      <span><i class="dot bigin"></i>blue: big player entering</span>
+      <span><i class="dot bigout"></i>yellow: exiting</span>
+    </span>
+    <span class="ct tickonly">LIVE TICK CHART</span>
+    <span class="cpx mono tickonly" id="chartPx">—</span>
+    <span class="cchg mono tickonly" id="chartChg">—</span>
+    <span class="legend tickonly">
+      <span><i class="dot tick"></i>tick: LTP · Volume · OI</span>
+      <span><i class="dot slow"></i>3&nbsp;s: IV · Greeks</span>
+    </span>
+    <span class="grow"></span>
+    <span class="candlecount mono opt" id="candleCount"></span>
+    <span class="range opt" id="candleInterval" role="group" aria-label="Candle interval">
+      <button type="button" data-iv="1">1m</button>
+      <button type="button" data-iv="5" aria-pressed="true">5m</button>
+      <button type="button" data-iv="15">15m</button>
+    </span>
+    <!-- #feedPill and #tickRate moved to the status rail (row 13). They were `tickonly` here
+         because P9 found them reading as an option's numbers next to an option's candles; in a
+         global rail below every pane that ambiguity does not exist. -->
+    <span class="tools tickonly" id="chartTools" role="group" aria-label="Drawing tools">
+      <button type="button" data-tool="cursor" aria-pressed="true" title="Cursor (V)" aria-label="Cursor">↖</button>
+      <button type="button" data-tool="trend" aria-pressed="false" title="Trendline (D)" aria-label="Trendline">╱</button>
+      <button type="button" data-tool="hline" aria-pressed="false" title="Horizontal line (H)" aria-label="Horizontal line">—</button>
+      <button type="button" data-tool="ray" aria-pressed="false" title="Ray (R)" aria-label="Ray">→</button>
+      <button type="button" data-tool="rect" aria-pressed="false" title="Rectangle (B)" aria-label="Rectangle">▭</button>
+      <button type="button" id="chartClear" title="Clear all drawings — click twice" aria-label="Clear all drawings">✕</button>
+    </span>
+    <span class="range tickonly" id="chartRange" role="group" aria-label="Chart window">
+      <button type="button" data-range="60000">1m</button>
+      <button type="button" data-range="300000" aria-pressed="true">5m</button>
+      <button type="button" data-range="900000">15m</button>
+      <button type="button" data-range="0">All</button>
+    </span>
+    <button class="icon" id="chartBtn" type="button" title="Collapse chart (C)" aria-label="Collapse chart">▾</button>
+  </div>
+  <div class="chart-body" id="chartBody">
+    <svg id="chartSvg" class="tickonly" preserveAspectRatio="none" aria-label="Live tick chart"></svg>
+    <div class="chart-empty tickonly" id="chartEmpty">waiting for the first tick…</div>
+    <div class="chart-surface tickonly" id="chartSurface"></div>
+    <div class="chart-axis tickonly" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
+    <svg id="candleSvg" class="opt" preserveAspectRatio="none" aria-label="Option candles"></svg>
+    <div class="chart-empty opt" id="candleMsg" hidden></div>
+    <div class="chart-surface opt" id="candleSurface"></div>
+    <div class="candletip mono" id="candleTip" hidden></div>
+  </div>
+  <!-- Splitter #1 — spec row 3. The P5 grip generalised: same element and cursor, now focusable
+       and keyboard-driven. panes.js owns the drag. -->
+  <div class="psplit" id="chartGrip" role="separator" tabindex="0" aria-orientation="horizontal"
+       aria-label="Resize the chart pane" aria-controls="chartBody"
+       title="Drag to resize · double-click to reset · Arrow keys when focused"></div>
+</section>
+
+<main class="work pane" id="work">
 
   <section class="gridwrap" aria-label="Option chain">
     <div class="gridscroll" id="gridScroll">
@@ -68,15 +153,19 @@
         <colgroup id="cg"></colgroup>
         <thead>
           <tr class="sides">
-            <th class="side ce" colspan="11">CALLS · CE</th>
+            <th class="side ce" colspan="12">CALLS · CE</th>
             <th class="spine" rowspan="2">STRIKE</th>
-            <th class="side pe" colspan="11">PUTS · PE</th>
+            <th class="side pe" colspan="12">PUTS · PE</th>
           </tr>
+          <!-- `gk` marks the eight greek columns. Off by default (spec row 7); app.js keeps the
+               two side colspans and the <colgroup> in step with the toggle. -->
           <tr class="cols">
-            <th>Vega</th><th>Theta</th><th>Gamma</th><th>Delta</th><th>OI</th><th>OI Chg</th>
+            <th class="gk">Vega</th><th class="gk">Theta</th><th class="gk">Gamma</th><th class="gk">Delta</th><th>OI</th>
+            <th title="Live OI as a percentage of yesterday's peak OI">Pk %</th><th>OI Chg</th>
             <th>Volume</th><th>Vol Chg%</th><th>IV</th><th>LTP Chg</th><th class="ltp">LTP</th>
             <th class="ltp">LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg%</th><th>Volume</th>
-            <th>OI Chg</th><th>OI</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th>
+            <th>OI Chg</th><th title="Live OI as a percentage of yesterday's peak OI">Pk %</th>
+            <th>OI</th><th class="gk">Delta</th><th class="gk">Gamma</th><th class="gk">Theta</th><th class="gk">Vega</th>
           </tr>
         </thead>
         <tbody id="ocBody"></tbody>
@@ -98,54 +187,87 @@
     </div>
   </section>
 
-  <aside class="lat" id="lat" aria-label="Latency and telemetry">
-    <div class="lat-h">
-      <span class="t">Latency &amp; telemetry</span>
-      <span class="grow"></span>
-      <a class="mini" id="exportBtn" href="/api/telemetry.csv" download>CSV</a>
-      <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
-        <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
-                stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
-      </svg>
-    </div>
+</main>
 
-    <div class="big3">
-      <div class="big"><span class="k">Round trip</span><div class="v mono" id="mRtt">—</div></div>
-      <div class="big"><span class="k">Data age</span><div class="v mono" id="mAge">—</div></div>
-      <div class="big"><span class="k">Next poll</span><div class="v mono" id="mNext">—</div></div>
-    </div>
+<!-- Splitter #2 and the telemetry drawer — P10b rows 12 and 14. The 380px right dock is gone;
+     the same four blocks are re-laid horizontally so each gets more room than 380px gave it and
+     the call log stops being the only thing below the fold. Closed by default; `L` or the rail's
+     button opens it. It costs height, never width — that is the whole point. -->
+<div class="psplit" id="drawerGrip" role="separator" tabindex="0" aria-orientation="horizontal"
+     aria-label="Resize the telemetry drawer" aria-controls="drawer"
+     title="Drag to resize · double-click to reset" hidden></div>
 
-    <div class="lat-sec">
-      <p class="k"><span>Last call — stage waterfall</span><span class="mono" id="wfTotal">—</span></p>
-      <div class="wf" id="wf">
-        <i data-stage="server"></i><i data-stage="download"></i><i data-stage="compute"></i>
-        <i data-stage="transport"></i><i data-stage="render"></i>
-      </div>
-      <div class="wfkey" id="wfKey"></div>
-      <p class="foot">All stages share one clock except <b>transport</b>, which crosses server→browser and is an estimate.</p>
+<section class="drawer pane" id="drawer" aria-label="Latency and telemetry" hidden>
+  <div class="dcol">
+    <p class="k"><span>Last call — stage waterfall</span><span class="mono" id="wfTotal">—</span></p>
+    <div class="wf" id="wf">
+      <i data-stage="server"></i><i data-stage="download"></i><i data-stage="compute"></i>
+      <i data-stage="transport"></i><i data-stage="render"></i>
     </div>
+    <div class="wfkey" id="wfKey"></div>
+    <p class="foot">All stages share one clock except <b>transport</b>, which crosses server→browser and is an estimate.</p>
+  </div>
 
-    <div class="lat-sec">
-      <p class="k"><span>Round trip — last 60 calls</span><span class="mono" id="okRate">—</span></p>
-      <svg class="spark" id="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-label="Round trip sparkline"></svg>
-      <div class="pcts">
-        <div class="pct"><div class="k2">p50</div><div class="v2 mono" id="p50">—</div></div>
-        <div class="pct"><div class="k2">p90</div><div class="v2 mono" id="p90">—</div></div>
-        <div class="pct"><div class="k2">p99</div><div class="v2 mono" id="p99">—</div></div>
-        <div class="pct"><div class="k2">max</div><div class="v2 mono" id="pmx">—</div></div>
-      </div>
+  <div class="dcol">
+    <p class="k"><span>Round trip — last 60 calls</span></p>
+    <svg class="spark" id="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-label="Round trip sparkline"></svg>
+    <div class="pcts">
+      <div class="pct"><div class="k2">p50</div><div class="v2 mono" id="p50">—</div></div>
+      <div class="pct"><div class="k2">p90</div><div class="v2 mono" id="p90">—</div></div>
+      <div class="pct"><div class="k2">p99</div><div class="v2 mono" id="p99">—</div></div>
+      <div class="pct"><div class="k2">max</div><div class="v2 mono" id="pmx">—</div></div>
     </div>
+  </div>
 
-    <div class="log">
+  <div class="dcol log">
+    <p class="k"><span>Last 20 calls</span></p>
+    <div class="logscroll">
       <table>
         <thead><tr><th>Time</th><th>Key</th><th>St</th><th>RTT</th><th>KB</th><th>Rows</th></tr></thead>
         <tbody id="logBody"></tbody>
       </table>
     </div>
-  </aside>
-</main>
+  </div>
+
+  <div class="dcol">
+    <p class="k"><span>Export</span></p>
+    <a class="mini" id="exportBtn" href="/api/telemetry.csv" download>Download CSV</a>
+    <p class="foot">Every call this server has made since it started — one row each, with the full
+      stage breakdown. The percentiles beside the sparkline are computed from the same numbers.</p>
+  </div>
+</section>
+
+</div><!-- /.shell -->
+
+<!-- Status rail — P10b row 13. 26px, full width, pinned under every pane, never closable.
+     It costs zero chain width, which is why the 380px dock could be deleted at all. -->
+<footer class="rail" id="rail">
+  <span class="conn" id="conn"><i></i><span>connecting</span></span>
+  <span class="badge" id="modeBadge">…</span>
+  <span class="rstat"><em>RTT</em><b class="rv mono" id="mRtt">—</b></span>
+  <span class="rstat"><em>AGE</em><b class="rv mono" id="mAge">—</b></span>
+  <span class="rstat"><em>NEXT</em><b class="rv mono" id="mNext">—</b>
+    <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
+      <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
+              stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
+    </svg>
+  </span>
+  <span class="rstat rdrop1"><em>OK</em><b class="rv mono" id="okRate">—</b></span>
+  <span class="grow"></span>
+  <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
+  <span class="tickrate mono" id="tickRate">0 t/s</span>
+  <button class="railbtn" id="panelBtn" type="button" aria-pressed="false"
+          title="Toggle the telemetry drawer (L)">⇥ latency</button>
+  <span class="clock mono rdrop2" id="clock">--:--:--</span>
+</footer>
 
 <script type="module" src="/app.js"></script>
+<script type="module" src="/scan.js"></script>
+<script type="module" src="/candles.js"></script>
+<!-- last: panes.js dispatches `greeks` on load, and app.js has to have registered its listener
+     by then. Module scripts run in document order, so being last is the whole guarantee. -->
+<script type="module" src="/panes.js"></script>
+<script type="module" src="/telemetry.js"></script>
 </body>
 </html>
