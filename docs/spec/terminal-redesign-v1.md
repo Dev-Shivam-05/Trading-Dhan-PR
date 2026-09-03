@@ -1,8 +1,11 @@
 # SPEC LOCK — P10 terminal UI redesign (P10a + P10b)
 
-Status: **PROPOSED, NOT LOCKED** — written 2026-09-01, emitted for approval, **no `go` received**.
-Nothing here has been built. The next session must either get one word (`go`, or `change 7,11`
-with values) before touching a UI file, or re-emit the table.
+Status: **LOCKED** 2026-09-03 — approved with one `go`, all 22 rows as written. Rows 7 and 11,
+the two the table flagged as readings rather than measurements, were put up for veto in isolation
+and both were accepted: **greeks hidden by default** and **dark as the default theme**.
+
+P10a was built and verified the same day (41/41 acceptance checks, replay, 1440x900 and 1024x800).
+Amendment rows 23-24 below were added during that build and are marked as amendments.
 
 The proposal was written against the real screen as it stands after P9, not against the
 requirements alone — every "why" below cites a value already in the codebase or an existing spec
@@ -56,6 +59,13 @@ P10b has no rework to undo.
 | 20 | ab | Responsive floor | Supported down to **1024px**: greeks off, splitters live, the rail drops `OK%` then the clock below 1180px, the chain scrolls horizontally by 108px with the spine pinned | 1024 is P4's stated floor. Below it nothing is promised |
 | 21 | ab | Files | **P10a:** `public/panes.js` *(new)* + its `STATIC` row in `src/server/index.ts`, `public/index.html`, `public/app.css`, `public/app.js` = **5**. **P10b:** `public/telemetry.js` *(new)* + its `STATIC` row, `public/index.html`, `public/app.css`, `public/app.js` = **5** | Both under the 8-file rule, which is the entire reason the split exists |
 | 22 | b | `docs/shots/` re-baselining | `npm run shots` runs **once**, at the end of P10b, deliberately. Not during P10a, and never for an ad-hoc check | All 17 reference images predate P6 and the command overwrites all of them. P10 owns this, and it stays a deliberate act |
+
+## Amendments made during the build (P10a, 2026-09-03)
+
+| # | Ph | Amendment | Why it was needed |
+|---|---|---|---|
+| 23 | a | **The out-of-scope line "no change to the header strip" is scoped to restyling, not to rows 7 and 8.** The `Greeks` button joins `Breached` / `Scan` in `.hstrip` as a third `.tog`, and `showing n of N strikes` is a `.statechip` beside `#peakChip`. No other header-strip change | Rows 7 and 8 each require a control or a readout, and the header strip is where every other toggle and chip on this screen already lives. As written the two instructions contradict each other; the specific rows win over the general guard, and the guard still forbids everything else |
+| 24 | a | **`skeleton()` must emit the `gk` class on the same eight cells the real rows do.** It builds its 25 `<td>`s from the same `COLS` constant, so without this it generates 25 columns against the 17-`<col>` colgroup | Found by testing, not by reading. Greeks off is the default, so this is the path *every* instrument and expiry switch takes: the shimmer rows landed on different column boundaries than the header above them and the grid that replaced them |
 
 ## Out of scope (will NOT build)
 - Any change to the topbar / replay banner / chip rail / header strip beyond removing `#latMini` (row 15)
