@@ -102,16 +102,22 @@ for (const theme of ['light', 'dark'] as const) {
   await ctx.close();
 }
 
-/* 7. latency panel close-up */
+/* 7. telemetry drawer close-up.
+   P10b deleted the 380px `#lat` right dock; the same four blocks now live in `#drawer`, opened
+   with `L` or the rail's button. `localStorage.panel` still decides whether it starts open. */
 {
   const { ctx, page } = await open('dark', true);
   await waitForChain(page);
   await page.keyboard.press('6');   // GOLD: MCX is the session most likely to be open
   await waitForChain(page);
   await page.waitForTimeout(22000); // let the sparkline and percentiles fill
-  const el = await page.$('#lat');
-  await el!.screenshot({ path: path.join(OUT, '06-latency-panel.png') });
-  console.log('  06-latency-panel.png');
+  const el = await page.$('#drawer');
+  await el!.screenshot({ path: path.join(OUT, '06-latency-drawer.png') });
+  console.log('  06-latency-drawer.png');
+  // and the always-on rail, which is the half that is readable without opening anything
+  const rail = await page.$('#rail');
+  await rail!.screenshot({ path: path.join(OUT, '06b-status-rail.png') });
+  console.log('  06b-status-rail.png');
   await ctx.close();
 }
 

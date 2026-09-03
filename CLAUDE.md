@@ -184,6 +184,41 @@ measured against the code it replaced and read as having no effect. Use
 `taskkill //F //IM node.exe`, then re-check `/api/...` before trusting any number. A restart that
 you did not confirm is a measurement of the previous commit.
 
+## A background `npm run dev` with an `||` fallback respawns the server you just killed
+`REPLAY=1 npm run dev > log 2>&1 || mkdir -p .cache && REPLAY=1 npm run dev > log 2>&1` looks
+harmless. It is not: killing the server makes the first command *fail*, which runs the fallback
+and starts a **second** server. The next deliberate start then dies with `EADDRINUSE` into the log
+while the respawned one holds 8787 — the exact stale-build trap above, arrived at from the other
+direction. Start the server with **one** plain command, and after any restart assert three things
+before trusting a number: exactly **one** listener on 8787, **zero** `EADDRINUSE` in the log, and
+a request for something only the new build can serve (a newly added `STATIC` route returning 200).
+
+## A `ResizeObserver` on the shell misses a child that wraps
+`.shell` is `flex:1` of the body, so when the chart header wraps from one line to two the chart
+pane grows and **the shell's own height does not change at all** — no callback fires. Observing
+`#shell` alone left the telemetry drawer mis-sized on about half of runs at 1024x800, and it
+presents as a flaky test rather than as a bug. Observe the element that actually changes size
+(`#chartWrap`) as well, and guard re-entry.
+
+## `PeakOiStore.onProgress` is store-wide, not per poller
+Every contract that lands for **any** instrument notifies **every** `ChainPoller`. Without a
+"did my own peaks actually change?" check before re-emitting, one chip's backfill re-renders the
+whole grid in every other open tab. It also makes any "a telemetry tick does not re-render the
+grid" measurement race a completely unrelated chip's backfill.
+
+## Never measure a client percentile against the server's live ring
+The panel computes over the last 60 samples **it** received; `/api/telemetry.csv` is the server's
+500-sample ring and grows while you read it. Slicing "the last n rows" of the CSV to compare
+against the panel compares two different sets and fails intermittently. Read the raw values the
+client actually holds (`window.__telemetry.rtts()`) and recompute from those. Related: on a closed
+market the client never reaches the 2 samples the sparkline needs — use the **GOLD** chip, because
+MCX is the one session usually open.
+
+## In a verification script, a trendline is a drag, not two clicks
+`chart-tools.js` commits on `pointerup` only when the pointer travelled `>= MIN_DRAG_PX`, and the
+tool is one-shot (it resets to `cursor` afterwards). Two `page.mouse.click()` calls draw nothing
+and report `0 shapes`, which reads as a broken seam rather than a broken gesture.
+
 ## Write the docs with the Write/Edit tools, not a bash heredoc
 `cat > docs/... <<'EOF'` on a long markdown table died with ``unexpected EOF while looking for
 matching `'`` — the docs here are full of backticks, pipes and apostrophes, and one of them ends
