@@ -11,16 +11,12 @@
 </head>
 <body>
 
+<!-- P10b row 15: #latMini is gone, the rail carries it. Rows 13 and 15 also move the conn dot,
+     the mode badge and the clock down into the rail rather than duplicating them here — two
+     places showing the same number is how they come to disagree. -->
 <header class="topbar">
   <span class="brand">DHAN <b>OPTION CHAIN</b></span>
-  <span class="badge" id="modeBadge">…</span>
-  <span class="conn" id="conn"><i></i><span>connecting</span></span>
   <span class="grow"></span>
-  <div class="latmini" id="latMini" title="Round trip to Dhan / age of the data on screen">
-    <span id="miniRtt">—<em>rtt</em></span>
-    <span id="miniAge">—<em>age</em></span>
-  </div>
-  <span class="clock mono" id="clock">--:--:--</span>
   <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
 </header>
 
@@ -65,7 +61,6 @@
     <span class="sr-only">Expiry</span>
     <select id="expiry" class="mono"></select>
   </label>
-  <button class="icon" id="panelBtn" type="button" title="Toggle latency panel (L)" aria-label="Toggle latency panel">⇥</button>
 </section>
 
 <!-- P8's scanner overlay. position:fixed, above the shell, untouched by P10 — spec row 17. It is
@@ -114,8 +109,9 @@
       <button type="button" data-iv="5" aria-pressed="true">5m</button>
       <button type="button" data-iv="15">15m</button>
     </span>
-    <span class="feedpill tickonly" id="feedPill"><i></i><span>feed off</span></span>
-    <span class="tickrate mono tickonly" id="tickRate">0 t/s</span>
+    <!-- #feedPill and #tickRate moved to the status rail (row 13). They were `tickonly` here
+         because P9 found them reading as an option's numbers next to an option's candles; in a
+         global rail below every pane that ambiguity does not exist. -->
     <span class="tools tickonly" id="chartTools" role="group" aria-label="Drawing tools">
       <button type="button" data-tool="cursor" aria-pressed="true" title="Cursor (V)" aria-label="Cursor">↖</button>
       <button type="button" data-tool="trend" aria-pressed="false" title="Trendline (D)" aria-label="Trendline">╱</button>
@@ -191,55 +187,80 @@
     </div>
   </section>
 
-  <aside class="lat" id="lat" aria-label="Latency and telemetry">
-    <div class="lat-h">
-      <span class="t">Latency &amp; telemetry</span>
-      <span class="grow"></span>
-      <a class="mini" id="exportBtn" href="/api/telemetry.csv" download>CSV</a>
-      <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
-        <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
-                stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
-      </svg>
-    </div>
+</main>
 
-    <div class="big3">
-      <div class="big"><span class="k">Round trip</span><div class="v mono" id="mRtt">—</div></div>
-      <div class="big"><span class="k">Data age</span><div class="v mono" id="mAge">—</div></div>
-      <div class="big"><span class="k">Next poll</span><div class="v mono" id="mNext">—</div></div>
-    </div>
+<!-- Splitter #2 and the telemetry drawer — P10b rows 12 and 14. The 380px right dock is gone;
+     the same four blocks are re-laid horizontally so each gets more room than 380px gave it and
+     the call log stops being the only thing below the fold. Closed by default; `L` or the rail's
+     button opens it. It costs height, never width — that is the whole point. -->
+<div class="psplit" id="drawerGrip" role="separator" tabindex="0" aria-orientation="horizontal"
+     aria-label="Resize the telemetry drawer" aria-controls="drawer"
+     title="Drag to resize · double-click to reset" hidden></div>
 
-    <div class="lat-sec">
-      <p class="k"><span>Last call — stage waterfall</span><span class="mono" id="wfTotal">—</span></p>
-      <div class="wf" id="wf">
-        <i data-stage="server"></i><i data-stage="download"></i><i data-stage="compute"></i>
-        <i data-stage="transport"></i><i data-stage="render"></i>
-      </div>
-      <div class="wfkey" id="wfKey"></div>
-      <p class="foot">All stages share one clock except <b>transport</b>, which crosses server→browser and is an estimate.</p>
+<section class="drawer pane" id="drawer" aria-label="Latency and telemetry" hidden>
+  <div class="dcol">
+    <p class="k"><span>Last call — stage waterfall</span><span class="mono" id="wfTotal">—</span></p>
+    <div class="wf" id="wf">
+      <i data-stage="server"></i><i data-stage="download"></i><i data-stage="compute"></i>
+      <i data-stage="transport"></i><i data-stage="render"></i>
     </div>
+    <div class="wfkey" id="wfKey"></div>
+    <p class="foot">All stages share one clock except <b>transport</b>, which crosses server→browser and is an estimate.</p>
+  </div>
 
-    <div class="lat-sec">
-      <p class="k"><span>Round trip — last 60 calls</span><span class="mono" id="okRate">—</span></p>
-      <svg class="spark" id="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-label="Round trip sparkline"></svg>
-      <div class="pcts">
-        <div class="pct"><div class="k2">p50</div><div class="v2 mono" id="p50">—</div></div>
-        <div class="pct"><div class="k2">p90</div><div class="v2 mono" id="p90">—</div></div>
-        <div class="pct"><div class="k2">p99</div><div class="v2 mono" id="p99">—</div></div>
-        <div class="pct"><div class="k2">max</div><div class="v2 mono" id="pmx">—</div></div>
-      </div>
+  <div class="dcol">
+    <p class="k"><span>Round trip — last 60 calls</span></p>
+    <svg class="spark" id="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-label="Round trip sparkline"></svg>
+    <div class="pcts">
+      <div class="pct"><div class="k2">p50</div><div class="v2 mono" id="p50">—</div></div>
+      <div class="pct"><div class="k2">p90</div><div class="v2 mono" id="p90">—</div></div>
+      <div class="pct"><div class="k2">p99</div><div class="v2 mono" id="p99">—</div></div>
+      <div class="pct"><div class="k2">max</div><div class="v2 mono" id="pmx">—</div></div>
     </div>
+  </div>
 
-    <div class="log">
+  <div class="dcol log">
+    <p class="k"><span>Last 20 calls</span></p>
+    <div class="logscroll">
       <table>
         <thead><tr><th>Time</th><th>Key</th><th>St</th><th>RTT</th><th>KB</th><th>Rows</th></tr></thead>
         <tbody id="logBody"></tbody>
       </table>
     </div>
-  </aside>
-</main>
+  </div>
+
+  <div class="dcol">
+    <p class="k"><span>Export</span></p>
+    <a class="mini" id="exportBtn" href="/api/telemetry.csv" download>Download CSV</a>
+    <p class="foot">Every call this server has made since it started — one row each, with the full
+      stage breakdown. The percentiles beside the sparkline are computed from the same numbers.</p>
+  </div>
+</section>
 
 </div><!-- /.shell -->
+
+<!-- Status rail — P10b row 13. 26px, full width, pinned under every pane, never closable.
+     It costs zero chain width, which is why the 380px dock could be deleted at all. -->
+<footer class="rail" id="rail">
+  <span class="conn" id="conn"><i></i><span>connecting</span></span>
+  <span class="badge" id="modeBadge">…</span>
+  <span class="rstat"><em>RTT</em><b class="rv mono" id="mRtt">—</b></span>
+  <span class="rstat"><em>AGE</em><b class="rv mono" id="mAge">—</b></span>
+  <span class="rstat"><em>NEXT</em><b class="rv mono" id="mNext">—</b>
+    <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
+      <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
+              stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
+    </svg>
+  </span>
+  <span class="rstat rdrop1"><em>OK</em><b class="rv mono" id="okRate">—</b></span>
+  <span class="grow"></span>
+  <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
+  <span class="tickrate mono" id="tickRate">0 t/s</span>
+  <button class="railbtn" id="panelBtn" type="button" aria-pressed="false"
+          title="Toggle the telemetry drawer (L)">⇥ latency</button>
+  <span class="clock mono rdrop2" id="clock">--:--:--</span>
+</footer>
 
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
@@ -247,5 +268,6 @@
 <!-- last: panes.js dispatches `greeks` on load, and app.js has to have registered its listener
      by then. Module scripts run in document order, so being last is the whole guarantee. -->
 <script type="module" src="/panes.js"></script>
+<script type="module" src="/telemetry.js"></script>
 </body>
 </html>

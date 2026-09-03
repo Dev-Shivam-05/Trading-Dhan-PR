@@ -183,6 +183,8 @@ body{
   transition:background 120ms cubic-bezier(.16,1,.3,1);
 }
 .psplit::before{content:"";position:absolute;left:0;right:0;top:-2px;bottom:-2px}
+/* Row 18 again: .psplit sets its own display via flex, so the UA's [hidden] does not reach it. */
+.psplit[hidden]{display:none}
 .psplit:hover,.psplit.dragging,.psplit:focus-visible{background:var(--border-strong)}
 .psplit:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
 
@@ -316,31 +318,62 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;back
   overflow-x:auto;margin:8px 0 0;font-size:10.5px;line-height:1.55;
 }
 
-/* ---------------------------------------------------------- latency panel */
-.lat{
-  flex:0 0 380px;display:flex;flex-direction:column;min-width:0;overflow-y:auto;
-  background:var(--bg-panel);border-left:1px solid var(--border);
+/* ------------------------------------------------ status rail (P10b row 13) */
+/* 26px, full width, pinned under every pane, never closable. Zero chain width — which is the
+   whole reason the 380px right dock could be deleted. Values update in place. */
+.rail{
+  flex:0 0 26px;height:26px;display:flex;align-items:center;gap:14px;padding:0 12px;
+  background:var(--bg-subtle);border-top:1px solid var(--border-strong);
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;white-space:nowrap;overflow:hidden;
 }
-body.nopanel .lat{display:none}
-.lat-h{display:flex;align-items:center;gap:9px;padding:10px 14px;border-bottom:1px solid var(--border)}
-.lat-h .t{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint)}
+.rstat{display:flex;align-items:center;gap:5px}
+.rstat em{font-style:normal;color:var(--fg-faint);letter-spacing:.08em}
+.rv{color:var(--fg-base);font-weight:600}
+.rv small{color:var(--fg-faint);font-weight:400;margin-left:1px}
+.rv.warn{color:var(--warn)}
+.rv.crit{color:var(--crit)}
+.rail .ring{width:14px;height:14px;margin-left:1px}
+.rail .badge{font-size:9px;padding:1px 6px}
+.rail .conn{font-size:10px}
+.rail .clock{color:var(--fg-muted)}
+.rail .feedpill{font-size:9px;padding:1px 8px}
+.rail .tickrate{font-size:10px}
+.railbtn{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.05em;cursor:pointer;
+  background:var(--bg-panel);color:var(--fg-muted);border:1px solid var(--border-strong);
+  border-radius:4px;padding:1px 8px;transition:background 120ms cubic-bezier(.16,1,.3,1);
+}
+.railbtn:hover{background:var(--bg-inset);color:var(--fg-base)}
+.railbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+/* Row 20 — below 1180px the rail drops OK%, then the clock. */
+@media (max-width:1180px){ .rdrop1{display:none} }
+@media (max-width:1080px){ .rdrop2{display:none} }
+
+/* -------------------------------------------- telemetry drawer (P10b row 14) */
+/* The same four blocks the 380px stack held, side by side. It costs height, never width. */
+.drawer{
+  flex:0 0 auto;height:240px;min-height:88px;display:flex;gap:0;overflow:hidden;
+  background:var(--bg-panel);
+}
+.drawer[hidden]{display:none}
+/* Each column scrolls on its own so a drawer compressed to its hard floor at 1024x800 still
+   shows all four blocks rather than clipping them. */
+.dcol{
+  flex:1 1 0;min-width:0;padding:11px 14px;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;
+}
+.dcol:last-child{border-right:0}
+.dcol .k{display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px}
+.dcol .foot{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45;margin:9px 0 0}
+.dcol.log{flex:1.3 1 0}
+.logscroll{flex:1;min-height:0;overflow-y:auto}
 .mini{
+  align-self:flex-start;
   font-size:9.5px;font-weight:600;letter-spacing:.06em;color:var(--fg-muted);text-decoration:none;
   border:1px solid var(--border-strong);border-radius:4px;padding:3px 8px;background:var(--bg-subtle);
 }
 .mini:hover{background:var(--bg-inset);color:var(--fg-base)}
 .ring{width:22px;height:22px;flex:0 0 auto}
-.big3{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)}
-.big{padding:11px 10px;border-right:1px solid var(--border)}
-.big:last-child{border-right:0}
-.big .k{font-size:8.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
-.big .v{font-size:25px;font-weight:600;line-height:1.15;letter-spacing:-.02em}
-.big .v small{font-size:11px;font-weight:400;color:var(--fg-faint);margin-left:2px}
-.big .v.warn{color:var(--warn)}
-.big .v.crit{color:var(--crit)}
-.lat-sec{padding:12px 14px;border-bottom:1px solid var(--border)}
-.lat-sec .k{display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px}
-.lat-sec .foot{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45;margin:9px 0 0}
 .wf{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg-inset)}
 .wf i{display:block;transition:width 280ms cubic-bezier(.16,1,.3,1)}
 .wf i[data-stage="server"]{background:var(--net)}
@@ -356,7 +389,6 @@ body.nopanel .lat{display:none}
 .pct{background:var(--bg-subtle);border:1px solid var(--border);border-radius:4px;padding:5px 7px}
 .pct .k2{font-size:8px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
 .pct .v2{font-size:13px;font-weight:600}
-.log{flex:1;min-height:120px}
 .log table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:10px}
 .log th{
   position:sticky;top:0;background:var(--bg-subtle);font-family:Archivo,sans-serif;font-size:8.5px;
@@ -366,16 +398,6 @@ body.nopanel .lat{display:none}
 .log td{padding:5px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .log td.ok{color:var(--ok)}
 .log td.bad{color:var(--crit)}
-
-/* The panel is a right rail. It is closed by default below 1780px so the 23 columns and the
-   strike spine always fit with no horizontal scroll; the top bar keeps a live latency readout
-   so latency is never invisible while the panel is shut. */
-.latmini{display:flex;align-items:center;gap:10px;padding:3px 10px;border-radius:999px;
-  background:var(--bg-subtle);border:1px solid var(--border);font-family:"IBM Plex Mono",monospace;font-size:11px}
-.latmini span{display:flex;align-items:baseline;gap:4px;color:var(--fg-base);font-variant-numeric:tabular-nums}
-.latmini em{font-style:normal;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);font-family:Archivo,sans-serif;font-weight:600}
-.latmini span.warn{color:var(--warn)}
-.latmini span.crit{color:var(--crit)}
 
 /* ------------------------------------------------------------ tick chart */
 /* Sits above the chain. Height is user-draggable and remembered; C collapses it. */

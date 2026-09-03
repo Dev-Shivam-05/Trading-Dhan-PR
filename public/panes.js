@@ -102,6 +102,30 @@ function persist() {
   });
 }
 
+/* The drawer asks for room when the shell is too short for all three minimums at once (P10b).
+   The chart yields first, down to its own 70px floor — a squeezed chain is the wrong trade on a
+   trading screen. Deliberately NOT persisted: this is a transient accommodation, and a reload
+   should bring back the size the user actually dragged. */
+let squeezedFrom = null;
+document.addEventListener('pane-need-room', (e) => {
+  const cur = $('chartBody').getBoundingClientRect().height;
+  const want = Math.max(CHART.min, cur - e.detail.need);
+  if (want < cur) {
+    if (squeezedFrom === null) squeezedFrom = cur;
+    $('chartBody').style.height = `${want}px`;
+  }
+  e.detail.freed = cur - want;
+});
+
+/* Closing the drawer hands the borrowed pixels back, or the chart would stay shrunken for the
+   rest of the session and read as a bug rather than as an accommodation. */
+document.addEventListener('pane-release-room', () => {
+  if (squeezedFrom === null) return;
+  $('chartBody').style.height = `${squeezedFrom}px`;
+  squeezedFrom = null;
+  document.dispatchEvent(new CustomEvent('pane-resize'));
+});
+
 /* ---------------------------------------------------------- greeks columns */
 /* Row 7. Off by default: 17 columns / 1132px, which is the first column set that fits the 1440px
    floor with zero horizontal scroll. On restores today's 25 / 1484px. app.js rebuilds the

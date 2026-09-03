@@ -452,7 +452,15 @@ function onSnapshot(s) {
   renderGrid(s);
   requestAnimationFrame(() => {
     state.clientStages.render = Math.round((performance.now() - t0) * 10) / 10;
-    drawWaterfall();
+    // telemetry.js draws the rail and the drawer; it needs the two scalars its own 250 ms loop
+    // counts against, plus the two stages only this side can time.
+    document.dispatchEvent(new CustomEvent('chain-timing', {
+      detail: {
+        lastReceivedAt: state.lastReceivedAt,
+        cadenceMs: state.cadenceMs,
+        clientStages: state.clientStages,
+      },
+    }));
     if (!state.centred) { state.centred = true; scrollToAtm('auto'); }
   });
 
@@ -520,107 +528,26 @@ $('expA').addEventListener('click', () => { skeleton(); connect(); });
 
 /* ------------------------------------------------------------- telemetry */
 
+/**
+ * P10b moved every telemetry renderer to public/telemetry.js, which owns the status rail and the
+ * drawer. This side still owns the poll, so it still owns the numbers: it pushes them across as
+ * two CustomEvents and reads nothing back. app.js imports nothing downstream of itself.
+ */
 function onTelemetry(s) {
-  state.samples.push(s);
-  if (state.samples.length > 60) state.samples.shift();
-  state.log.unshift(s);
-  if (state.log.length > 20) state.log.pop();
-
-  const rtt = s.timing.roundTrip;
-  setBig('mRtt', rtt === null ? '—' : `${Math.round(rtt)}<small>ms</small>`, rtt > 800 ? 'warn' : '');
-  $('miniRtt').innerHTML = rtt === null ? '—<em>rtt</em>' : `${Math.round(rtt)}<em>ms rtt</em>`;
-
-  drawWaterfall();
-  drawSpark();
-  drawLog();
-}
-
-function setBig(id, html, kind = '') {
-  const el = $(id);
-  el.innerHTML = html;
-  el.className = 'v mono ' + kind;
-}
-
-function drawWaterfall() {
-  const s = state.samples[state.samples.length - 1];
-  if (!s) return;
-  const t = s.timing;
-  const stages = {
-    server: t.server ?? 0,
-    download: t.download ?? 0,
-    compute: t.compute ?? 0,
-    transport: state.clientStages.transport ?? 0,
-    render: state.clientStages.render ?? 0,
-  };
-  const total = Object.values(stages).reduce((a, b) => a + b, 0) || 1;
-  for (const i of $('wf').children) {
-    i.style.width = `${(100 * stages[i.dataset.stage] / total).toFixed(1)}%`;
-  }
-  $('wfTotal').textContent = `${Math.round(total)} ms`;
-  $('wfKey').innerHTML = Object.entries(stages).map(([k, v]) =>
-    `<span><b style="background:var(--${k === 'server' ? 'net' : k === 'download' ? 'net' : k === 'compute' ? 'compute' : 'render'});${k === 'download' || k === 'transport' ? 'opacity:.55' : ''}"></b>${k}${k === 'transport' ? '~' : ''} ${Math.round(v)}</span>`).join('');
-}
-
-function drawSpark() {
-  const svg = $('spark');
-  const vals = state.samples.filter(s => s.ok && s.timing.roundTrip !== null).map(s => s.timing.roundTrip);
-  if (vals.length < 2) {
-    svg.innerHTML = `<text x="150" y="30" text-anchor="middle" fill="var(--fg-faint)"
-      font-family="IBM Plex Mono, monospace" font-size="10">collecting — ${vals.length} of 2 calls</text>`;
-    return;
-  }
-  const W = 300, H = 54;
-  const mn = Math.min(...vals), mx = Math.max(...vals), range = Math.max(mx - mn, 1);
-  const sorted = [...vals].sort((a, b) => a - b);
-  const p50 = sorted[Math.floor(sorted.length * 0.5)];
-  const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? mx;
-  const X = (i) => (i / (vals.length - 1)) * W;
-  const Y = (v) => H - 4 - ((v - mn) / range) * (H - 11);
-  const line = vals.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
-  svg.innerHTML =
-    `<path d="${line} L${W} ${H} L0 ${H} Z" fill="var(--accent)" fill-opacity=".10"/>` +
-    `<line x1="0" y1="${Y(p50).toFixed(1)}" x2="${W}" y2="${Y(p50).toFixed(1)}" stroke="var(--fg-faint)" stroke-width="1" stroke-dasharray="2 3"/>` +
-    `<line x1="0" y1="${Y(p95).toFixed(1)}" x2="${W}" y2="${Y(p95).toFixed(1)}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="2 3"/>` +
-    `<path d="${line}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/>` +
-    `<circle cx="${X(vals.length - 1).toFixed(1)}" cy="${Y(vals[vals.length - 1]).toFixed(1)}" r="2.6" fill="var(--accent)"/>`;
-
-  const q = (p) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
-  $('p50').textContent = Math.round(q(0.5));
-  $('p90').textContent = Math.round(q(0.9));
-  $('p99').textContent = Math.round(q(0.99));
-  $('pmx').textContent = Math.round(sorted[sorted.length - 1]);
-  const ok = state.samples.filter(s => s.ok).length;
-  $('okRate').textContent = `${Math.round(100 * ok / state.samples.length)}% ok`;
-}
-
-function drawLog() {
-  $('logBody').innerHTML = state.log.map(s => {
-    const t = new Date(s.at).toLocaleTimeString('en-IN', { hour12: false });
-    return `<tr><td>${t}</td><td>${s.instrument}</td>`
-      + `<td class="${s.ok ? 'ok' : 'bad'}">${s.ok ? (s.httpStatus ?? 200) : (s.errorCode ?? 'ERR')}</td>`
-      + `<td>${s.timing.roundTrip === null ? '—' : Math.round(s.timing.roundTrip)}</td>`
-      + `<td>${(s.bytes / 1024).toFixed(0)}</td><td>${s.strikes || '—'}</td></tr>`;
-  }).join('');
+  document.dispatchEvent(new CustomEvent('telemetry', { detail: s }));
 }
 
 /* ------------------------------------------------------------- live ticks */
 
+/* AGE, NEXT and the countdown ring moved to telemetry.js with the rail they are drawn into.
+   What is left here is the clock and the one thing that is grid business rather than telemetry:
+   fading the chain when the data on it goes stale. */
 setInterval(() => {
   const now = new Date();
   $('clock').textContent = now.toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }) + ' IST';
-
   if (!state.lastReceivedAt) return;
   const age = (Date.now() - state.lastReceivedAt) / 1000;
-  const kind = age > 15 ? 'crit' : age > 6 ? 'warn' : '';
-  setBig('mAge', `${age.toFixed(1)}<small>s</small>`, kind);
-  $('miniAge').innerHTML = `${age.toFixed(1)}<em>s age</em>`;
-  $('miniAge').className = kind;
   $('gridScroll').style.opacity = age > 6 ? '.85' : '1';
-
-  const next = Math.max(0, state.cadenceMs - (Date.now() - state.lastReceivedAt)) / 1000;
-  setBig('mNext', `${next.toFixed(1)}<small>s</small>`);
-  const C = 56.5;
-  $('ringArc').setAttribute('stroke-dashoffset', (C * (1 - next / (state.cadenceMs / 1000))).toFixed(1));
 }, 250);
 
 /* --------------------------------------------------------------- controls */
@@ -654,15 +581,8 @@ $('themeBtn').addEventListener('click', () => {
   if (state.snapshot) placeSpotPill(state.snapshot);
 });
 
-const setPanel = (open) => {
-  document.body.classList.toggle('nopanel', !open);
-  localStorage.setItem('panel', open ? '1' : '0');
-  if (state.snapshot) requestAnimationFrame(() => placeSpotPill(state.snapshot));
-};
-setPanel(localStorage.getItem('panel') !== null
-  ? localStorage.getItem('panel') === '1'
-  : window.innerWidth >= 1780);
-$('panelBtn').addEventListener('click', () => setPanel(document.body.classList.contains('nopanel')));
+/* The 380px right dock is gone (P10b row 12). telemetry.js owns #panelBtn and the drawer; `L`
+   still reaches it the way `P` and `G` reach their buttons. */
 
 document.addEventListener('keydown', (e) => {
   if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) {
@@ -677,7 +597,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '/') { e.preventDefault(); $('search').focus(); }
   if (e.key.toLowerCase() === 'p') $('breachBtn').click();
   if (e.key.toLowerCase() === 'g') $('greeksBtn').click();   // spec row 19
-  if (e.key.toLowerCase() === 'l') setPanel(document.body.classList.contains('nopanel'));
+  if (e.key.toLowerCase() === 'l') $('panelBtn').click();
   if (e.key.toLowerCase() === 't') $('themeBtn').click();
   if (e.key.toLowerCase() === 'e') $('expiry').focus();
   if (e.key.toLowerCase() === 'c') setChart(document.body.classList.contains('nochart'));
