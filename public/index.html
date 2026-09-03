@@ -50,6 +50,9 @@
   <span class="grow"></span>
   <span class="statechip" id="stateChip" hidden></span>
   <span class="statechip flat" id="peakChip" hidden></span>
+  <span class="statechip flat" id="filterChip" hidden></span>
+  <button class="tog" id="greeksBtn" type="button" aria-pressed="false"
+          title="Show the eight greek columns (G)">Greeks</button>
   <button class="tog" id="breachBtn" type="button" aria-pressed="false"
           title="Show only strikes whose OI is above yesterday's peak (P)">Breached</button>
   <button class="tog" id="scanBtn" type="button"
@@ -65,7 +68,30 @@
   <button class="icon" id="panelBtn" type="button" title="Toggle latency panel (L)" aria-label="Toggle latency panel">⇥</button>
 </section>
 
-<section class="chart" id="chartWrap">
+<!-- P8's scanner overlay. position:fixed, above the shell, untouched by P10 — spec row 17. It is
+     lifted out of the pane column only so that "above the shell" is true of the DOM as well. -->
+<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+  <div class="scan-box">
+    <header class="scan-h">
+      <h2 id="scanTitle">F&amp;O SCANNER</h2>
+      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
+      <span class="statechip flat" id="scanMode" hidden></span>
+      <span class="grow"></span>
+      <span class="scan-meta mono" id="scanMeta"></span>
+      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
+      <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
+      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
+    </header>
+    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
+    <div class="scan-body" id="scanBody"></div>
+  </div>
+</section>
+
+<!-- P10a terminal shell — the panes stacked in one column with 1px seams and no gap, two
+     splitters, and (from P10b) the status rail pinned beneath them. Spec rows 2 and 5. -->
+<div class="shell" id="shell">
+
+<section class="chart pane" id="chartWrap">
   <div class="chart-h">
     <button class="tog opt" id="candleBack" type="button"
             title="Back to the underlying chart (Esc)">&larr; underlying</button>
@@ -116,27 +142,14 @@
     <div class="chart-surface opt" id="candleSurface"></div>
     <div class="candletip mono" id="candleTip" hidden></div>
   </div>
-  <div class="chart-grip" id="chartGrip" title="Drag to resize"></div>
+  <!-- Splitter #1 — spec row 3. The P5 grip generalised: same element and cursor, now focusable
+       and keyboard-driven. panes.js owns the drag. -->
+  <div class="psplit" id="chartGrip" role="separator" tabindex="0" aria-orientation="horizontal"
+       aria-label="Resize the chart pane" aria-controls="chartBody"
+       title="Drag to resize · double-click to reset · Arrow keys when focused"></div>
 </section>
 
-<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
-  <div class="scan-box">
-    <header class="scan-h">
-      <h2 id="scanTitle">F&amp;O SCANNER</h2>
-      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
-      <span class="statechip flat" id="scanMode" hidden></span>
-      <span class="grow"></span>
-      <span class="scan-meta mono" id="scanMeta"></span>
-      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
-      <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
-      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
-    </header>
-    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
-    <div class="scan-body" id="scanBody"></div>
-  </div>
-</section>
-
-<main class="work" id="work">
+<main class="work pane" id="work">
 
   <section class="gridwrap" aria-label="Option chain">
     <div class="gridscroll" id="gridScroll">
@@ -148,13 +161,15 @@
             <th class="spine" rowspan="2">STRIKE</th>
             <th class="side pe" colspan="12">PUTS · PE</th>
           </tr>
+          <!-- `gk` marks the eight greek columns. Off by default (spec row 7); app.js keeps the
+               two side colspans and the <colgroup> in step with the toggle. -->
           <tr class="cols">
-            <th>Vega</th><th>Theta</th><th>Gamma</th><th>Delta</th><th>OI</th>
+            <th class="gk">Vega</th><th class="gk">Theta</th><th class="gk">Gamma</th><th class="gk">Delta</th><th>OI</th>
             <th title="Live OI as a percentage of yesterday's peak OI">Pk %</th><th>OI Chg</th>
             <th>Volume</th><th>Vol Chg%</th><th>IV</th><th>LTP Chg</th><th class="ltp">LTP</th>
             <th class="ltp">LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg%</th><th>Volume</th>
             <th>OI Chg</th><th title="Live OI as a percentage of yesterday's peak OI">Pk %</th>
-            <th>OI</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th>
+            <th>OI</th><th class="gk">Delta</th><th class="gk">Gamma</th><th class="gk">Theta</th><th class="gk">Vega</th>
           </tr>
         </thead>
         <tbody id="ocBody"></tbody>
@@ -224,8 +239,13 @@
   </aside>
 </main>
 
+</div><!-- /.shell -->
+
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
 <script type="module" src="/candles.js"></script>
+<!-- last: panes.js dispatches `greeks` on load, and app.js has to have registered its listener
+     by then. Module scripts run in document order, so being last is the whole guarantee. -->
+<script type="module" src="/panes.js"></script>
 </body>
 </html>

@@ -212,19 +212,40 @@ const CELL = {
   pe: { ltp: 13, vol: 17, oi: 20, pk: 19 },
 };
 
+/* Which column set the <colgroup> was last built for, so it is rebuilt on a `G` toggle and on
+   nothing else. `null` until the first build. */
+let cgGreeks = null;
+
 function buildColgroup() {
-  const cg = $('cg');
-  if (cg.children.length) return;
-  const widths = [...CE_COLS, SPINE, ...[...CE_COLS].reverse()];
-  cg.innerHTML = widths.map(w => `<col style="width:${w}px">`).join('');
+  const on = !document.body.classList.contains('nogreeks');
+  if (cgGreeks === on) return;
+  cgGreeks = on;
+
+  // Spec row 7: greeks off drops the first four of each side — 696 - 176 = 520px per side,
+  // 1132px in total. The <colgroup> has to match the number of columns the CSS table actually
+  // generates, or col[0]'s 40px would land on OI instead of on Vega.
+  const ce = on ? CE_COLS : CE_COLS.slice(4);
+  const widths = [...ce, SPINE, ...[...ce].reverse()];
+  $('cg').innerHTML = widths.map(w => `<col style="width:${w}px">`).join('');
+  for (const th of document.querySelectorAll('thead th.side')) th.colSpan = ce.length;
 }
+
+/* panes.js owns the toggle; this side owns the table. One event, one direction. */
+document.addEventListener('greeks', () => {
+  buildColgroup();
+  if (state.snapshot) requestAnimationFrame(() => placeSpotPill(state.snapshot));
+});
 
 function skeleton() {
   buildColgroup();
   $('expState').hidden = true;
   $('gridScroll').style.display = '';
   $('spotPill').hidden = true;
-  const cells = '<td><span></span></td>'.repeat(COLS);
+  // The skeleton has to carry `gk` on the same eight cells the real rows do. Without it these
+  // rows generate 25 columns against a 17-<col> colgroup with greeks off, and the shimmer lands
+  // on different column boundaries than the header above it and the grid that replaces it.
+  const cells = Array.from({ length: COLS },
+    (_, i) => `<td${i < 4 || i >= COLS - 4 ? ' class="gk"' : ''}><span></span></td>`).join('');
   $('ocBody').innerHTML = `<tr class="skel">${cells}</tr>`.repeat(15);
 }
 
@@ -302,6 +323,7 @@ function renderGrid(s) {
   }
 
   const q = state.filter.trim();
+  let shown = 0;
   const html = rows.map((r, i) => {
     const itmCe = r.strike < s.spot ? 'itm' : '';
     const itmPe = r.strike > s.spot ? 'itm' : '';
@@ -315,15 +337,16 @@ function renderGrid(s) {
 
     const hidden = (q && !String(r.strike).includes(q))
       || (state.breachOnly && !pkC.breach && !pkP.breach);
+    if (!hidden) shown++;
 
     const barCe = maxCe ? `<i class="bar" style="width:${(100 * (c.oi ?? 0) / maxCe).toFixed(1)}%"></i>` : '';
     const barPe = maxPe ? `<i class="bar" style="width:${(100 * (p.oi ?? 0) / maxPe).toFixed(1)}%"></i>` : '';
 
     return `<tr class="${isAtm ? 'atm ' : ''}${spotline ? 'spotline ' : ''}${hidden ? 'hidden' : ''}" data-strike="${r.strike}">`
-      + cell(fx(c.vega, 2), itmCe)
-      + cell(fx(c.theta, 2), itmCe)
-      + cell(fx(c.gamma, 5), itmCe)
-      + cell(fx(c.delta, 2), itmCe)
+      + cell(fx(c.vega, 2), `gk ${itmCe}`)
+      + cell(fx(c.theta, 2), `gk ${itmCe}`)
+      + cell(fx(c.gamma, 5), `gk ${itmCe}`)
+      + cell(fx(c.delta, 2), `gk ${itmCe}`)
       + cell(`${barCe}${pkMark(pk.ce?.peak, maxCe, 'ce')}<span class="v">${abbr(c.oi)}</span>`, `oi r ${itmCe}`)
       + pkTd(pkC, itmCe)
       + cell(signedPair(c.oiChg, c.oiChgPct, 'abbr'), itmCe)
@@ -341,14 +364,21 @@ function renderGrid(s) {
       + cell(signedPair(p.oiChg, p.oiChgPct, 'abbr'), itmPe)
       + pkTd(pkP, itmPe)
       + cell(`${barPe}${pkMark(pk.pe?.peak, maxPe, 'pe')}<span class="v">${abbr(p.oi)}</span>`, `oi ${itmPe}`)
-      + cell(fx(p.delta, 2), itmPe)
-      + cell(fx(p.gamma, 5), itmPe)
-      + cell(fx(p.theta, 2), itmPe)
-      + cell(fx(p.vega, 2), itmPe)
+      + cell(fx(p.delta, 2), `gk ${itmPe}`)
+      + cell(fx(p.gamma, 5), `gk ${itmPe}`)
+      + cell(fx(p.theta, 2), `gk ${itmPe}`)
+      + cell(fx(p.vega, 2), `gk ${itmPe}`)
       + '</tr>';
   }).join('');
 
   $('ocBody').innerHTML = html;
+
+  /* Spec row 8. The default view hides zero rows — `hidden` is only ever set by the strike search
+     or by `Breached`. When one of them does hide something, say so, so a short list reads as a
+     filter rather than as missing data. */
+  const fc = $('filterChip');
+  fc.hidden = shown === rows.length;
+  fc.textContent = `showing ${shown} of ${rows.length} strikes`;
 
   const body = $('ocBody');
   state.rowByStrike.clear();
@@ -613,7 +643,9 @@ const applyTheme = (t) => {
   if (t) document.documentElement.setAttribute('data-theme', t);
   else document.documentElement.removeAttribute('data-theme');
 };
-applyTheme(localStorage.getItem('theme'));
+/* Spec row 11 — dark is the default when nothing is stored, rather than the OS preference. `T`
+   still toggles both ways and an existing stored choice still wins. */
+applyTheme(localStorage.getItem('theme') || 'dark');
 $('themeBtn').addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-theme');
   const next = cur === 'dark' ? 'light' : 'dark';
@@ -644,6 +676,7 @@ document.addEventListener('keydown', (e) => {
   if (n >= 1 && n <= state.instruments.length) { select(state.instruments[n - 1].id); return; }
   if (e.key === '/') { e.preventDefault(); $('search').focus(); }
   if (e.key.toLowerCase() === 'p') $('breachBtn').click();
+  if (e.key.toLowerCase() === 'g') $('greeksBtn').click();   // spec row 19
   if (e.key.toLowerCase() === 'l') setPanel(document.body.classList.contains('nopanel'));
   if (e.key.toLowerCase() === 't') $('themeBtn').click();
   if (e.key.toLowerCase() === 'e') $('expiry').focus();
@@ -938,30 +971,13 @@ function setChart(open) {
 setChart(localStorage.getItem('chart') !== '0');
 $('chartBtn').addEventListener('click', () => setChart(document.body.classList.contains('nochart')));
 
-/* drag the grip to resize; the height persists */
-{
-  const saved = localStorage.getItem('chartH');
-  if (saved) $('chartBody').style.height = `${saved}px`;
-  let dragging = false, startY = 0, startH = 0;
-  const grip = $('chartGrip');
-  grip.addEventListener('pointerdown', (e) => {
-    dragging = true;
-    startY = e.clientY;
-    startH = $('chartBody').getBoundingClientRect().height;
-    grip.setPointerCapture(e.pointerId);
-  });
-  grip.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const h = Math.max(70, Math.min(520, startH + (e.clientY - startY)));
-    $('chartBody').style.height = `${h}px`;
-    state.chartDirty = true;
-  });
-  grip.addEventListener('pointerup', (e) => {
-    dragging = false;
-    grip.releasePointerCapture(e.pointerId);
-    localStorage.setItem('chartH', String(Math.round($('chartBody').getBoundingClientRect().height)));
-  });
-}
+/* The grip's drag moved to panes.js as splitter #1 (docs/spec/terminal-redesign-v1.md rows 3, 4),
+   which added the 60%-of-shell ceiling, the 200px chain minimum, the keyboard and the double-click
+   reset. This side only has to repaint when it reports a resize. */
+document.addEventListener('pane-resize', () => {
+  state.chartDirty = true;
+  if (state.snapshot) placeSpotPill(state.snapshot);
+});
 
 window.addEventListener('resize', () => { state.chartDirty = true; });
 

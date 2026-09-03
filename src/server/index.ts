@@ -67,6 +67,7 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/chart-tools.js': { file: 'chart-tools.js', type: 'text/javascript; charset=utf-8' },
   '/scan.js': { file: 'scan.js', type: 'text/javascript; charset=utf-8' },
   '/candles.js': { file: 'candles.js', type: 'text/javascript; charset=utf-8' },
+  '/panes.js': { file: 'panes.js', type: 'text/javascript; charset=utf-8' },
 };
 
 for (const [route, { file, type }] of Object.entries(STATIC)) {
