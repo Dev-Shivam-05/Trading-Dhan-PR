@@ -293,7 +293,12 @@ export class Scanner {
 
     /* ---- filter 2: |LTP change| >= 2% (row 5) ---- */
 
-    const passedChg = ranked.filter(s => Math.abs(s.chgPct) >= CHG_MIN);
+    let rejectedChg = 0;
+    const passedChg = ranked.filter(s => {
+      const pass = Math.abs(s.chgPct) >= CHG_MIN;
+      if (!pass) rejectedChg++;
+      return pass;
+    });
 
     /* ---- filter 3: |OI change| >= 7% against the previous session's close (rows 7, 8) ---- */
 
@@ -304,6 +309,7 @@ export class Scanner {
 
     const survivors: ScanRow[] = [];
     let skippedBaseline = 0;
+    let rejectedOi = 0;
 
     for (const s of passedChg) {
       let base: number | undefined;
@@ -329,7 +335,7 @@ export class Scanner {
       }
 
       const oiPct = ((s.oi - base) / base) * 100;
-      if (Math.abs(oiPct) < OI_MIN) continue;
+      if (Math.abs(oiPct) < OI_MIN) { rejectedOi++; continue; }
 
       survivors.push({
         symbol: s.symbol, name: s.name, ltp: s.ltp, prevClose: s.prevClose, chgPct: s.chgPct,
@@ -346,10 +352,16 @@ export class Scanner {
     const long = survivors.filter(r => r.chgPct > 0).sort(byAbsChg);
     const short = survivors.filter(r => r.chgPct < 0).sort(byAbsChg);
 
+    /*
+     * Counted, not subtracted. Written as differences between the same totals `reconciles` then
+     * compares, the identity collapses to `universe.length` algebraically and the check reports
+     * true no matter what the loops did - which is the one thing row 14 exists to catch. Each
+     * term below is now incremented at the point a stock is actually rejected.
+     */
     const rejected =
-      (scored.length - ranked.length) +                        // failed filter 1
-      (ranked.length - passedChg.length) +                     // failed filter 2
-      (passedChg.length - skippedBaseline - survivors.length); // failed filter 3
+      (scored.length - ranked.length) +   // failed filter 1: outside the top 50 of either side
+      rejectedChg +                       // failed filter 2: |LTP change| < 2%
+      rejectedOi;                         // failed filter 3: |OI change| < 7%
 
     this.stage = 'done';
     const result: ScanResult = {

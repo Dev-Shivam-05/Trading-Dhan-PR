@@ -188,13 +188,36 @@ export class FeedClient extends EventEmitter {
 
   /** Replace the whole subscription set. Called when the user switches instrument or expiry. */
   setSubscriptions(next: Subscription[]) {
+    const before = new Set(this.subs.keys());
     this.subs.clear();
     for (const s of next.slice(0, MAX_PER_CONNECTION)) this.subs.set(this.key(s), s);
+    const dropped = [...before].filter(k => !this.subs.has(k));
 
     if (isReplay()) { this.startReplay(); return; }
     if (!this.creds) { this.setStatus({ state: 'error', code: 'NO_CREDS', message: 'no credentials', retryInMs: null }); return; }
 
     this.wanted = true;
+
+    /*
+     * `this.subs.clear()` only clears OUR map. Dhan's side keeps every instrument ever
+     * subscribed on this socket, and REQ has no unsubscribe code - the request codes for one are
+     * not in docs/spec/dhan-api-contract.md, and inventing them is exactly the kind of guess this
+     * project does not make. So when the wanted set SHRINKS, drop the socket instead: a fresh
+     * connection starts empty and is re-populated from `this.subs` on open.
+     *
+     * Without this, every chip or expiry switch adds ~83 instruments to Dhan's tally and removes
+     * none. At 83 per switch the documented 5,000-per-connection cap is reached after 61
+     * switches, and the failure is silent and backwards: the OLD contracts keep streaming while
+     * the NEW ones are refused, so the grid the user is looking at goes quiet while /api/feed
+     * still reports a healthy live socket.
+     */
+    if (dropped.length && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try { this.ws.close(); } catch { /* already gone */ }
+      this.ws = null;
+      this.connect();
+      return;
+    }
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN) this.sendSubscriptions();
     else this.connect();
   }

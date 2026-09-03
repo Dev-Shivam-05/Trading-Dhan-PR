@@ -233,7 +233,7 @@ export class PeakOiStore {
   private readonly failed = new Map<string, string>();
   /** `${today}|${instrumentId}` -> previous trading session, or null once proven unavailable. */
   private readonly calendar = new Map<string, string | null>();
-  private readonly calendarPending = new Set<string>();
+  private readonly calendarPending = new Map<string, Promise<string | null>>();
   /** `${instrumentId}|${expiry}` -> contracts. optionContracts() scans 185k master rows. */
   private readonly contracts = new Map<string, Map<string, OptionContract>>();
 
@@ -309,8 +309,25 @@ export class PeakOiStore {
   private async previousSession(inst: ResolvedInstrument, expiry: string): Promise<string | null> {
     const key = `${istToday()}|${inst.id}`;
     if (this.calendar.has(key)) return this.calendar.get(key)!;
-    if (this.calendarPending.has(key)) return null;
-    this.calendarPending.add(key);
+    /*
+     * Share the in-flight probe rather than returning null to whoever arrives second. The key
+     * deliberately has no expiry in it (the exchange calendar is the same for every contract),
+     * so a second (instrument, expiry) opened while the first probe is still running used to get
+     * `null` back - and `track()` returns early on null, which on a closed market means the
+     * poller never calls it again and that expiry's whole Pk % column stays empty until a
+     * restart. The probe takes one round trip live; awaiting it is the correct wait.
+     */
+    const pending = this.calendarPending.get(key);
+    if (pending) return pending;
+
+    const probe = this.probeSession(inst, expiry, key);
+    this.calendarPending.set(key, probe);
+    return probe;
+  }
+
+  private async probeSession(
+    inst: ResolvedInstrument, expiry: string, key: string,
+  ): Promise<string | null> {
 
     const today = istToday();
     const from = isoDaysAgo(WINDOW_DAYS);
@@ -338,7 +355,13 @@ export class PeakOiStore {
     }
 
     const prev = dates.filter(d => d < today).pop() ?? null;
-    this.calendar.set(key, prev);
+    /*
+     * Only a call that actually came back gets remembered. `datesIn(null)` is [] for a 806 or a
+     * timeout exactly as it is for a genuinely empty window, and caching that null makes the UI
+     * assert "no earlier trading day in the last 7 days of candles" - a claim about the exchange
+     * calendar produced by a network error, held for the rest of the day.
+     */
+    if (dates.length) this.calendar.set(key, prev);
     this.calendarPending.delete(key);
     return prev;
   }

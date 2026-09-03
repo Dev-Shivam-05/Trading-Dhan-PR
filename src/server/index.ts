@@ -109,7 +109,14 @@ app.get('/api/feed', async () => ({
   status: feed.status,
   packets: feed.packetsSeen,
   ticks: feed.ticksEmitted,
-  subscriptions: [...feedWants.values()].reduce((a, l) => a + l.length, 0),
+  // The DEDUPED union, which is what the socket is actually subscribed to. Summing the
+  // per-connection lists counted the same contract once per open tab: two tabs on one NIFTY
+  // chain reported 166 and three reported 249, while the real set never left 83. P5's "zero
+  // orphans" criterion is measured through this field, so it has to be the true number.
+  subscriptions: new Set(
+    [...feedWants.values()].flatMap(l => l.map(s => `${s.seg}:${s.securityId}`)),
+  ).size,
+  connections: feedWants.size,
 }));
 
 app.get('/api/telemetry', async () => ({
@@ -186,6 +193,17 @@ app.get('/api/candles', async (req, reply) => {
 
   const expiry = q.expiry || inst.nearestExpiry;
   if (!expiry) return reply.code(400).send({ error: `${inst.id} has no expiry` });
+  // Validate at the boundary. Unvalidated, every distinct value creates a ChainPoller in
+  // PollerHub that is never removed, plus a permanent PeakOiStore.onProgress listener - measured
+  // at ~0.26 MB retained per request, linear, and still held after every connection closed
+  // (144 -> 161 MB over 60 requests, -> 191 MB over 180). It is reachable with one query
+  // parameter and no credentials. Live it would also send a junk `Expiry` straight to Dhan.
+  if (!inst.expiries.includes(expiry)) {
+    return reply.code(400).send({
+      error: `unknown expiry ${expiry} for ${inst.id}`,
+      expiries: inst.expiries,
+    });
+  }
 
   const strike = Number(q.strike);
   if (!Number.isFinite(strike) || strike <= 0) {
@@ -213,6 +231,17 @@ app.get('/api/stream', (req, reply) => {
 
   const expiry = q.expiry || inst.nearestExpiry;
   if (!expiry) return reply.code(400).send({ error: `${inst.id} has no expiry` });
+  // Validate at the boundary. Unvalidated, every distinct value creates a ChainPoller in
+  // PollerHub that is never removed, plus a permanent PeakOiStore.onProgress listener - measured
+  // at ~0.26 MB retained per request, linear, and still held after every connection closed
+  // (144 -> 161 MB over 60 requests, -> 191 MB over 180). It is reachable with one query
+  // parameter and no credentials. Live it would also send a junk `Expiry` straight to Dhan.
+  if (!inst.expiries.includes(expiry)) {
+    return reply.code(400).send({
+      error: `unknown expiry ${expiry} for ${inst.id}`,
+      expiries: inst.expiries,
+    });
+  }
 
   reply.raw.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',

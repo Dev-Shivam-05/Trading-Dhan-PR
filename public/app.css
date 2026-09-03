@@ -545,6 +545,10 @@ body.optmode .tickonly{display:none!important}
 a.tog{text-decoration:none;display:inline-flex;align-items:center}
 a.tog.off{opacity:.45;pointer-events:none}
 
+/* The P8 trap once more: display:flex outranks the UA's [hidden]{display:none}, so scan.js's
+   two `hidden = true` sites left the PREVIOUS scan's funnel counts on screen through a Rescan
+   and through the error state — last run's numbers presented as this run's. */
+.scan-funnel[hidden]{display:none}
 .scan-funnel{
   flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;

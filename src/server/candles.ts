@@ -126,6 +126,24 @@ function toMs(ts: number): number {
 }
 
 /**
+ * Names the arrays a candle payload is missing, or null when it is well formed. Only meaningful
+ * once `timestamp` is non-empty: an empty payload is a legitimately illiquid contract.
+ */
+export function shapeError(c: Candles | null | undefined): string | null {
+  const ts = c?.timestamp;
+  if (!Array.isArray(ts) || !ts.length) return null;
+  const need: [string, unknown][] = [
+    ['open', c?.open], ['high', c?.high], ['low', c?.low], ['close', c?.close],
+    ['volume', c?.volume], ['open_interest', c?.open_interest],
+  ];
+  const missing = need.filter(([, v]) => !Array.isArray(v) || (v as unknown[]).length < ts.length)
+    .map(([k]) => k);
+  return missing.length
+    ? `intraday response has ${ts.length} timestamps but is missing or short on: ${missing.join(', ')}`
+    : null;
+}
+
+/**
  * The whole colour rule, in one place, over the WHOLE window - the first candle of today has to
  * see yesterday's last 20, which is the only reason the window is 5 days wide (row 12).
  *
@@ -154,15 +172,23 @@ export function colourCandles(
     const median20 = i >= LOOKBACK
       ? medianOf(vol.slice(i - LOOKBACK, i).map(v => num(v)))
       : null;
+    // Rows 6 and 7 are MULTIPLICATIONS - `vol >= 3.0 * median20`, `|dOI| >= 0.05 * oi[i-1]` -
+    // and they have to be evaluated that way. Written as a division with a `> 0` guard they
+    // invert on a zero baseline and silently drop the two clearest cases the phase exists for:
+    // an illiquid strike with median20 = 0 that suddenly trades 240,000 lots, and a strike
+    // opening fresh with oi[i-1] = 0 that builds 400,000 of OI. Both must fire; both did not.
+    // `volRatio` and `dOiPct` stay divisions because they are only ever DISPLAYED (the tooltip
+    // prints them), and a ratio to a zero base is genuinely undefined - hence null, not 0.
+    const volPass = median20 !== null && volume >= VOL_MULT * median20;
     const volRatio = median20 !== null && median20 > 0 ? volume / median20 : null;
-    const volPass = volRatio !== null && volRatio >= VOL_MULT;
 
     const prevOi = i > 0 ? num(oi[i - 1]) : null;
     const dOi = prevOi === null ? null : openInt - prevOi;
     const dOiPct = dOi !== null && prevOi ? (dOi / prevOi) * 100 : null;
     // Row 7. Both halves. The lot floor is what stops a strike holding 200 units from firing
-    // on noise that a percentage alone would wave through.
-    const oiPass = dOi !== null && prevOi !== null && prevOi > 0
+    // on noise that a percentage alone would wave through - and it is also what keeps the
+    // prevOi = 0 case honest, since every move clears a 0% threshold.
+    const oiPass = dOi !== null && prevOi !== null
       && Math.abs(dOi) >= OI_PCT * prevOi
       && Math.abs(dOi) >= opts.oiFloor;
 
@@ -241,16 +267,21 @@ export class CandleService {
     const to = todayIso();
     const from = isoDaysAgo(WINDOW_DAYS);
     const intervalMs = Number(interval) * 60_000;
-    // Row 7's floor. A null lot means the master carried none; 5 contracts is then the weakest
-    // floor that still kills a 200-unit strike. The spec's risk row says one live call settles
-    // whether `open_interest` is quoted in units or in contracts at all.
-    const oiFloor = OI_LOT_MULT * (inst.lot ?? 1);
+    // Row 7's floor, taken from the CONTRACT being charted rather than from the instrument.
+    // `ResolvedInstrument.lot` is read off the nearest expiry only, but this endpoint accepts any
+    // expiry - so when NSE revises a lot size between expiries (75 -> 65 on NIFTY, say) the far
+    // month would be judged against the near month's floor and a candle at dOI +350 that should
+    // fire would be silently left plain. A null lot means the master carried none; 5 contracts is
+    // then the weakest floor that still kills a 200-unit strike. The spec's risk row says one
+    // live call settles whether `open_interest` is quoted in units or in contracts at all.
+    const lot = contract?.lotSize ?? inst.lot;
+    const oiFloor = OI_LOT_MULT * (lot ?? 1);
 
     const base: CandleResult = {
       mode: isReplay() ? 'replay' : 'live',
       instrument: inst.id, label: inst.label, expiry, strike, side,
       securityId: contract?.securityId ?? null, seg: contract?.seg ?? null,
-      lot: inst.lot, oiFloor, interval, sessionDate: null, from, to,
+      lot, oiFloor, interval, sessionDate: null, from, to,
       candles: [], context: 0, counts: { blue: 0, yellow: 0 },
       note: null, error: null, elapsedMs: 0,
     };
@@ -285,6 +316,17 @@ export class CandleService {
       if (res.why) return { ...base, error: res.why, elapsedMs: Date.now() - started };
       raw = res.candles;
     }
+
+    /*
+     * A response that HAS timestamps but is missing one of the parallel arrays is a response-shape
+     * problem, not an illiquid contract - and `colourCandles` returns [] for both, because it
+     * takes the min length across all seven arrays. Reported as `illiquid` it reads
+     * "no trades in this contract today" on a liquid ATM strike, with no error anywhere. The
+     * intraday response shape is flagged UNVERIFIED in option-candles-v1.md's risk list, so this
+     * is the exact failure the first live call is most likely to produce.
+     */
+    const shape = shapeError(raw);
+    if (shape) return { ...base, error: shape, elapsedMs: Date.now() - started };
 
     const nowMs = isReplay() ? nowForReplay(raw) : Date.now();
     const all = colourCandles(raw, { intervalMs, oiFloor, nowMs });

@@ -279,5 +279,8 @@ setDrawer(localStorage.getItem('panel') === '1');      // row 14 — closed by d
 window.__telemetry = {
   open: () => !$('drawer').hidden,
   samples: () => samples.length,
+  /** The exact round-trip values the panel's percentiles are computed over, so a verification
+   *  script can recompute them independently instead of racing the server's growing ring. */
+  rtts: () => samples.filter(s => s.ok && s.timing.roundTrip !== null).map(s => s.timing.roundTrip),
   logRows: () => log.length,
 };

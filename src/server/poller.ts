@@ -167,6 +167,20 @@ class ChainPoller {
       const prev = this.last;
       if (!prev) return;
       const pv = this.peaks.view(this.instrument, this.expiry, prev.rows.map(r => r.strike));
+
+      /*
+       * `onProgress` is a store-wide signal: every contract that lands for ANY instrument
+       * notifies EVERY poller. Without this guard, one chip's backfill re-emits a full snapshot
+       * on all of them, and every other open tab re-renders its whole grid for peaks that did
+       * not move. Compare before emitting - `view()` is already computed, so this costs one
+       * JSON.stringify of the peaks map and saves a 41-row re-render on each uninvolved tab.
+       */
+      const same = prev.peakSessionDate === pv.sessionDate
+        && prev.peakNote === pv.note
+        && JSON.stringify(prev.peakProgress) === JSON.stringify(pv.progress)
+        && JSON.stringify(prev.peaks) === JSON.stringify(pv.peaks);
+      if (same) return;
+
       this.last = {
         ...prev,
         peakSessionDate: pv.sessionDate, peakNote: pv.note,
@@ -375,9 +389,15 @@ async function underlyingPrevClose(inst: ResolvedInstrument, creds: Credentials 
     { [inst.underlyingSeg]: [inst.underlyingScrip] },
     { creds, key: `ohlc:${inst.id}`, cadenceMs: 1000 });
 
-  const close = call.ok
-    ? call.data?.data?.[inst.underlyingSeg]?.[String(inst.underlyingScrip)]?.ohlc?.close ?? null
-    : null;
+  /*
+   * A FAILED call is not an answer. Caching its null under today's date makes one 10 s timeout at
+   * 09:15 hide the header's spot change and change % for the entire session, even though every
+   * chain poll afterwards succeeds - `prevCloseCache` is module-level and nothing invalidates it,
+   * so only a restart clears it. Leave the key absent and let the next poll retry.
+   */
+  if (!call.ok) return null;
+
+  const close = call.data?.data?.[inst.underlyingSeg]?.[String(inst.underlyingScrip)]?.ohlc?.close ?? null;
   const value = typeof close === 'number' && Number.isFinite(close) && close > 0 ? close : null;
   prevCloseCache.set(id, value);
   return value;

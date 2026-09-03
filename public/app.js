@@ -136,6 +136,13 @@ function select(id, expiry) {
   state.ticks = [];
   state.rowByStrike.clear();
   state.spotIdx = -1;
+  // renderHeader(null) resets uSpot/uChg but these two are only ever written by paintSpot(), so
+  // without this the previous instrument's price and day change sit under the NEW instrument's
+  // label — "NIFTY BANK IDX" beside NIFTY 50's 24,099.50. It self-corrects on the first tick of
+  // the new instrument, which on a closed market never arrives.
+  $('chartPx').textContent = '—';
+  $('chartChg').textContent = '—';
+  $('chartChg').className = 'cchg mono tickonly dim';
   state.chartDirty = true;
   tools.setScope(inst.id, state.expiry);       // drawings never cross an instrument or an expiry
 
@@ -206,10 +213,12 @@ const CE_COLS = [40, 46, 52, 38, 56, 48, 106, 56, 56, 38, 100, 60];
 const SPINE = 92;
 const COLS = CE_COLS.length * 2 + 1;
 
-/* Column indices into a rendered <tr>. 25 cells: 12 CE, the spine at 12, then 12 PE mirrored. */
+/* Column indices into a rendered <tr>. 25 cells: 12 CE, the spine at 12, then 12 PE mirrored.
+   Unaffected by the greeks toggle: `display:none` removes a cell from the CSS table but not from
+   tr.children, so these keep addressing the same <td>s. */
 const CELL = {
-  ce: { ltp: 11, vol: 7, oi: 4, pk: 5 },
-  pe: { ltp: 13, vol: 17, oi: 20, pk: 19 },
+  ce: { ltp: 11, ltpChg: 10, vol: 7, volChg: 8, oi: 4, oiChg: 6, pk: 5 },
+  pe: { ltp: 13, ltpChg: 14, vol: 17, volChg: 16, oi: 20, oiChg: 18, pk: 19 },
 };
 
 /* Which column set the <colgroup> was last built for, so it is rebuilt on a `G` toggle and on
@@ -342,7 +351,24 @@ function renderGrid(s) {
     const barCe = maxCe ? `<i class="bar" style="width:${(100 * (c.oi ?? 0) / maxCe).toFixed(1)}%"></i>` : '';
     const barPe = maxPe ? `<i class="bar" style="width:${(100 * (p.oi ?? 0) / maxPe).toFixed(1)}%"></i>` : '';
 
-    return `<tr class="${isAtm ? 'atm ' : ''}${spotline ? 'spotline ' : ''}${hidden ? 'hidden' : ''}" data-strike="${r.strike}">`
+    /* The three change columns are derived from a baseline the poll does not resend: the
+       previous close, the previous session's OI, and the previous volume. Carry each one on the
+       row so the 10 Hz tick can recompute its column instead of leaving a 3 s-old number beside
+       a moving one — `LTP - LTP Chg` is the previous close and must not drift between frames.
+       Exact for LTP and OI (both differences come from the same poll); volume's base is
+       recovered from its own percentage, which is a float round-trip, not a rounded one. */
+    const bases = (s) => [
+      s.ltp !== null && s.ltpChg !== null ? s.ltp - s.ltpChg : '',
+      s.oi !== null && s.oiChg !== null ? s.oi - s.oiChg : '',
+      s.volume !== null && s.volChgPct !== null && s.volChgPct !== -100
+        ? s.volume / (1 + s.volChgPct / 100) : '',
+    ];
+    const [pcC, poC, pvC] = bases(c);
+    const [pcP, poP, pvP] = bases(p);
+
+    return `<tr class="${isAtm ? 'atm ' : ''}${spotline ? 'spotline ' : ''}${hidden ? 'hidden' : ''}" data-strike="${r.strike}"`
+      + ` data-pcce="${pcC}" data-poce="${poC}" data-pvce="${pvC}"`
+      + ` data-pcpe="${pcP}" data-pope="${poP}" data-pvpe="${pvP}">`
       + cell(fx(c.vega, 2), `gk ${itmCe}`)
       + cell(fx(c.theta, 2), `gk ${itmCe}`)
       + cell(fx(c.gamma, 5), `gk ${itmCe}`)
@@ -589,6 +615,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') e.target.blur();
     return;
   }
+  // Every shortcut below is a bare letter, so a modifier combo must not reach them.
+  // chart-tools.js and scan.js both guard this already; this handler did not, and the result
+  // was that Ctrl+C (copy an LTP out of the chain) collapsed the chart pane and persisted it,
+  // and Ctrl+P toggled the Breached filter while the print dialog snapshotted the page.
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   // drawing tools claim V/D/H/R/B, Esc and Delete first (docs/spec/chart-tools-v1.md row 11)
   if (tools.onKey(e)) { e.preventDefault(); return; }
 
@@ -684,12 +715,18 @@ function updateSpotMarker(price) {
     const prev = body.querySelector('tr.spotline');
     if (prev) prev.classList.remove('spotline');
     const tr = state.rowByStrike.get(rows[idx].strike);
-    if (tr) {
+    // The same guard placeSpotPill() already has. A filtered-out row is display:none, so its
+    // offsetTop/offsetLeft/offsetWidth are all 0 and the pill lands at top:0/left:0 — printing
+    // the live spot price on top of the sticky "CALLS · CE" header. Reproduced: type any strike
+    // that is not the spot row, wait one underlying tick.
+    if (tr && !tr.classList.contains('hidden')) {
       tr.classList.add('spotline');
       const spine = tr.querySelector('td.spine');
       pill.hidden = false;
       pill.style.top = `${tr.offsetTop + tr.offsetHeight}px`;
       pill.style.left = `${spine.offsetLeft + spine.offsetWidth / 2}px`;
+    } else {
+      pill.hidden = true;
     }
   }
   pill.textContent = inr(price);
@@ -731,11 +768,32 @@ function applyCellTick(it) {
       void td.offsetWidth;                       // restart the animation on a repeat move
       td.classList.add(it.p > before ? 'tup' : 'tdn');
     }
+
+    // LTP Chg follows the tick, or `LTP - LTP Chg` stops equalling the previous close. Measured
+    // drifting 0.81 in 2 s on the ATM CE before this.
+    const pc = Number(tr.dataset[`pc${it.k}`]);
+    if (Number.isFinite(pc)) {
+      const chg = it.p - pc;
+      tr.children[idx.ltpChg].innerHTML = signedPair(chg, pc ? (chg / pc) * 100 : null, 2);
+    }
   }
-  if (it.v !== null && it.v !== undefined) tr.children[idx.vol].textContent = abbr(it.v);
+  if (it.v !== null && it.v !== undefined) {
+    tr.children[idx.vol].textContent = abbr(it.v);
+    const pv = Number(tr.dataset[`pv${it.k}`]);
+    if (Number.isFinite(pv) && pv > 0) {
+      const pct = ((it.v - pv) / pv) * 100;
+      tr.children[idx.volChg].innerHTML = `<span class="${cls(pct)}">${pctText(pct)}</span>`;
+    }
+  }
   if (it.o !== null && it.o !== undefined) {
     const span = tr.children[idx.oi].querySelector('.v');
     if (span) span.textContent = abbr(it.o);
+
+    const po = Number(tr.dataset[`po${it.k}`]);
+    if (Number.isFinite(po)) {
+      const d = it.o - po;
+      tr.children[idx.oiChg].innerHTML = signedPair(d, po ? (d / po) * 100 : null, 'abbr');
+    }
 
     // The OI cell moves at 10 Hz while the chain poll is 3 s, so Pk % has to follow the tick
     // or the screen would print 97% beside an OI that has already crossed the peak.

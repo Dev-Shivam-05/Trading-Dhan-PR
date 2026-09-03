@@ -252,7 +252,14 @@ $('scan').addEventListener('mousedown', (e) => { if (e.target === $('scan')) clo
 document.addEventListener('keydown', (e) => {
   if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
   // Esc closes the scanner only while it is open, so the drawing tools keep their Esc otherwise.
-  if (e.key === 'Escape' && state.open) { close(); return; }
+  if (e.key === 'Escape' && state.open) {
+    // Stop here. candles.js has its own Escape handler that leaves option-candle mode, and it is
+    // registered after this one on the same target, so a plain `return` let ONE Esc close the
+    // scanner AND tear down the option chart behind it.
+    e.stopImmediatePropagation();
+    close();
+    return;
+  }
   if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (state.open) close();
     else if (state.enabled) runScan();

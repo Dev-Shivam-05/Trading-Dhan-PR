@@ -235,7 +235,12 @@ export function daysToExpiry(expiry: string, at = new Date()): number {
  */
 let cachedRows: MasterRow[] = [];
 
-export type OptionContract = { strike: number; optionType: 'CE' | 'PE'; securityId: number; seg: Seg };
+/** `lotSize` is per EXPIRY, never a constant - see the nearest-expiry note in resolveRegistry.
+ *  Carried on the contract so a caller charting a far month does not have to fall back to the
+ *  instrument's lot, which is only ever the nearest expiry's. */
+export type OptionContract = {
+  strike: number; optionType: 'CE' | 'PE'; securityId: number; seg: Seg; lotSize: number | null;
+};
 
 /**
  * The master's own instrument type for this chip's option contracts - OPTIDX / OPTSTK / OPTFUT.
@@ -275,7 +280,10 @@ export function optionContracts(instrumentId: string, expiry: string): OptionCon
       r.expiry === expiry &&
       (r.optionType === 'CE' || r.optionType === 'PE') &&
       r.strike !== null && r.securityId > 0)
-    .map(r => ({ strike: r.strike!, optionType: r.optionType as 'CE' | 'PE', securityId: r.securityId, seg }));
+    .map(r => ({
+      strike: r.strike!, optionType: r.optionType as 'CE' | 'PE',
+      securityId: r.securityId, seg, lotSize: r.lotSize ?? null,
+    }));
 }
 
 /* ------------------------------------------------------- F&O stock universe (P8) */
