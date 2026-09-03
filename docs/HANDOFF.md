@@ -1,83 +1,109 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 10 (spec lock, **not** build) — 2026-09-01
+# HANDOFF — Dhan Option Chain Terminal — P10a + P10b + P11 — 2026-09-03
+
+**The board is clear. Every phase on `docs/PHASES.md` is built.**
 
 ## Done
-- **`docs/spec/terminal-redesign-v1.md` exists — 22 rows, and it says `PROPOSED, NOT LOCKED` in
-  its own first line.** The table was emitted for approval and **no `go` came back**, so it was
-  persisted with that status rather than as a locked spec. Nothing was built.
-- **The P10 row is split into P10a and P10b in `docs/PHASES.md`, at 5 code files each.** The old
-  row carried `~12` against the 8-file rule and said in its own text that it splits at spec-lock
-  time. The cut is chosen so **nothing built in P10a is thrown away in P10b**: P10a builds the
-  shell and the chain and leaves the `.lat` right dock working and untouched inside it; P10b
-  deletes the dock and adds the rail and drawer.
-- **The three things `DECISIONS.md` said had to become numbers first now have answers.**
-  "TradingView-like" is **five binary facts** (row 1): a resizable multi-pane shell, zero-gap 1px
-  pane seams, a spine pinned so it cannot scroll out of view, a default column set that fits
-  1440px, and dark by default. The latency panel's new form is a **26px always-on status rail plus
-  a closed-by-default horizontal four-column drawer**, with the 380px right dock deleted (rows
-  12–14). The P2–P6 re-proof is a **named, scripted checklist** (`.cache/p10-verify.js`) covering
-  P2 through P9, not a promise.
-- **Three answers changed because the proposal was written against the real screen, not the
-  requirements.** They are the reason this session was worth a session.
-- **Zero `src/` and zero `public/` files were touched.** Only docs and the new spec.
+
+### P10a — terminal shell + chain (5 files, 41/41)
+- **The spec was locked first.** `docs/spec/terminal-redesign-v1.md` went from `PROPOSED, NOT
+  LOCKED` to **LOCKED** with one `go`. Rows 7 and 11 — the two the table itself flagged as
+  readings rather than measurements — were put up for veto in isolation and both accepted.
+- `public/panes.js` (new, plus its `STATIC` row) owns splitter #1 and the greeks toggle. It
+  imports nothing and nothing imports it; it talks to `app.js` through `greeks` and `pane-resize`
+  CustomEvents only, the same one-directional shape `scan.js` and `candles.js` use.
+- **The strike spine is sticky on both axes** — `left:0` **and** `right:0`. `left:0` alone is inert
+  on this table: the spine sits at x≈696 of 1484 and the overflow at 1440px is 44px, so it would
+  need ~700px of scroll before it engaged. Measured pinned at `scrollLeft` 0, 230 and 460.
+- **Greeks off by default: 17 columns / 1132px**, and `table.oc scrollWidth === clientWidth ===
+  1440`. That is the P2 deviation row's 44px debt, paid. The eight `<td>`s stay in the DOM —
+  `display:none` removes a cell from the CSS table but not from `tr.children` — so `app.js`'s
+  `CELL` index constants needed no branch and the 10 Hz tick path was untouched.
+- Dark is the default theme when nothing is stored; `T` still toggles both ways.
+
+### P10b — the latency data in its new form (5 files, 30/30)
+- **The 380px right dock is deleted.** `public/telemetry.js` (new) owns a 26px always-on status
+  rail and a closed-by-default four-column drawer, with **every element id carried over
+  unchanged**, so this is a move rather than a rewrite — which is what defused the phase's loudest
+  named risk (about 20 ids inside `.lat`, one missing node presenting as the whole page dying).
+- `#gridScroll.clientWidth` is 1440px with the drawer shut, open, and shut again. **The rail costs
+  zero chain width**, which is the entire argument for deleting the dock.
+- The conn dot, mode badge and clock **moved** out of the topbar into the rail rather than being
+  duplicated there, on row 15's own reasoning ("two places showing the same number is how they
+  come to disagree").
+
+### P11 — the audit (12 files, 16 findings)
+Not planned in advance; run at the user's request. **Every finding was reproduced with a runnable
+script before any fix and re-run after.** The scripts are `.cache/bug-evidence-server.js` and
+`.cache/bug-evidence-client.js`.
+
+The three that matter most:
+- **`candles.ts` — the P9 colour rule was a division where locked rows 6 and 7 are
+  multiplications.** A `median20 > 0` / `prevOi > 0` guard inverts the answer on a zero baseline,
+  so an illiquid strike waking up and a strike opening fresh — the two clearest "big player
+  entering" cases the phase exists for — could **never** colour. P9's hand-checked candle still
+  fires blue after the correction.
+- **`derive.ts` — `last_price ?? 0` made ATM the lowest strike.** Its deep-ITM IV (42.5 against a
+  correct 12.1) was then written by `BaselineStore` to `.cache/iv-baseline.json` as the session's
+  IV baseline: wrong for the rest of the day, and surviving a restart. ATM is now null when spot
+  is unknown — a missing ATM is visibly missing, a wrong one is not.
+- **`index.ts` — `expiry` was unvalidated on `/api/stream` and `/api/candles`.** Every distinct
+  value left a `ChainPoller` and a `PeakOiStore` listener alive forever: **144 → 191 MB over 180
+  unauthenticated requests, linear, retained after every connection closed.** Now 400 at the
+  boundary, and the same 180 requests cost +1.5 MB.
+
+The rest: `/api/feed` reported 166 and 249 subscriptions for a real set of 83 (and that field is
+what P5's "zero orphans" criterion is measured through); `feed.ts` never unsubscribed and `REQ`
+has no unsubscribe code, so Dhan's side only grew toward the documented 5,000 cap — fixed by
+reconnecting when the set shrinks, because inventing request codes absent from the contract doc is
+exactly the guess this project does not make; `scanner.ts`'s `reconciles` was algebraically always
+true; a store-wide `onProgress` re-rendered every other tab's grid; two transient failures were
+cached as permanent facts. Client: the spot pill printed the live spot over the sticky CALLS
+header; `Ctrl+C` collapsed the chart pane and persisted it; `LTP − LTP Chg` (the previous close, a
+constant) drifted 0.81 in 2 s; `chartPx` kept NIFTY 50's price under the "NIFTY BANK IDX" label;
+`.scan-funnel` hit the P8 `[hidden]` trap again; and one `Esc` closed the scanner **and** tore
+down the option chart behind it.
+
+## Verified — all in replay, at 1440x900 and 1024x800
+| | |
+|---|---|
+| P10a acceptance | **41 / 41** |
+| P10b acceptance | **30 / 30**, three consecutive runs |
+| P2–P9 re-proof | **37 / 37** |
+| `tsc --noEmit` | clean |
+| Console errors | **zero**, including a 60 s run after the dock was deleted |
+
+Highlights from the re-proof: P6 endpoints within **0.0331px** of `X(a.t)/Y(a.p)` after a zoom to
+2.177×; P7 82/82 `Pk %` cells with the funnel `5 of 41` under `Breached`; P8 `210 → 100 → 87 → 6`;
+P9 exactly **3 blue and 2 yellow**; P3 percentiles matching an independent recomputation both over
+the whole ring and over the panel's own window. `docs/shots/` re-baselined once, at the end of
+P10b, per row 22 — `06-latency-panel.png` is replaced by `06-latency-drawer.png` and
+`06b-status-rail.png`.
 
 ## Files changed
-- `docs/spec/terminal-redesign-v1.md` — **new.** The 22-row table, out-of-scope list, three blocks
-  of acceptance criteria, four risks. Marked `PROPOSED, NOT LOCKED`.
-- `docs/PHASES.md` — the P10 row replaced by P10a and P10b rows; `## Now` and `## Next 3`
-  rewritten; one session-log row appended.
-- `docs/DECISIONS.md` — five entries appended (append-only, as always).
-- `CLAUDE.md` — two traps added: the centred-spine sticky geometry, and reading the code before
-  writing a redesign spec.
+`public/panes.js` and `public/telemetry.js` are new. `public/index.html`, `public/app.css`,
+`public/app.js`, `public/scan.js`, `scripts/shots.ts`, `src/server/index.ts`, `candles.ts`,
+`derive.ts`, `feed.ts`, `instruments.ts`, `peakoi.ts`, `poller.ts`, `scanner.ts`. Docs:
+`PHASES.md`, `spec/terminal-redesign-v1.md`, `CLAUDE.md`, this file.
 
-## Decisions made
-- **The spec is persisted as `PROPOSED`, not as `locked`.** A file that claims approval nobody gave
-  is worse than no file, because the next session builds from it without asking. The status line is
-  the first thing in the file for that reason.
-- **"No ATM window, no hidden rows" is an invariant, not a rebuild.** The grid **already** renders
-  the complete strike list in one scrollable table with a sticky header; nothing windows strikes on
-  the server (`derive.ts` sorts and pads-filters, no slice) or on the client. So row 8 states it as
-  a rule — `tr.hidden` is only ever set by an explicit filter, and when a filter hides anything the
-  header reads `showing n of N strikes` — instead of specifying work that is already done.
-- **The sticky spine needs `left:0` AND `right:0`.** The obvious `position:sticky;left:0` does
-  nothing on this screen: the spine is column 13 of 25, sits at x≈696, and the horizontal overflow
-  at 1440px is 44px, so it would need ~700px of scroll before it ever pinned. Symmetric offsets pin
-  it in both directions and only conflict if the scrollport is narrower than the 92px cell — far
-  below the 1024px floor.
-- **Greeks hidden by default (row 7)**, giving 17 columns / 1132px. The 1484px table does not fit
-  the 1440px floor; the P2 deviation row already priced this as "44px of horizontal scroll" and
-  handed the final column layout to P10. This is that debt being paid.
-- **Dark as the default theme (row 11).** One line in `applyTheme()`, fully reversible, and the
-  loudest available "terminal" signal.
+## Still not proven — and it is all the same blocker
+**The live path has never run, for any of P7, P8, P9, or the eleven P11 server-side fixes.** The
+token in `.env` expired 2026-08-28; `npm run check` reports `DH-901` / `808`, which is the **token**
+gate, not the data-plan gate — they fail differently and only one of them is fixed by re-pasting a
+token. P8's AC5 (chain cadence under scan load) is still the one criterion in the project that has
+never been measured, and it cannot be measured in replay at all, because replay makes no
+`dhanPost` calls.
 
-## Known broken / deliberately skipped
-- **The spec is not approved.** It needs one word — `go`, or `change 7,11` with values. **No UI
-  file may be opened until the file stops saying PROPOSED.**
-- **Rows 7 and 11 are readings, not measurements**, and are flagged in the file itself as the
-  likely vetoes. Row 7 hides the greeks by default; row 11 makes dark the default theme. Each is
-  one flag. Every other row cites a value already in the codebase or an existing spec row.
-- **Nothing was built and nothing was measured.** No `npm run dev`, no browser, no screenshots.
-  There is nothing to verify in this session's output except the file itself.
-- **Three risks in the spec are unproven guesses about the code** and should be checked before
-  building, not after: whether `td.spine` ever receives `.flash` (its `background:transparent`
-  end-state would defeat the sticky cell), whether `.spotpill`'s `z-index:4` collides with the new
-  sticky header spine, and the ~20 element ids inside `.lat` that `app.js` writes to — one missing
-  node after P10b deletes the dock presents as the whole page dying, not as a missing panel.
-- **P8's AC5 is still the one open criterion in the project** — the chain poll's 3000 ms gap across
-  a scan. It needs an open market and a live plan; replay makes no `dhanPost` calls at all.
-- **The live path has never run for P7, P8 or P9.** `dataPlan: Deactive`.
-- **`docs/shots/` still holds the 17 pre-P6 reference images.** Spec row 22 puts the single
-  deliberate `npm run shots` at the **end of P10b**. Never run it for an ad-hoc check.
-- **Six branches, none with a PR.** Stacked: merge `p6-chart-tools`, then `p8-p9-spec-lock`, then
-  `p7-peak-oi`, then `p8-scanner`, then `p9-option-candles`, then `p10-spec-lock`, in that order.
+## Next session
+1. **Unblock live data.** It is now the only thing between this project and a real verification
+   pass, with three phases and eleven fixes queued behind it.
+2. **Then settle every live-path question in one sitting** — one `/v2/charts/intraday` call
+   (response shape, epoch units, and whether `open_interest` is units or contracts, which changes
+   P9 row 7's floor from `5 * lotSize` to `5`), one `/v2/marketfeed/quote` with 420 instruments,
+   `npm run feed:probe`, and **P8's AC5 with the market open**.
+3. **Open the PRs.** Seven stacked branches, none with a PR, is now the largest unmanaged risk.
+   Merge order: `p6-chart-tools`, `p8-p9-spec-lock`, `p7-peak-oi`, `p8-scanner`,
+   `p9-option-candles`, `p10-spec-lock`, `p10a-terminal-shell`.
 
-## Next session starts here
-- Phase 10a: **build the terminal shell and the chain** — but only after the spec is approved;
-  read `docs/spec/terminal-redesign-v1.md` and get one word on it first.
-- First command: `npm run check`
-- Watch out for: **the spec file says PROPOSED and that is not a formality.** Two of its 22 rows
-  change what the screen looks like on first paint (greeks off, dark default) and were chosen by
-  reading, not by measurement. Building from an unapproved table is how a redesign gets reopened.
-  Second: **P10a rewrites a screen carrying nine phases of passing acceptance criteria.** Write
-  `.cache/p10-verify.js` — the re-proof block covering P2 through P9 — **before** the first CSS
-  change, not after; it is most of the phase, and it is the only thing that will tell you the
-  rebuild broke P5's orphan count or P6's anchors.
+## Run it
+`REPLAY=1 npm run dev` → http://127.0.0.1:8787 — no credentials needed, loud yellow banner,
+badge reads `REPLAY`. `npm run check` first if you think live should work.
