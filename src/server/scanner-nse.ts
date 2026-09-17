@@ -45,6 +45,18 @@ export type NseScanRow = {
 
 export type NseNamed = { symbol: string; name: string; reason: string };
 
+/**
+ * P15: why each ranked stock did or did not make the list. Only the daily log reads it - the panel
+ * does not - so a morning's result can be audited after the fact without re-fetching NSE.
+ */
+export type NseTrace = {
+  symbol: string;
+  side: 'gainer' | 'loser' | 'both';
+  chgPct: number;
+  oiPct: number | null;
+  outcome: 'pass' | 'chg below 2%' | 'OI chg below 7%' | string;
+};
+
 export type NseScanResult = {
   source: 'nse';
   mode: 'live' | 'fixture';
@@ -78,6 +90,7 @@ export type NseScanResult = {
   /** NSE F&O-feed rows that are not in the user's list. Never ranked. */
   excluded: NseNamed[];
   rejected: { rank: number; chg: number; oi: number };
+  trace: NseTrace[];
   reconciles: boolean;
   elapsedMs: number;
   evidence: string[];
@@ -147,6 +160,7 @@ export function nseFunnel(
       funnel: { list: list.symbols.length, scored: 0, ranked: 0, chg: 0, oi: 0 },
       long: [], short: [], skipped, excluded,
       rejected: { rank: 0, chg: 0, oi: 0 },
+      trace: [],
       reconciles: false,
       elapsedMs: Date.now() - startedAt,
       error: `NSE's price feed is dated ${bundle.price.date ?? 'unknown'} (${bundle.price.timestamp || 'no timestamp'}) ` +
@@ -185,12 +199,22 @@ export function nseFunnel(
   let rejectedRank = 0;
   for (const r of scorable) if (!rankedSet.has(r)) rejectedRank++;
 
+  const gainerSet = new Set(gainers);
+  const loserSet = new Set(losers);
+  const trace = new Map<string, NseTrace>(ranked.map(r => [r.symbol, {
+    symbol: r.symbol,
+    side: gainerSet.has(r) && loserSet.has(r) ? 'both' as const : gainerSet.has(r) ? 'gainer' as const : 'loser' as const,
+    chgPct: r.chgPct,
+    oiPct: null,
+    outcome: 'pending',
+  }]));
+
   /* ---- step 2: |chg| >= 2% (row 4) ---- */
 
   let rejectedChg = 0;
   const passedChg = ranked.filter(r => {
     const pass = Math.abs(r.chgPct) >= CHG_MIN;
-    if (!pass) rejectedChg++;
+    if (!pass) { rejectedChg++; trace.get(r.symbol)!.outcome = 'chg below 2%'; }
     return pass;
   });
 
@@ -203,11 +227,16 @@ export function nseFunnel(
 
   for (const r of passedChg) {
     const o = oi.get(r.symbol);
+    const t = trace.get(r.symbol)!;
     if (!o) {
-      skipped.push({ symbol: r.symbol, name: nameOf(r.symbol), reason: oiInvalid.get(r.symbol) ?? 'not in OI Spurts' });
+      const reason = oiInvalid.get(r.symbol) ?? 'not in OI Spurts';
+      skipped.push({ symbol: r.symbol, name: nameOf(r.symbol), reason });
+      t.outcome = reason;
       continue;
     }
-    if (o.oiPct < OI_MIN) { rejectedOi++; continue; }
+    t.oiPct = o.oiPct;
+    if (o.oiPct < OI_MIN) { rejectedOi++; t.outcome = 'OI chg below 7%'; continue; }
+    t.outcome = 'pass';
     survivors.push({
       symbol: r.symbol, name: nameOf(r.symbol), ltp: r.ltp, prevClose: r.prevClose, chgPct: r.chgPct,
       volume: r.volume, latestOi: o.latestOi, prevOi: o.prevOi, oiPct: o.oiPct,
@@ -237,6 +266,7 @@ export function nseFunnel(
     skipped: skipped.sort(bySymbol),
     excluded: excluded.sort(bySymbol),
     rejected: { rank: rejectedRank, chg: rejectedChg, oi: rejectedOi },
+    trace: [...trace.values()],
     reconciles,
     elapsedMs: Date.now() - startedAt,
     error: null,
@@ -309,7 +339,7 @@ export class NseScanner {
       market: { status: 'unknown', priceAsOf: '', oiAsOf: '', tradeDate: null, prevTradingDate: null },
       funnel: { list: 0, scored: 0, ranked: 0, chg: 0, oi: 0 },
       long: [], short: [], skipped: [], excluded: [],
-      rejected: { rank: 0, chg: 0, oi: 0 }, reconciles: false,
+      rejected: { rank: 0, chg: 0, oi: 0 }, trace: [], reconciles: false,
       elapsedMs: Date.now() - startedAt, evidence: [], error,
     };
     this.last = r;
