@@ -1,83 +1,63 @@
-# HANDOFF — Dhan Option Chain Terminal — P14 + P15 (NSE scanner, daily 9:20 run) — 2026-09-17
+# HANDOFF — Dhan Terminal — P14 + P15 + P16 — 2026-09-17
 
-## P15 in one paragraph (read this first)
-PR #2 merged P6–P15 into `main` (the user approved it explicitly, because GitHub schedules only run from `main`). `.github/workflows/nse-scan.yml` runs `npm run scan:nse` at **09:20 and 09:25 IST Mon–Fri** on GitHub Ubuntu **and** Windows runners; both reached NSE in two test runs and pushed logs to the **`scan-logs`** branch (`LATEST-github-*.md`, `index-github-*.csv`, per-run `.md`/`.json` with a per-stock trace). A GitHub ZIP of the branch was run from an empty folder: `npm ci`, `npm run scan:nse` and the app all worked. **Not done:** the Windows task on this PC (`scripts/schedule-windows.ps1`) — running it with `-ExecutionPolicy Bypass` was denied, so nothing is installed. **Open:** the first scheduled morning, Fri 18 Sep. **Pending approval:** `docs/spec/redesign-v2.md` (P16, proposed, not locked). A follow-up fix (Windows runner commit message printed UTC as IST) is on `p15-daily-scan` in PR #3, not yet on `main`.
+## Where things stand
+- **P14 — the 9:20 scanner on NSE data.** Works today, no Dhan account. `210 → 40 → 26 → 4` on
+  17-Sep closing data. Spec `docs/spec/scanner-nse-v1.md`.
+- **P15 — it runs itself.** `.github/workflows/nse-scan.yml` runs `npm run scan:nse` at **09:20 and
+  09:25 IST Mon–Fri** on GitHub's Ubuntu **and** Windows runners; both reached NSE in three test
+  runs. Logs are committed to the **`scan-logs`** branch (`LATEST-github-*.md`, `index-github-*.csv`,
+  per-run `.md`/`.json` with the per-stock trace). PR #2 merged P6–P15 into `main` with the user's
+  explicit approval, because `schedule:` only fires from the default branch. A GitHub ZIP of the
+  branch was also run from an empty folder: `npm ci`, `npm run scan:nse` and the app all worked.
+- **P16 — the redesign, built.** Two workspaces (Scanner, Option chain) under a 48px nav, Geist +
+  Geist Mono, near-black with one violet accent, the ATM row as the single focal point, OI drawn as
+  green/red butterfly bars, and the scanner as a full screen with funnel tiles, side-by-side
+  Long/Short, the 40-row trace and an automatic-runs card. Spec `docs/spec/redesign-v2.md`
+  (18 rows + amendments 19–26). Branch `p16-redesign`, pushed, **no PR yet**.
 
+## Verified (all on port 8788, replay + the NSE fixture)
+- P16 Stage B **37/37**: 19 chain rows with the chart (23 collapsed in replay, **24 live** — the
+  28px replay line is the difference), 64px instrument bar including GOLD's 7-digit spot, exactly
+  two fonts and every size in the scale (SVG labels included), scanner fits with no scroll in both
+  themes, 60 s soaks with zero console errors.
+- Earlier suites re-run green: **P10a 42/42** (one check amended), **P10b 30/30**, **P2–P9 37/37**,
+  **P8 22/22 + 10/10**, **P14 35/35**, **scanner server 31/31**, `tsc --noEmit` clean.
+- `docs/shots/` re-baselined once: 21 images.
 
-## Done
-- **The scanner now works without Dhan.** Press `Scan` (or `S`). Source `NSE`, the default, reads
-  nseindia.com through an off-screen Chrome window and runs the user's three steps:
-  - **Step 1:** the top N gainers and top N losers among the stocks in the F&O list.
-  - **Step 2:** keep stocks whose price moved at least 2% either way.
-  - **Step 3:** keep stocks whose OI rose at least +7%, per NSE's OI Spurts.
-- **Top N is 20, 25 or 30**, picked in the panel. Changing N re-ranks the same fetch; Rescan
-  fetches again. Source `Dhan` is P8, unchanged.
-- **The user's F&O list is `data/fno-list.txt`.** It holds 210 symbols and matched four independent
-  sources exactly: NSE master-quote, NSE underlying-information, NSE OI Spurts and the Dhan master.
-  A mismatch in either direction is named on screen.
-- **Result on 17-Sep closing data:** `210 → 40 → 26 → 4`. Long MFSL; Short POLICYBZR, PNBHOUSING,
-  FEDERALBNK.
-- **Verified:**
-  - Server **31/31** (includes a second implementation and 7 broken fixtures).
-  - Browser **35/35**, both themes, at 1440 and 1024.
-  - Two real NSE scans: **5.4 s** and **9.1 s**.
-  - Every earlier suite re-run green against this build on port 8788: P8 10/10 + 22/22, P2–P9
-    37/37, P10a 41/41, P10b 30/30. `tsc` is clean.
-- **Two CLAUDE.md facts corrected:** NSE *is* reachable (headed Chrome only), and OI Spurts lists
-  all 216 underlyings, not 25.
+## Files changed in P16
+`public/index.html`, `app.css` (rewritten), `app.js`, `scan.js`, `panes.js`, `candles.js`,
+`chart-tools.js`, `telemetry.js`, `scripts/shots.ts`, `docs/mock/redesign-v2.html`,
+`docs/spec/redesign-v2.md`, `docs/PHASES.md`, `CLAUDE.md`, `docs/shots/*`.
+**Eight code files — one over the ~8 guideline, recorded in amendment 26.**
 
-## Files changed
-- `src/server/nse.ts` — **new.** Headed Chrome off-screen, the two NSE feeds, row-level validation
-  (symbol regex, finite numbers, `pChange` and `avgInOI` each recomputed within 0.01), and evidence
-  saved to `.cache/nse/`. `NSE_FIXTURE=<dir>` reads a fixture instead.
-- `src/server/scanner-nse.ts` — **new.** List parser, pure `nseFunnel()`, counted-at-rejection
-  reconciliation, `NseScanner` (joins an in-flight fetch; `reuse`), CSV.
-- `src/server/index.ts` — `/api/scan`, `/api/scan/status` and `/api/scan.csv` take a whitelisted
-  `source=nse|dhan` (default `nse`), `n=20|25|30` and `reuse=1`.
-- `public/scan.js`, `public/index.html`, `public/app.css` — Source and Top pickers, NSE table and
-  header, "not in your F&O list" disclosure, header wrap, aligned columns, and no false "nothing
-  skipped" line under an error (P8 had that bug too).
-- `package.json` / lock — `playwright` moved to `dependencies` (still 1.62.1), because the server
-  now needs it at runtime.
-- `data/fno-list.txt` (moved from `docs/F&O-List.txt`), `test/fixtures/nse-2026-09-17/`,
-  `docs/Recording-14-09-2026.md`.
-- `docs/spec/scanner-nse-v1.md` (17 rows, locked), `docs/PHASES.md`, `docs/DECISIONS.md`,
-  `CLAUDE.md`, this file.
-
-## Decisions made
-- **NSE is the source.** The user named it, it is reachable, and Dhan is dead. P8 stays selectable.
-- **"Top 20" means the top 20 of the F&O stocks.** The pasted analysis said "whole market, then
-  cross-match", but the transcript says the opposite. Measured: the whole-market top 20 held zero
-  F&O stocks.
-- **OI filter is `>= +7` for NSE** ("equal to 7 or greater than 7"). P8's absolute rule is not
-  reopened.
-- **The trigger is manual, with no session gate.** The panel prints NSE's own timestamps and market
-  status instead. If the price and OI feeds carry different trading dates, the scan fails.
-- **Renamed P13 → P14.** Another session already owns P13 (see below). The first two commits still
-  say `p13:`; history was not rewritten.
+## Decisions worth keeping
+- **Two-stage approval for a look.** A static mock (`docs/mock/redesign-v2.html`, real numbers) was
+  approved before any `public/` file changed. It cost one file and caught four defects.
+- **Light mode's green/red/amber were changed before building**: the locked values were 3.39–4.18:1
+  on white. Amendment 19.
+- **The scanner is a workspace, not a route.** Still `position:fixed` over the chain, because a
+  route change would tear down the chain poll and the tick feed.
+- **`S` always means scan; `Esc` leaves.** Amendment 24.
+- **Kept from P10 on purpose:** 92px spine, 26px rail, `#modeBadge`/`#clock` in the rail. P10a's
+  108px scroll measurement and P10b's row 13 depend on them. Amendment 23.
 
 ## Known broken / deliberately skipped
-- **Unmeasured: a scan at 09:20 IST on a trading day.** Nobody knows whether NSE's two feeds are
-  fresh by then. The header shows their timestamps, so a stale feed will be visible, not silent.
-- **Merge conflict ahead with `p13-card-layout`** (worktree `D:/Temp/Dhan-p13`, the other session).
-  That branch moved `<section id="scan">` to the end of `<body>` and renamed its h2 to
-  "F&O Scanner". It also restyled `.scan*` as a white modal card with new tokens, so the accent is
-  `#111` in light mode and `.mono` no longer sets a monospace font. This branch adds two `<label
-  class="scan-opt">` pickers inside `.scan-h` and a CSS block after `.scan-meta`: `.scan-opt`,
-  `.scan-h` wrap rules, and `table.scan-t.nse`. Resolve it by keeping their markup and position,
-  re-inserting the two labels, and re-running `.cache/p13-verify-ui.js`. Its "one line"
-  and column-alignment checks will catch a bad merge.
-- **NSE's terms of use restrict automated access.** It's 3 page loads per button press; the user
-  has been told.
-- **A Chrome window is created at -32000,-32000 for ~3–9 s per scan** and may flash in the taskbar.
-- **P12 is still blocked** (expired token). Nothing in P14 depends on it.
-- **Pushed:** `origin/p14-nse-scanner`, stacked on `p12-live-verify`. No PR opened.
+- **`p13-card-layout` is not merged** (the other session's redesign; the user rated it −5/10). It
+  rewrites the same `index.html` / `app.css` blocks. If it is ever merged, this branch wins on
+  those files. Nothing in P16 depends on it.
+- **The first `docs/shots` re-baseline was wrong** (all 18 "chain" images showed the Scanner) and was
+  thrown away. `scripts/shots.ts` now seeds `ws=chain`. Read one image after any re-baseline.
+- **Open: the first scheduled morning**, Fri 18 Sep 09:20 IST, and P14's "a scan pressed at 09:20 on
+  a trading day".
+- **The Windows task on this PC is not installed** — running `scripts/schedule-windows.ps1` with
+  `-ExecutionPolicy Bypass` was denied in this session. GitHub covers the morning without it.
+- **PR #3** (Windows-runner IST stamps + P15 docs) and **P16's branch** are both unmerged.
+- **P12 is still blocked**: the token in `.env` expired 2026-08-28.
 
 ## Next session starts here
-- **First, read the morning:** `git fetch origin scan-logs && git show origin/scan-logs:index-github-windows.csv` (and `-ubuntu`). Check `prices_as_of` is today after 09:15 and the run did not fail.
-- Phase: **P14's last criterion.** On a trading day at 09:20 IST, start the server and press Scan.
-  Record `prices as of` / `OI as of` from the header, and check `.cache/nse/` got two new files.
-- First command: `git worktree list` and `netstat -ano | grep LISTEN | grep ':878'`. Another
-  session may hold 8787; run this one on `PORT=8788` if so.
-- Watch out for: **never `taskkill //IM node.exe`** — it kills MCP servers and the other session.
-  Kill by the PID that owns the port.
+- **Read the morning first:** `git fetch origin scan-logs && git show origin/scan-logs:index-github-windows.csv`
+  (and `-ubuntu`). Check `status`, `prices_as_of` (today, after 09:15) and the funnel.
+- Then: merge PR #3, open a PR for `p16-redesign`, and drive the redesigned screens live once a
+  Dhan token exists.
+- First commands: `git worktree list` and `netstat -ano | grep LISTEN | grep ':878'` — another
+  session may hold 8787; run this one on `PORT=8788`. **Never `taskkill //IM node.exe`.**
