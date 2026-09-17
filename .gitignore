@@ -4,3 +4,8 @@ node_modules/
 .env.local
 *.log
 dist/
+
+# P15: git worktree of the scan-logs branch, used by scripts/schedule-windows.ps1
+.scan-logs/
+# P15: default output of npm run scan:nse when run by hand
+logs/

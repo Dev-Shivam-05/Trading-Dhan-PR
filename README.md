@@ -10,6 +10,50 @@ Places no orders. Gives no advice.
 
 ---
 
+## The 9:20 F&O scanner — run it on any computer, no Dhan account
+
+It follows the three-step routine from the voice notes, on NSE's own data:
+**F&O stocks → top 20 gainers + top 20 losers → price moved ≥ 2% → OI rose ≥ 7% (NSE OI Spurts)**.
+The F&O list it checks against is `data/fno-list.txt`.
+
+**It already runs by itself every weekday at 09:20 and 09:25 IST on GitHub**, once the workflow
+file is on `main`. Results: **<https://github.com/Dev-Shivam-05/Trading-Dhan-PR/blob/scan-logs/LATEST-github-windows.md>**
+(and `LATEST-github-ubuntu.md` beside it). Every run is kept in the
+[`scan-logs` branch](https://github.com/Dev-Shivam-05/Trading-Dhan-PR/tree/scan-logs), one folder
+per day. Manual run: *Actions → NSE 9:20 scan → Run workflow*.
+
+**To watch it yourself on another computer** you need **Node 22.6+** (<https://nodejs.org>) and
+**Google Chrome** installed. Download the code (*Code → Download ZIP* on GitHub, then unzip), open a
+terminal in the unzipped folder, and:
+
+```powershell
+# Windows PowerShell
+npm ci
+$env:REPLAY='1'; npm run dev
+```
+
+```bash
+# macOS / Linux
+npm ci
+REPLAY=1 npm run dev
+```
+
+Open <http://127.0.0.1:8787>, press **S** (or the **Scan** button). A Chrome window opens off-screen
+for a few seconds — that is how NSE is read; leave it alone. The panel shows the funnel, the Long
+and Short lists, and NSE's own "as of" times. `REPLAY=1` only makes the option chain behind the
+panel synthetic; **the scanner always uses live NSE data**.
+
+No browser needed at all:
+
+```bash
+npm ci
+npm run scan:nse          # prints the result; full log in logs/scans/<date>/
+```
+
+Top 25 or 30 instead of 20: the **Top** selector in the panel (the command-line run logs all three).
+
+---
+
 ## Quick start
 
 ```bash
@@ -123,6 +167,7 @@ Restart the server after editing `.env` — Node reads it once at startup.
 | `npm run feed:probe` | Dump raw feed bytes beside the parsed values, to verify the binary parser |
 | `npm run spike:gold` | Diagnose the GOLD underlying by hand (boot does it automatically) |
 | `npm run shots` | Screenshot every UI state into `docs/shots/` (server must already be running) |
+| `npm run scan:nse` | One NSE F&O scan from the terminal; log to `logs/scans/` (`--out <dir>`, `--runner <name>`) |
 
 Change the port with `PORT=9000 npm run dev`.
 
