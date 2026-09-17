@@ -1,0 +1,211 @@
+No.	UNDERLYING	SYMBOL
+1	360 ONE WAM LIMITED	360ONE
+2	ABB India Limited	ABB
+3	APL Apollo Tubes Limited	APLAPOLLO
+4	AU Small Finance Bank Limited	AUBANK
+5	Adani Energy Solutions Limited	ADANIENSOL
+6	Adani Enterprises Limited	ADANIENT
+7	Adani Green Energy Limited	ADANIGREEN
+8	Adani Ports and Special Economic Zone Limited	ADANIPORTS
+9	Adani Power Limited	ADANIPOWER
+10	Aditya Birla Capital Limited	ABCAPITAL
+11	Alkem Laboratories Limited	ALKEM
+12	Amber Enterprises India Limited	AMBER
+13	Ambuja Cements Limited	AMBUJACEM
+14	Angel One Limited	ANGELONE
+15	Apollo Hospitals Enterprise Limited	APOLLOHOSP
+16	Ashok Leyland Limited	ASHOKLEY
+17	Asian Paints Limited	ASIANPAINT
+18	Astral Limited	ASTRAL
+19	Ather Energy Limited	ATHERENERG
+20	Aurobindo Pharma Limited	AUROPHARMA
+21	Avenue Supermarts Limited	DMART
+22	Axis Bank Limited	AXISBANK
+23	BSE Limited	BSE
+24	Bajaj Auto Limited	BAJAJ-AUTO
+25	Bajaj Finance Limited	BAJFINANCE
+26	Bajaj Finserv Limited	BAJAJFINSV
+27	Bajaj Holdings & Investment Limited	BAJAJHLDNG
+28	Bandhan Bank Limited	BANDHANBNK
+29	Bank of Baroda	BANKBARODA
+30	Bank of India	BANKINDIA
+31	Bank of Maharashtra	MAHABANK
+32	Bharat Dynamics Limited	BDL
+33	Bharat Electronics Limited	BEL
+34	Bharat Forge Limited	BHARATFORG
+35	Bharat Heavy Electricals Limited	BHEL
+36	Bharat Petroleum Corporation Limited	BPCL
+37	Bharti Airtel Limited	BHARTIARTL
+38	Biocon Limited	BIOCON
+39	Blue Star Limited	BLUESTARCO
+40	Bosch Limited	BOSCHLTD
+41	Britannia Industries Limited	BRITANNIA
+42	CG Power and Industrial Solutions Limited	CGPOWER
+43	Canara Bank	CANBK
+44	Central Depository Services (India) Limited	CDSL
+45	Cholamandalam Investment and Finance Company Limited	CHOLAFIN
+46	Cipla Limited	CIPLA
+47	Coal India Limited	COALINDIA
+48	Cochin Shipyard Limited	COCHINSHIP
+49	Coforge Limited	COFORGE
+50	Colgate Palmolive (India) Limited	COLPAL
+51	Computer Age Management Services Limited	CAMS
+52	Container Corporation of India Limited	CONCOR
+53	Crompton Greaves Consumer Electricals Limited	CROMPTON
+54	Cummins India Limited	CUMMINSIND
+55	DLF Limited	DLF
+56	Dabur India Limited	DABUR
+57	Delhivery Limited	DELHIVERY
+58	Divi's Laboratories Limited	DIVISLAB
+59	Dixon Technologies (India) Limited	DIXON
+60	Dr. Reddy's Laboratories Limited	DRREDDY
+61	ETERNAL LIMITED	ETERNAL
+62	Eicher Motors Limited	EICHERMOT
+63	FORCE MOTORS LTD	FORCEMOT
+64	FSN E-Commerce Ventures Limited	NYKAA
+65	Fortis Healthcare Limited	FORTIS
+66	GAIL (India) Limited	GAIL
+67	GE Vernova T&D India Limited	GVT&D
+68	GMR AIRPORTS LIMITED	GMRAIRPORT
+69	Glenmark Pharmaceuticals Limited	GLENMARK
+70	Godfrey Phillips India Limited	GODFRYPHLP
+71	Godrej Consumer Products Limited	GODREJCP
+72	Godrej Properties Limited	GODREJPROP
+73	Grasim Industries Limited	GRASIM
+74	HCL Technologies Limited	HCLTECH
+75	HDFC Asset Management Company Limited	HDFCAMC
+76	HDFC Bank Limited	HDFCBANK
+77	HDFC Life Insurance Company Limited	HDFCLIFE
+78	Havells India Limited	HAVELLS
+79	Hero MotoCorp Limited	HEROMOTOCO
+80	Hindalco Industries Limited	HINDALCO
+81	Hindustan Aeronautics Limited	HAL
+82	Hindustan Petroleum Corporation Limited	HINDPETRO
+83	Hindustan Unilever Limited	HINDUNILVR
+84	Hindustan Zinc Limited	HINDZINC
+85	Hitachi Energy India Limited	POWERINDIA
+86	Hyundai Motor India Limited	HYUNDAI
+87	ICICI Bank Limited	ICICIBANK
+88	ICICI Lombard General Insurance Company Limited	ICICIGI
+89	ICICI Prudential Life Insurance Company Limited	ICICIPRULI
+90	IDFC First Bank Limited	IDFCFIRSTB
+91	ITC Limited	ITC
+92	Indian Bank	INDIANB
+93	Indian Energy Exchange Limited	IEX
+94	Indian Oil Corporation Limited	IOC
+95	Indian Railway Finance Corporation Limited	IRFC
+96	Indian Renewable Energy Development Agency Limited	IREDA
+97	Indus Towers Limited	INDUSTOWER
+98	IndusInd Bank Limited	INDUSINDBK
+99	Info Edge (India) Limited	NAUKRI
+100	Infosys Limited	INFY
+101	Inox Wind Limited	INOXWIND
+102	InterGlobe Aviation Limited	INDIGO
+103	JINDAL STEEL LIMITED	JINDALSTEL
+104	JSW Energy Limited	JSWENERGY
+105	JSW Steel Limited	JSWSTEEL
+106	Jio Financial Services Limited	JIOFIN
+107	Jubilant Foodworks Limited	JUBLFOOD
+108	KEI Industries Limited	KEI
+109	KPIT Technologies Limited	KPITTECH
+110	Kalyan Jewellers India Limited	KALYANKJIL
+111	Kaynes Technology India Limited	KAYNES
+112	Kfin Technologies Limited	KFINTECH
+113	Kotak Mahindra Bank Limited	KOTAKBANK
+114	L&T Finance Limited	LTF
+115	LIC Housing Finance Limited	LICHSGFIN
+116	LTM Limited	LTM
+117	Larsen & Toubro Limited	LT
+118	Laurus Labs Limited	LAURUSLABS
+119	Life Insurance Corporation Of India	LICI
+120	Lodha Developers Limited	LODHA
+121	Lupin Limited	LUPIN
+122	Mahindra & Mahindra Limited	M&M
+123	Manappuram Finance Limited	MANAPPURAM
+124	Mankind Pharma Limited	MANKIND
+125	Marico Limited	MARICO
+126	Maruti Suzuki India Limited	MARUTI
+127	Max Financial Services Limited	MFSL
+128	Max Healthcare Institute Limited	MAXHEALTH
+129	Mazagon Dock Shipbuilders Limited	MAZDOCK
+130	Motilal Oswal Financial Services Limited	MOTILALOFS
+131	MphasiS Limited	MPHASIS
+132	Multi Commodity Exchange of India Limited	MCX
+133	Muthoot Finance Limited	MUTHOOTFIN
+134	NBCC (India) Limited	NBCC
+135	NHPC Limited	NHPC
+136	NMDC Limited	NMDC
+137	NTPC Limited	NTPC
+138	National Aluminium Company Limited	NATIONALUM
+139	Nestle India Limited	NESTLEIND
+140	Nippon Life India Asset Management Limited	NAM-INDIA
+141	Oberoi Realty Limited	OBEROIRLTY
+142	Oil & Natural Gas Corporation Limited	ONGC
+143	Oil India Limited	OIL
+144	One 97 Communications Limited	PAYTM
+145	Oracle Financial Services Software Limited	OFSS
+146	PB Fintech Limited	POLICYBZR
+147	PG Electroplast Limited	PGEL
+148	PI Industries Limited	PIIND
+149	PNB Housing Finance Limited	PNBHOUSING
+150	Page Industries Limited	PAGEIND
+151	Patanjali Foods Limited	PATANJALI
+152	Persistent Systems Limited	PERSISTENT
+153	Petronet LNG Limited	PETRONET
+154	Pidilite Industries Limited	PIDILITIND
+155	Polycab India Limited	POLYCAB
+156	Power Finance Corporation Limited	PFC
+157	Power Grid Corporation of India Limited	POWERGRID
+158	Premier Energies Limited	PREMIERENE
+159	Prestige Estates Projects Limited	PRESTIGE
+160	Punjab National Bank	PNB
+161	RBL Bank Limited	RBLBANK
+162	REC Limited	RECLTD
+163	Radico Khaitan Limited	RADICO
+164	Rail Vikas Nigam Limited	RVNL
+165	Reliance Industries Limited	RELIANCE
+166	SAGILITY LIMITED	SAGILITY
+167	SBI Cards and Payment Services Limited	SBICARD
+168	SBI Life Insurance Company Limited	SBILIFE
+169	SHREE CEMENT LIMITED	SHREECEM
+170	SRF Limited	SRF
+171	Samvardhana Motherson International Limited	MOTHERSON
+172	Shriram Finance Limited	SHRIRAMFIN
+173	Siemens Limited	SIEMENS
+174	Solar Industries India Limited	SOLARINDS
+175	Sona BLW Precision Forgings Limited	SONACOMS
+176	State Bank of India	SBIN
+177	Steel Authority of India Limited	SAIL
+178	Sun Pharmaceutical Industries Limited	SUNPHARMA
+179	Supreme Industries Limited	SUPREMEIND
+180	Suzlon Energy Limited	SUZLON
+181	Swiggy Limited	SWIGGY
+182	TATA CONSUMER PRODUCTS LIMITED	TATACONSUM
+183	TVS Motor Company Limited	TVSMOTOR
+184	Tata Consultancy Services Limited	TCS
+185	Tata Elxsi Limited	TATAELXSI
+186	Tata Motors Passenger Vehicles Limited	TMPV
+187	Tata Power Company Limited	TATAPOWER
+188	Tata Steel Limited	TATASTEEL
+189	Tech Mahindra Limited	TECHM
+190	The Federal Bank Limited	FEDERALBNK
+191	The Indian Hotels Company Limited	INDHOTEL
+192	The Phoenix Mills Limited	PHOENIXLTD
+193	Titan Company Limited	TITAN
+194	Torrent Pharmaceuticals Limited	TORNTPHARM
+195	Trent Limited	TRENT
+196	Tube Investments of India Limited	TIINDIA
+197	UNO Minda Limited	UNOMINDA
+198	UPL Limited	UPL
+199	UltraTech Cement Limited	ULTRACEMCO
+200	Union Bank of India	UNIONBANK
+201	United Spirits Limited	UNITDSPR
+202	Varun Beverages Limited	VBL
+203	Vedanta Limited	VEDL
+204	Vishal Mega Mart Limited	VMM
+205	Vodafone Idea Limited	IDEA
+206	Voltas Limited	VOLTAS
+207	Waaree Energies Limited	WAAREEENER
+208	Wipro Limited	WIPRO
+209	Yes Bank Limited	YESBANK
+210	Zydus Lifesciences Limited	ZYDUSLIFE
