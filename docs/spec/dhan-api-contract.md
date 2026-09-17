@@ -82,6 +82,60 @@ Limits: 5 WebSocket connections per user, 5000 instruments per connection, 100 i
 JSON message. Binary packets, **little endian**. Response codes: `2` ticker (LTP + LTT),
 `4` quote, `5` OI, `6` prev close, `8` full (quote + OI + 5×20-byte depth).
 
+### 2.5 Intraday candles — P7, P8, P9
+Read from https://dhanhq.co/docs/v2/historical-data/ on **2026-09-17. Not yet seen live.**
+```
+POST https://api.dhan.co/v2/charts/intraday
+{ "securityId": "1333", "exchangeSegment": "NSE_EQ", "instrument": "EQUITY",
+  "interval": "1", "oi": false,
+  "fromDate": "2024-09-11 09:30:00", "toDate": "2024-09-15 13:00:00" }
+```
+| Field | Documented |
+|---|---|
+| `securityId` | string |
+| `interval` | `1`, `5`, `15`, `25`, `60` minutes |
+| `oi` | boolean — "Open Interest data for Futures & Options" |
+| `fromDate` / `toDate` | string; the example is **`YYYY-MM-DD HH:MM:SS`** |
+| Window | "Only 90 days of data can be polled at once" |
+| Response | parallel arrays `open`, `high`, `low`, `close`, `volume`, `timestamp` (epoch integer), `open_interest` |
+
+**Open against a live call** — `npm run live:probe` answers each one and saves the raw body to
+`.cache/live/`:
+- **Date format.** `fetchIntraday()` in `src/server/peakoi.ts` sends date-only `YYYY-MM-DD`. The docs
+  only show the datetime form. If Dhan rejects date-only with `DH-905`, P7, P8 and P9 all fail on
+  their first live call. The probe tries the app's form first and falls back only on `DH-905`.
+- **Is `toDate` inclusive?** If a date-only `toDate` of today means today 00:00, today's candles never
+  arrive and P9 renders yesterday as the latest session.
+- **Units of `open_interest`** (shares or contracts), and whether it is in the **same unit as the
+  chain's `oi`**. P7's `Pk %` divides one by the other.
+- **Seconds or milliseconds**, and whether the arrays come flat or inside `data`. The app accepts both.
+
+### 2.6 Market Quote response — P8's scanner
+Read from https://dhanhq.co/docs/v2/market-quote/ on **2026-09-17. Not yet seen live.** P8 uses
+this as its **primary** source, not as the fallback that §2.3 describes.
+```jsonc
+{ "data": { "NSE_FNO": { "49081": {
+    "last_price": 368.15, "net_change": 0, "volume": 0,
+    "ohlc": { "open": 0, "close": 368.15, "high": 0, "low": 0 },
+    "oi": 0, "oi_day_high": 0, "oi_day_low": 0,
+    "average_price": 0, "buy_quantity": 1825, "sell_quantity": 0,
+    "last_quantity": 0, "last_trade_time": "01/01/1980 00:00:00",
+    "lower_circuit_limit": 48.25, "upper_circuit_limit": 510.85,
+    "depth": { "buy": [ /* 5 x {quantity, orders, price} */ ], "sell": [ /* 5 */ ] } } } },
+  "status": "success" }
+```
+| Field | Documented meaning |
+|---|---|
+| `net_change` | "Absolute change in LTP from previous day closing price" |
+| `ohlc.close` | "Market closing price of the day". **Ambiguous:** the example shows `close == last_price` with `net_change: 0` on an untraded contract |
+| `oi` | "Open Interest in the contract (for Derivatives)" |
+| `oi_day_high` / `oi_day_low` | present in the example. Today's intraday OI range. **Not** yesterday's peak, so it does not replace §2.5 for P7 |
+
+The scanner computes `prevClose = last_price - net_change` (scanner-v1 row 5), which matches the
+documented meaning. It uses `ohlc.close` only as a fallback. If live `close` turns out to be today's
+price, that fallback would score every stock at 0.00%. The probe checks both readings against each
+other.
+
 ## 3. Rate limits that shape the architecture
 
 | Limit | Value | Consequence |

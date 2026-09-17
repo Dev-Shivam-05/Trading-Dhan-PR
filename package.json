@@ -14,7 +14,8 @@
     "master:refresh": "node src/server/master.ts --refresh",
     "spike:gold": "node --env-file-if-exists=.env scripts/spike-gold.ts",
     "shots": "node scripts/shots.ts",
-    "feed:probe": "node --env-file-if-exists=.env scripts/feed-probe.ts"
+    "feed:probe": "node --env-file-if-exists=.env scripts/feed-probe.ts",
+    "live:probe": "node --env-file-if-exists=.env scripts/live-probe.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1"
