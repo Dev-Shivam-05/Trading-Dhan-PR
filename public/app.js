@@ -571,6 +571,8 @@ function onTelemetry(s) {
 setInterval(() => {
   const now = new Date();
   $('clock').textContent = now.toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }) + ' IST';
+  // card-layout-v1.md row 2 — the nav's date. IST, like the clock, so the two cannot straddle midnight.
+  $('navDate').textContent = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   if (!state.lastReceivedAt) return;
   const age = (Date.now() - state.lastReceivedAt) / 1000;
   $('gridScroll').style.opacity = age > 6 ? '.85' : '1';
@@ -596,9 +598,9 @@ const applyTheme = (t) => {
   if (t) document.documentElement.setAttribute('data-theme', t);
   else document.documentElement.removeAttribute('data-theme');
 };
-/* Spec row 11 — dark is the default when nothing is stored, rather than the OS preference. `T`
-   still toggles both ways and an existing stored choice still wins. */
-applyTheme(localStorage.getItem('theme') || 'dark');
+/* card-layout-v1.md row 12 — light is the default when nothing is stored (it superseded P10 row
+   11's dark default), not the OS preference. `T` still toggles both ways and a stored choice wins. */
+applyTheme(localStorage.getItem('theme') || 'light');
 $('themeBtn').addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-theme');
   const next = cur === 'dark' ? 'light' : 'dark';

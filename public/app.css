@@ -1,58 +1,64 @@
-/* Dhan Option Chain Terminal — tokens locked in docs/spec/ui-contract.md */
+/* Dhan Option Chain Terminal — P13 card layout, tokens locked in docs/spec/card-layout-v1.md
+   (rows 9-11). P9's --big-in / --big-out are carried over unchanged, as that spec requires. */
 
 :root{
-  --bg-base:#F7F8FB; --bg-subtle:#EEF1F6; --bg-inset:#E4E9F1; --bg-panel:#FFFFFF;
-  --fg-base:#10151F; --fg-muted:#4E5A6E; --fg-faint:#8390A6;
-  --accent:#A87516; --accent-hover:#8E620F; --accent-fg:#FFFFFF; --accent-wash:rgba(168,117,22,.12);
-  --up:#0E8A5F; --down:#C33A3A; --flat:#8390A6;
-  /* P9 option candles — docs/spec/option-candles-v1.md row 9. The `-line` pair is that row's
-     "1px darker stroke": derived from the token, not invented as a fifth and sixth colour. */
+  --bg-base:#F0F1F3; --bg-subtle:#F7F8FA; --bg-inset:#EEF0F3; --bg-panel:#FFFFFF;
+  --fg-base:#16181D; --fg-muted:#5F6673; --fg-faint:#9AA0AA;
+  --accent:#111111; --accent-hover:#2A2C31; --accent-fg:#FFFFFF; --accent-wash:rgba(17,17,17,.06);
+  --up:#1A9E63; --down:#E0445A; --flat:#9AA0AA;
   --big-in:#1E5FD8; --big-out:#D9A400;
   --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
   --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
-  --warn:#B3730B; --crit:#C33A3A; --ok:#0E8A5F;
-  --border:#DCE2EC; --border-strong:#C2CBDA; --ring:#A87516;
-  --net:#3D6EA8; --compute:#A87516; --render:#6E5AA8;
-  --grid-line:rgba(16,21,31,.07);
-  --itm:rgba(16,21,31,.045);
-  --shadow-sm:0 1px 2px rgba(6,10,20,.10);
-  --shadow-md:0 4px 14px rgba(6,10,20,.10);
+  --warn:#B3730B; --crit:#E0445A; --ok:#1A9E63;
+  --border:#E4E6EA; --border-strong:#CDD1D8; --ring:#111111;
+  --net:#3D6EA8; --compute:#B3730B; --render:#6E5AA8;
+  --grid-line:rgba(22,24,29,.06);
+  --itm:#F7F8FA;
+  --nav-bg:#0D0D0D; --nav-fg:#C9CCD1; --nav-line:#2A2A2A;
+  --replay-bg:#FFF4CC; --replay-fg:#8A6100;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow-md:0 8px 24px rgba(16,24,40,.12);
   color-scheme:light;
 }
+/* Row 11. Declared twice on purpose, exactly as before P13: once for an OS dark preference with no
+   stored choice, once for an explicit `data-theme="dark"`. app.js always sets data-theme, so the
+   media block only matters for the instant before app.js runs. */
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --bg-base:#0A0D14; --bg-subtle:#10141D; --bg-inset:#1B2130; --bg-panel:#0E121B;
-    --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
-    --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.16);
-    --up:#21B77E; --down:#E05252; --flat:#64708A;
+    --bg-base:#0C0D10; --bg-subtle:#1B1E24; --bg-inset:#22252C; --bg-panel:#15171C;
+    --fg-base:#E8EAEE; --fg-muted:#A0A6B1; --fg-faint:#6C727D;
+    --accent:#F1F2F4; --accent-hover:#FFFFFF; --accent-fg:#111111; --accent-wash:rgba(241,242,244,.07);
+    --up:#2DBE7E; --down:#F0606F; --flat:#6C727D;
     --big-in:#5C93F0; --big-out:#F2C438;
-    --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
-    --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
-    --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
-    --border:#212838; --border-strong:#39445C; --ring:#C8912A;
-    --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
-    --grid-line:rgba(232,236,244,.07);
-    --itm:rgba(232,236,244,.045);
-    --shadow-sm:0 1px 2px rgba(0,0,0,.45);
-    --shadow-md:0 4px 14px rgba(0,0,0,.5);
+    --warn:#D99A2B; --crit:#F0606F; --ok:#2DBE7E;
+    --border:#262A31; --border-strong:#363B44; --ring:#F1F2F4;
+    --net:#5A8FD0; --compute:#D99A2B; --render:#9B85D8;
+    --grid-line:rgba(232,234,238,.06);
+    --itm:#1B1E24;
+    --nav-bg:#000000; --nav-fg:#A0A6B1; --nav-line:#1F2227;
+    /* Row 3 locks only the light banner. Dark derives from P9's dark --big-out, the project's
+       existing dark yellow, rather than introducing a new one. */
+    --replay-bg:color-mix(in srgb,#F2C438 14%,#15171C); --replay-fg:#F2C438;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 8px 24px rgba(0,0,0,.5);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg-base:#0A0D14; --bg-subtle:#10141D; --bg-inset:#1B2130; --bg-panel:#0E121B;
-  --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
-  --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.16);
-  --up:#21B77E; --down:#E05252; --flat:#64708A;
+  --bg-base:#0C0D10; --bg-subtle:#1B1E24; --bg-inset:#22252C; --bg-panel:#15171C;
+  --fg-base:#E8EAEE; --fg-muted:#A0A6B1; --fg-faint:#6C727D;
+  --accent:#F1F2F4; --accent-hover:#FFFFFF; --accent-fg:#111111; --accent-wash:rgba(241,242,244,.07);
+  --up:#2DBE7E; --down:#F0606F; --flat:#6C727D;
   --big-in:#5C93F0; --big-out:#F2C438;
-  --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
-  --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
-  --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
-  --border:#212838; --border-strong:#39445C; --ring:#C8912A;
-  --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
-  --grid-line:rgba(232,236,244,.07);
-  --itm:rgba(232,236,244,.045);
-  --shadow-sm:0 1px 2px rgba(0,0,0,.45);
-  --shadow-md:0 4px 14px rgba(0,0,0,.5);
+  --warn:#D99A2B; --crit:#F0606F; --ok:#2DBE7E;
+  --border:#262A31; --border-strong:#363B44; --ring:#F1F2F4;
+  --net:#5A8FD0; --compute:#D99A2B; --render:#9B85D8;
+  --grid-line:rgba(232,234,238,.06);
+  --itm:#1B1E24;
+  --nav-bg:#000000; --nav-fg:#A0A6B1; --nav-line:#1F2227;
+  --replay-bg:color-mix(in srgb,#F2C438 14%,#15171C); --replay-fg:#F2C438;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 8px 24px rgba(0,0,0,.5);
   color-scheme:dark;
 }
 
@@ -60,226 +66,299 @@
 html,body{height:100%}
 body{
   margin:0;background:var(--bg-base);color:var(--fg-base);
-  font-family:Archivo,"Segoe UI",system-ui,sans-serif;font-size:14px;
+  font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:13px;
   display:flex;flex-direction:column;overflow:hidden;
   -webkit-font-smoothing:antialiased;
 }
-.mono{font-family:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+button,input,select{font-family:inherit}
+/* Row 13. `.mono` survives as a class name because app.js, scan.js and telemetry.js all emit it;
+   it now means "tabular numerals", which is the only property of monospace a chain needed. */
+.mono{font-variant-numeric:tabular-nums}
+/* The chart modules write font-family="IBM Plex Mono" as an SVG presentation attribute. Any CSS
+   rule outranks a presentation attribute, so this retires Plex without touching those modules. */
+svg text{font-family:Inter,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .grow{flex:1}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:3px}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 
-/* ---------------------------------------------------------------- topbar */
-.topbar{
-  height:52px;flex:0 0 52px;display:flex;align-items:center;gap:12px;padding:0 16px;
+/* ------------------------------------------------------------------- nav */
+/* Row 2 — 44px, black, three zones. The links are centred on the viewport, not on the space left
+   between brand and right cluster, which is what the reference does. */
+.nav{
+  position:relative;height:44px;flex:0 0 44px;display:flex;align-items:center;gap:16px;padding:0 16px;
+  background:var(--nav-bg);color:var(--nav-fg);
+}
+.brand{font-size:15px;font-weight:700;letter-spacing:.01em;color:#FFFFFF;white-space:nowrap}
+.brand b{font-weight:700;color:#FFFFFF}
+.navlinks{position:absolute;left:50%;top:0;bottom:0;transform:translateX(-50%);display:flex;align-items:stretch;gap:28px}
+.navlink{
+  display:flex;align-items:center;gap:7px;padding:0;background:none;border:0;cursor:pointer;
+  font-size:12px;font-weight:500;color:var(--nav-fg);white-space:nowrap;
+  transition:color 120ms cubic-bezier(.16,1,.3,1);
+}
+.navlink:hover:not(:disabled){color:#FFFFFF}
+.navlink.on{color:#FFFFFF;cursor:default}
+.navlink.on i{width:6px;height:6px;border-radius:999px;background:var(--up)}
+.navlink[aria-pressed="true"]{color:#FFFFFF;box-shadow:inset 0 -2px 0 var(--up)}
+.navlink:disabled{opacity:.45;cursor:not-allowed}
+.navright{margin-left:auto;display:flex;align-items:center;gap:12px}
+.navdate{font-size:12px;color:var(--nav-fg);white-space:nowrap}
+.nav .icon{background:transparent;border-color:var(--nav-line);color:var(--nav-fg)}
+.nav .icon:hover{background:var(--nav-line);color:#FFFFFF}
+
+.badge{
+  font-size:10px;font-weight:600;letter-spacing:.06em;padding:3px 9px;border-radius:999px;
+  border:1px solid var(--border-strong);color:var(--fg-muted);
+}
+/* The nav is black in both themes, so the badge carries fixed bright colours rather than tokens
+   that would go dark-on-black in light mode. */
+.badge.replay{color:#F2C438;border-color:#F2C438;background:rgba(242,196,56,.12)}
+.badge.live{color:#2DBE7E;border-color:#2DBE7E;background:rgba(45,190,126,.12)}
+
+.icon{
+  width:30px;height:30px;border-radius:6px;border:1px solid var(--border-strong);
+  background:var(--bg-panel);color:var(--fg-muted);cursor:pointer;font-size:14px;line-height:1;
+  transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms cubic-bezier(.16,1,.3,1);
+}
+.icon:hover{background:var(--bg-subtle);color:var(--fg-base)}
+.icon:active{transform:translateY(1px)}
+
+/* Row 3 — kept loud. min-height rather than height: the sentence is one line at 1440px and wraps
+   below ~1280px, and clipping it would hide the half that says how to get out of replay. */
+.replaybar{
+  flex:0 0 auto;min-height:32px;padding:7px 16px;font-size:12px;line-height:18px;
+  background:var(--replay-bg);color:var(--replay-fg);
+  border-bottom:1px solid color-mix(in srgb,var(--replay-fg) 30%,var(--replay-bg));
+}
+.replaybar[hidden]{display:none}
+.replaybar b{font-weight:700;letter-spacing:.04em}
+.replaybar code{font-family:Consolas,"Cascadia Mono",monospace;font-size:11px;background:color-mix(in srgb,var(--replay-fg) 12%,transparent);padding:1px 5px;border-radius:4px}
+
+/* ----------------------------------------------------------- index strip */
+/* Row 4 — the six underlyings as text tabs separated by "/", active one underlined in green. */
+.tstrip{
+  flex:0 0 36px;height:36px;display:flex;align-items:stretch;gap:16px;padding:0 16px;
   background:var(--bg-panel);border-bottom:1px solid var(--border);
 }
-.brand{font-size:12px;font-weight:600;letter-spacing:.14em;color:var(--fg-faint)}
-.brand b{color:var(--fg-base);font-weight:700}
-.badge{
-  font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:3px 9px;border-radius:999px;
-  border:1px solid var(--border-strong);color:var(--fg-muted);background:var(--bg-subtle);
+.chips[hidden],.hstrip[hidden]{display:none}
+.chips{display:flex;align-items:stretch;gap:28px;padding-left:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.chip{
+  position:relative;display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;
+  padding:0;background:none;border:0;font-size:12px;font-weight:500;color:var(--fg-muted);
+  box-shadow:inset 0 -2px 0 transparent;
+  transition:color 120ms cubic-bezier(.16,1,.3,1),box-shadow 120ms cubic-bezier(.16,1,.3,1);
 }
-.badge.replay{color:var(--warn);border-color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
-.badge.live{color:var(--ok);border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
-.conn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg-muted)}
+.chip + .chip::before{content:"/";position:absolute;left:-17px;color:var(--border-strong);font-weight:400;pointer-events:none}
+.chip:hover:not(:disabled){color:var(--fg-base)}
+.chip[aria-pressed="true"]{color:var(--fg-base);font-weight:700;box-shadow:inset 0 -2px 0 var(--up)}
+.chip:disabled{opacity:.45;cursor:not-allowed}
+.chip i{width:6px;height:6px;border-radius:999px;background:var(--flat);flex:0 0 auto}
+.chip i.open{background:var(--up)}
+.chip .kbd{font-size:10px;font-weight:500;color:var(--fg-faint)}
+.tstrip .clock{display:flex;align-items:center;font-size:12px;font-weight:500;color:var(--fg-muted);white-space:nowrap}
+
+/* ------------------------------------------------------------------ page */
+.page{flex:1;min-height:0;display:flex;gap:12px;padding:12px}
+
+/* Row 9 */
+.card{background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-sm)}
+.card-t{margin:0;font-size:14px;font-weight:600;color:var(--fg-base)}
+.card-h{flex:0 0 44px;height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border)}
+
+/* Row 5/6 — the left column */
+.lcol{flex:0 0 248px;width:248px;min-height:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;scrollbar-width:thin}
+.lcol .card{padding:12px 16px;flex:0 0 auto}
+.lcol .card-t{margin:0 0 12px}
+
+.ucard{display:flex;flex-direction:column;gap:2px}
+.ucard .nm{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:500;color:var(--fg-muted)}
+.pulse{width:6px;height:6px;border-radius:999px;background:var(--flat);flex:0 0 auto}
+.pulse.on{background:var(--up);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--up) 55%,transparent)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.ucard .spot{font-size:24px;font-weight:700;line-height:1.2;letter-spacing:-.01em;margin-top:4px}
+.ucard .chg{font-size:12px;font-weight:500;color:var(--fg-muted)}
+.uchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.uchips:not(:has(> :not([hidden]))){display:none}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.stat .k{font-size:11px;font-weight:400;color:var(--fg-muted);white-space:nowrap}
+.stat .k::before{content:"•";margin-right:5px;color:var(--fg-faint)}
+.stat .v{font-size:13px;font-weight:600}
+
+.statechip{
+  font-size:10px;font-weight:600;letter-spacing:.04em;padding:3px 8px;border-radius:999px;border:1px solid;
+  white-space:nowrap;
+}
+.statechip.warn{color:var(--warn);border-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.statechip.crit{color:var(--crit);border-color:var(--crit);background:color-mix(in srgb,var(--crit) 10%,transparent)}
+.statechip.flat{color:var(--fg-muted);border-color:var(--border-strong);background:var(--bg-subtle)}
+
+/* Connection card — the P10b rail's contents (row 6). */
+.rrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.rstat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rstat em{font-style:normal;font-size:11px;color:var(--fg-muted)}
+.rstat em::before{content:"•";margin-right:5px;color:var(--fg-faint)}
+.rv{font-size:13px;font-weight:600;color:var(--fg-base)}
+.rv small{color:var(--fg-faint);font-weight:400;margin-left:1px}
+.rv.warn{color:var(--warn)}
+.rv.crit{color:var(--crit)}
+.rnext{display:flex;align-items:center;gap:6px}
+.ring{width:16px;height:16px;flex:0 0 auto}
+.tickrate{font-size:13px;font-weight:600;color:var(--fg-base)}
+.conn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-muted)}
 .conn i{width:7px;height:7px;border-radius:999px;background:var(--flat)}
 .conn.on i{background:var(--ok)}
 .conn.off i{background:var(--crit)}
-.clock{font-size:12px;color:var(--fg-muted)}
-.icon{
-  width:30px;height:30px;border-radius:6px;border:1px solid var(--border-strong);
-  background:var(--bg-subtle);color:var(--fg-muted);cursor:pointer;font-size:14px;line-height:1;
+.feedpill{
+  display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--fg-muted);background:var(--bg-subtle);
+  border:1px solid var(--border);border-radius:999px;padding:3px 9px;white-space:nowrap;
+}
+.feedpill i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
+.feedpill.live{color:var(--ok);border-color:var(--ok)}
+.feedpill.live i{background:var(--ok);animation:pulse 2.4s infinite}
+.feedpill.bad{color:var(--crit);border-color:var(--crit)}
+.feedpill.bad i{background:var(--crit)}
+
+/* ------------------------------------------------------------- controls */
+/* Row 15 — 30px, radius 6, 1px border, 12px/500. Pressed = black fill. */
+.tog{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:500;color:var(--fg-base);background:var(--bg-panel);
+  border:1px solid var(--border-strong);border-radius:6px;height:30px;padding:0 12px;cursor:pointer;white-space:nowrap;
   transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms cubic-bezier(.16,1,.3,1);
 }
-.icon:hover{background:var(--bg-inset);color:var(--fg-base)}
-.icon:active{transform:translateY(1px)}
-
-.replaybar{
-  flex:0 0 auto;padding:9px 16px;font-size:12.5px;line-height:1.45;
-  background:color-mix(in srgb,var(--warn) 13%,var(--bg-panel));
-  border-bottom:1px solid var(--warn);color:var(--fg-base);
-}
-.replaybar b{letter-spacing:.08em;color:var(--warn)}
-.replaybar code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--bg-inset);padding:1px 5px;border-radius:3px}
-
-/* ----------------------------------------------------------------- chips */
-.chips[hidden],.hstrip[hidden]{display:none}
-.chips{
-  flex:0 0 48px;display:flex;align-items:center;gap:6px;padding:0 16px;overflow-x:auto;
-  background:var(--bg-panel);border-bottom:1px solid var(--border);
-}
-.chip{
-  display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer;
-  font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:7px 13px;min-height:32px;
-  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:999px;
-  transition:transform 120ms cubic-bezier(.16,1,.3,1),background 120ms,color 120ms,border-color 120ms;
-}
-.chip:hover:not(:disabled){background:var(--bg-inset);color:var(--fg-base);transform:translateY(-1px)}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-.chip:disabled{opacity:.45;cursor:not-allowed}
-.chip i{width:5px;height:5px;border-radius:999px;background:var(--flat);flex:0 0 auto}
-.chip i.open{background:var(--up)}
-.chip[aria-pressed="true"] i{background:currentColor}
-.chip .kbd{font-size:9px;opacity:.55;font-family:"IBM Plex Mono",monospace}
-
-/* ---------------------------------------------------------- header strip */
-.hstrip{
-  flex:0 0 auto;display:flex;align-items:flex-end;gap:22px;padding:12px 16px;
-  background:var(--bg-panel);border-bottom:1px solid var(--border);flex-wrap:wrap;
-}
-.hs-name{display:flex;flex-direction:column;gap:1px;min-width:210px}
-.hs-name .nm{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint)}
-.pulse{width:6px;height:6px;border-radius:999px;background:var(--flat)}
-.pulse.on{background:var(--up);animation:pulse 2.4s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--up) 55%,transparent)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
-.hs-name .spot{font-size:26px;font-weight:600;line-height:1.08;letter-spacing:-.01em}
-.hs-name .chg{font-size:11.5px;color:var(--fg-muted)}
-.stats{display:flex;gap:20px;flex-wrap:wrap}
-.stat{display:flex;flex-direction:column;gap:1px}
-.stat .k{font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
-.stat .v{font-size:15px;font-weight:600}
-.statechip{
-  font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  padding:5px 11px;border-radius:999px;border:1px solid;
-}
-.statechip.warn{color:var(--warn);border-color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,transparent)}
-.statechip.crit{color:var(--crit);border-color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
-.statechip.flat{color:var(--fg-muted);border-color:var(--border-strong);background:var(--bg-subtle)}
-.srch input,.expwrap select{
-  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--fg-base);
-  background:var(--bg-subtle);border:1px solid var(--border-strong);border-radius:4px;
-  padding:7px 9px;min-height:32px;
-}
-.srch input{width:110px}
-.tog{
-  font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;
-  color:var(--fg-muted);background:var(--bg-subtle);border:1px solid var(--border-strong);
-  border-radius:4px;padding:7px 11px;min-height:32px;cursor:pointer;
-  transition:background 180ms cubic-bezier(.16,1,.3,1),color 180ms cubic-bezier(.16,1,.3,1);
-}
-.tog:hover{color:var(--fg-base);border-color:var(--fg-faint)}
-.tog[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:var(--accent-fg)}
+.tog:hover{background:var(--bg-subtle)}
+.tog[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .tog:disabled{opacity:.45;cursor:default}
-.expwrap select{cursor:pointer}
+
+/* Breached, as the reference's "Include Existing" switch: 32x18 track, 14px knob. */
+.switch{
+  display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 2px;cursor:pointer;
+  background:none;border:0;font-size:12px;font-weight:500;color:var(--fg-base);white-space:nowrap;
+}
+.switch i{position:relative;width:32px;height:18px;border-radius:999px;background:var(--border-strong);flex:0 0 auto;transition:background 160ms cubic-bezier(.16,1,.3,1)}
+.switch i::after{
+  content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:999px;background:#FFFFFF;
+  box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform 160ms cubic-bezier(.16,1,.3,1);
+}
+.switch[aria-pressed="true"] i{background:var(--accent)}
+.switch[aria-pressed="true"] i::after{transform:translateX(14px);background:var(--accent-fg)}
+
+.srch input,.expwrap select{
+  font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--fg-base);
+  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:6px;
+  height:30px;padding:0 10px;
+}
+.srch input{width:104px}
+.expwrap select{cursor:pointer;padding-right:6px}
 
 /* ----------------------------------------------------------------- shell */
-/* P10a — docs/spec/terminal-redesign-v1.md rows 2 and 5. Panes stacked in one column, flush:
-   no gap, no margin, no radius on a pane edge, and a single 1px seam carried by the pane below.
-   That one line is the whole visual difference between "a page with sections" and "a terminal". */
-.shell{flex:1;display:flex;flex-direction:column;min-height:0}
+/* Rows 7 and 8. The right column. Same #shell the P10a pane maths measures; the 1px seams are now
+   12px gaps, and the gap IS the splitter, so there is still exactly one resize idiom. */
+.shell{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .pane{min-height:0}
-/* Row 18 — the P8 trap. A pane with its own display: rule outranks the UA's [hidden]{display:none},
-   and the failure looks like broken JavaScript rather than like CSS. */
+/* The P8 trap. A pane with its own display: rule outranks the UA's [hidden]{display:none}. */
 .pane[hidden]{display:none}
-.shell > .pane + .pane{border-top:1px solid var(--border)}
 
-/* Splitter — row 3. 5px visible, 9px hit area via the pseudo-element, transparent until hovered,
-   dragged or focused. Generalises the P5 .chart-grip rather than inventing a second resize idiom. */
 .psplit{
-  flex:0 0 5px;height:5px;position:relative;z-index:6;
+  flex:0 0 12px;height:12px;position:relative;z-index:6;
   cursor:ns-resize;background:transparent;touch-action:none;
-  transition:background 120ms cubic-bezier(.16,1,.3,1);
 }
-.psplit::before{content:"";position:absolute;left:0;right:0;top:-2px;bottom:-2px}
-/* Row 18 again: .psplit sets its own display via flex, so the UA's [hidden] does not reach it. */
+.psplit::after{
+  content:"";position:absolute;left:50%;top:4px;width:36px;height:4px;margin-left:-18px;border-radius:999px;
+  background:var(--border-strong);opacity:0;transition:opacity 120ms cubic-bezier(.16,1,.3,1),background 120ms;
+}
 .psplit[hidden]{display:none}
-.psplit:hover,.psplit.dragging,.psplit:focus-visible{background:var(--border-strong)}
-.psplit:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
+.psplit:hover::after,.psplit.dragging::after{opacity:1}
+.psplit:focus-visible{outline:none}
+.psplit:focus-visible::after{opacity:1;background:var(--fg-base)}
 
 /* ------------------------------------------------------------------ work */
-.work{flex:1;display:flex;min-height:0;gap:0}
-.gridwrap{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg-panel)}
-.gridscroll{flex:1;overflow:auto;position:relative}
+.work{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.chain-h{gap:10px}
+.gridwrap{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.gridscroll{flex:1;overflow:auto;position:relative;scrollbar-width:thin}
 
 /* --------------------------------------------------------------- the grid */
 table.oc{
-  /* 25 columns: 2 x 696px of side + the 92px spine. Grew from 1392px when P7 added Pk %. */
+  /* 25 columns: 2 x 696px of side + the 92px spine. */
   border-collapse:separate;border-spacing:0;width:100%;min-width:1484px;table-layout:fixed;
-  font-family:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;
-  font-size:10.5px;font-variant-numeric:tabular-nums;
+  font-size:12px;font-variant-numeric:tabular-nums;
 }
 table.oc thead th{
   position:sticky;background:var(--bg-subtle);z-index:3;
-  font-family:Archivo,sans-serif;font-weight:600;letter-spacing:.045em;text-transform:uppercase;
-  color:var(--fg-faint);white-space:nowrap;text-align:right;padding:0 6px;
+  font-weight:500;color:var(--fg-muted);white-space:nowrap;text-align:right;padding:0 6px;
 }
-thead tr.sides th{top:0;height:24px;font-size:9.5px;letter-spacing:.16em;text-align:center;color:var(--fg-base)}
-thead tr.cols th{top:24px;height:26px;font-size:9px;border-bottom:1px solid var(--border-strong)}
-thead th.side.ce{background:color-mix(in srgb,var(--net) 14%,var(--bg-subtle));border-bottom:1px solid var(--border)}
-thead th.side.pe{background:color-mix(in srgb,var(--render) 14%,var(--bg-subtle));border-bottom:1px solid var(--border)}
+thead tr.sides th{top:0;height:30px;font-size:12px;font-weight:600;text-align:center;color:var(--fg-base);border-bottom:1px solid var(--border)}
+thead tr.cols th{top:30px;height:28px;font-size:11px;border-bottom:1px solid var(--border)}
 thead th.ltp{color:var(--fg-base)}
+/* Row 14 — the reference's CE / PE type pills */
+.tpill{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid;border-radius:4px;font-size:10px;font-weight:600;line-height:16px;vertical-align:1px}
+.tpill.ce{color:var(--up);border-color:var(--up)}
+.tpill.pe{color:var(--down);border-color:var(--down)}
 
-/* The strike spine — the column everything is read against, so it is the loudest thing here.
-   P10a row 6 pins it: `left:0` AND `right:0`. The reflex `left:0` alone is inert on this table —
-   the spine sits at x≈696 of 1484 and the overflow at 1440px is 44px, so it would need ~700px of
-   horizontal scroll before it ever engaged. Symmetric offsets pin the cell in both directions and
-   only conflict when the scrollport is narrower than the 92px cell, far below the 1024px floor.
-   Sticky also needs a painted background and border-collapse:separate — both were already true.
-   td.flash would defeat it by animating background to transparent, but .flash is only ever added
-   to the two LTP cells (CELL.ce.ltp = 11, CELL.pe.ltp = 13); the spine is 12. */
+/* The strike spine. P10a row 6 pins it with `left:0` AND `right:0`: the reflex `left:0` alone is
+   inert on this table, because the spine sits mid-table and the overflow is small. Sticky also
+   needs a painted background and border-collapse:separate. td.flash would defeat it by animating
+   background to transparent, but .flash only lands on the two LTP cells (11 and 13); the spine is 12. */
 thead th.spine{
   position:sticky;left:0;right:0;top:0;z-index:4;
-  height:50px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.16em;
-  color:var(--fg-base);background:var(--bg-inset);
-  border-left:2px solid var(--border-strong);border-right:2px solid var(--border-strong);
-  border-bottom:1px solid var(--border-strong);
+  height:58px;text-align:center;font-size:12px;font-weight:600;color:var(--fg-base);
+  background:var(--bg-subtle);
+  border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);
 }
 td.spine{
   position:sticky;left:0;right:0;z-index:2;
-  text-align:center;font-size:13.5px;font-weight:700;letter-spacing:.01em;color:var(--fg-base);
-  background:var(--bg-inset);
-  border-left:2px solid var(--border-strong);border-right:2px solid var(--border-strong);
+  text-align:center;font-size:13px;font-weight:600;color:var(--fg-base);
+  background:var(--bg-subtle);
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
 }
 
 table.oc td{
   height:28px;padding:0 6px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:clip;
   border-bottom:1px solid var(--grid-line);color:var(--fg-base);
 }
-tbody tr:hover td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
-tbody tr:hover td.spine{background:color-mix(in srgb,var(--accent) 16%,var(--bg-inset))}
+tbody tr:hover td{background:var(--bg-inset)}
+tbody tr:hover td.spine{background:var(--bg-inset)}
 td.itm{background:var(--itm)}
-tbody tr:hover td.itm{background:color-mix(in srgb,var(--accent) 7%,var(--itm))}
-td.ltp{font-weight:600;font-size:11px}
+tbody tr:hover td.itm{background:var(--bg-inset)}
+td.ltp{font-weight:600}
 
 .up{color:var(--up)}
 .down{color:var(--down)}
 .dim{color:var(--fg-faint)}
-.sub{font-size:8.5px;opacity:.72;margin-left:2px}
+.sub{font-size:9.5px;opacity:.75;margin-left:2px}
 
 td.oi{position:relative;isolation:isolate}
-td.oi .bar{position:absolute;top:4px;bottom:4px;left:2px;background:var(--accent);opacity:.14;border-radius:2px;z-index:-1}
+td.oi .bar{position:absolute;top:5px;bottom:5px;left:2px;background:var(--accent);opacity:.08;border-radius:3px;z-index:-1}
 td.oi.r .bar{left:auto;right:2px}
-/* Where yesterday's peak sits on the same scale as the bar. Grows out of the same edge. */
-td.oi .pkmark{position:absolute;top:3px;bottom:3px;width:1px;background:var(--fg-faint);opacity:.8;z-index:-1}
+td.oi .pkmark{position:absolute;top:4px;bottom:4px;width:1px;background:var(--fg-faint);opacity:.8;z-index:-1}
 
 /* P7 — live OI against yesterday's peak. docs/spec/peak-oi-v1.md rows 11-13. */
 td.pk{color:var(--fg-muted)}
-td.pk.breach{color:var(--warn);font-weight:700;background:var(--accent-wash)}
+td.pk.breach{color:var(--warn);font-weight:700;background:color-mix(in srgb,var(--warn) 10%,transparent)}
 tbody tr:hover td.pk.breach{background:color-mix(in srgb,var(--warn) 16%,transparent)}
 
 tr.atm td{background:var(--accent-wash)}
-tr.atm td.spine{
-  background:var(--accent);color:var(--accent-fg);
-  border-left-color:var(--accent);border-right-color:var(--accent);
-}
+tr.atm td.spine{background:var(--accent);color:var(--accent-fg);border-left-color:var(--accent);border-right-color:var(--accent)}
 tr.atm:hover td.spine{background:var(--accent-hover)}
-tr.spotline td{border-bottom:2px dashed var(--accent)}
+tr.spotline td{border-bottom:1px dashed var(--fg-base)}
 tr.hidden{display:none}
 
-/* Greeks off — row 7. 8 columns x 22px of them come off each side: 696 - 176 = 520 per side, so
-   520*2 + 92 = 1132px, the first column set that fits the 1440px floor with zero sideways scroll.
-   `display:none` on a cell removes it from the CSS table (17 generated columns, and app.js emits a
-   17-wide <colgroup> to match) but NOT from tr.children — so CELL's index constants in app.js keep
-   addressing the same <td>s, and the 10 Hz tick updater needs no branch for this. */
+/* Greeks off — P10 row 7. 520*2 + 92 = 1132px. `display:none` removes a cell from the CSS table but
+   NOT from tr.children, so app.js's CELL index constants keep addressing the same <td>s. */
 body.nogreeks table.oc{min-width:1132px}
 body.nogreeks table.oc .gk{display:none}
 
+/* Row 14 — the reference's "Current Price" label: white box, 1px dark border. */
 .spotpill{
   position:absolute;transform:translate(-50%,-50%);z-index:4;pointer-events:none;
-  background:var(--accent);color:var(--accent-fg);box-shadow:var(--shadow-sm);
-  font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;
+  background:var(--bg-panel);color:var(--fg-base);border:1px solid var(--fg-base);box-shadow:var(--shadow-sm);
+  font-size:11px;font-weight:600;padding:1px 8px;border-radius:4px;white-space:nowrap;
 }
 
 @keyframes flash{from{background:var(--accent-wash)}to{background:transparent}}
@@ -287,7 +366,7 @@ td.flash{animation:flash 400ms cubic-bezier(.16,1,.3,1)}
 
 /* skeleton */
 tr.skel td{color:transparent}
-tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;background:var(--bg-inset);animation:shimmer 1.4s infinite}
+tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;background:var(--bg-inset);animation:shimmer 1.4s infinite}
 @keyframes shimmer{0%,100%{opacity:.5}50%{opacity:1}}
 
 /* ------------------------------------------------------- expressive state */
@@ -296,8 +375,8 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;back
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
   padding:40px 22px;text-align:center;color:var(--fg-faint);
 }
-.exp h2{font-size:19px;font-weight:700;margin:0;color:var(--fg-base)}
-.exp p{font-size:14px;margin:0;max-width:46ch;color:var(--fg-muted);line-height:1.5}
+.exp h2{font-size:18px;font-weight:700;margin:0;color:var(--fg-base)}
+.exp p{font-size:13px;margin:0;max-width:46ch;color:var(--fg-muted);line-height:1.5}
 .needle{width:88px;height:88px}
 .needle .nd{transform-origin:50px 52px}
 .exp.idle .needle .nd{animation:sway 3s ease-in-out infinite}
@@ -306,148 +385,97 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;back
 @keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
 @keyframes tremor{0%,100%{transform:rotate(62deg)}50%{transform:rotate(65deg)}}
 .btn{
-  font-family:Archivo,sans-serif;font-size:12.5px;font-weight:600;padding:9px 17px;min-height:36px;
-  border-radius:5px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);
+  font-size:12px;font-weight:600;padding:0 16px;height:32px;
+  border-radius:6px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);
   transition:background 120ms cubic-bezier(.16,1,.3,1);
 }
 .btn:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
-.exp details{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);max-width:70ch;width:100%}
+.exp details{font-size:11px;color:var(--fg-faint);max-width:70ch;width:100%}
 .exp details summary{cursor:pointer}
 .exp details pre{
-  text-align:left;background:var(--bg-inset);color:var(--fg-muted);padding:10px 12px;border-radius:5px;
+  font-family:Consolas,"Cascadia Mono",monospace;
+  text-align:left;background:var(--bg-subtle);color:var(--fg-muted);padding:10px 12px;border-radius:6px;
   overflow-x:auto;margin:8px 0 0;font-size:10.5px;line-height:1.55;
 }
 
-/* ------------------------------------------------ status rail (P10b row 13) */
-/* 26px, full width, pinned under every pane, never closable. Zero chain width — which is the
-   whole reason the 380px right dock could be deleted. Values update in place. */
-.rail{
-  flex:0 0 26px;height:26px;display:flex;align-items:center;gap:14px;padding:0 12px;
-  background:var(--bg-subtle);border-top:1px solid var(--border-strong);
-  font-family:"IBM Plex Mono",monospace;font-size:10.5px;white-space:nowrap;overflow:hidden;
-}
-.rstat{display:flex;align-items:center;gap:5px}
-.rstat em{font-style:normal;color:var(--fg-faint);letter-spacing:.08em}
-.rv{color:var(--fg-base);font-weight:600}
-.rv small{color:var(--fg-faint);font-weight:400;margin-left:1px}
-.rv.warn{color:var(--warn)}
-.rv.crit{color:var(--crit)}
-.rail .ring{width:14px;height:14px;margin-left:1px}
-.rail .badge{font-size:9px;padding:1px 6px}
-.rail .conn{font-size:10px}
-.rail .clock{color:var(--fg-muted)}
-.rail .feedpill{font-size:9px;padding:1px 8px}
-.rail .tickrate{font-size:10px}
-.railbtn{
-  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.05em;cursor:pointer;
-  background:var(--bg-panel);color:var(--fg-muted);border:1px solid var(--border-strong);
-  border-radius:4px;padding:1px 8px;transition:background 120ms cubic-bezier(.16,1,.3,1);
-}
-.railbtn:hover{background:var(--bg-inset);color:var(--fg-base)}
-.railbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-/* Row 20 — below 1180px the rail drops OK%, then the clock. */
-@media (max-width:1180px){ .rdrop1{display:none} }
-@media (max-width:1080px){ .rdrop2{display:none} }
-
-/* -------------------------------------------- telemetry drawer (P10b row 14) */
-/* The same four blocks the 380px stack held, side by side. It costs height, never width. */
-.drawer{
-  flex:0 0 auto;height:240px;min-height:88px;display:flex;gap:0;overflow:hidden;
-  background:var(--bg-panel);
-}
+/* -------------------------------------------- latency drawer card (P10b row 14) */
+.drawer{flex:0 0 auto;height:240px;min-height:88px;display:flex;gap:0;overflow:hidden}
 .drawer[hidden]{display:none}
-/* Each column scrolls on its own so a drawer compressed to its hard floor at 1024x800 still
-   shows all four blocks rather than clipping them. */
 .dcol{
-  flex:1 1 0;min-width:0;padding:11px 14px;border-right:1px solid var(--border);
+  flex:1 1 0;min-width:0;padding:12px 16px;border-right:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;
 }
 .dcol:last-child{border-right:0}
-.dcol .k{display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px}
-.dcol .foot{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45;margin:9px 0 0}
+.dcol .k{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--fg-base);margin:0 0 10px}
+.dcol .k .mono{font-weight:500;color:var(--fg-muted)}
+.dcol .foot{font-size:11px;color:var(--fg-faint);line-height:1.5;margin:10px 0 0}
 .dcol.log{flex:1.3 1 0}
 .logscroll{flex:1;min-height:0;overflow-y:auto}
 .mini{
-  align-self:flex-start;
-  font-size:9.5px;font-weight:600;letter-spacing:.06em;color:var(--fg-muted);text-decoration:none;
-  border:1px solid var(--border-strong);border-radius:4px;padding:3px 8px;background:var(--bg-subtle);
+  align-self:flex-start;display:inline-flex;align-items:center;height:30px;padding:0 12px;
+  font-size:12px;font-weight:500;color:var(--fg-base);text-decoration:none;
+  border:1px solid var(--border-strong);border-radius:6px;background:var(--bg-panel);
 }
-.mini:hover{background:var(--bg-inset);color:var(--fg-base)}
-.ring{width:22px;height:22px;flex:0 0 auto}
-.wf{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg-inset)}
+.mini:hover{background:var(--bg-subtle)}
+.wf{display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--bg-inset)}
 .wf i{display:block;transition:width 280ms cubic-bezier(.16,1,.3,1)}
 .wf i[data-stage="server"]{background:var(--net)}
 .wf i[data-stage="download"]{background:color-mix(in srgb,var(--net) 50%,var(--bg-inset))}
 .wf i[data-stage="compute"]{background:var(--compute)}
 .wf i[data-stage="transport"]{background:color-mix(in srgb,var(--render) 45%,var(--bg-inset))}
 .wf i[data-stage="render"]{background:var(--render)}
-.wfkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-muted)}
+.wfkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:11px;color:var(--fg-muted);font-variant-numeric:tabular-nums}
 .wfkey span{display:flex;align-items:center;gap:5px}
 .wfkey b{width:7px;height:7px;border-radius:2px}
 .spark{width:100%;height:54px;display:block}
-.pcts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px}
-.pct{background:var(--bg-subtle);border:1px solid var(--border);border-radius:4px;padding:5px 7px}
-.pct .k2{font-size:8px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
+.pcts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.pct{background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;padding:5px 8px}
+.pct .k2{font-size:10px;font-weight:500;color:var(--fg-muted)}
 .pct .v2{font-size:13px;font-weight:600}
-.log table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:10px}
+.log table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
 .log th{
-  position:sticky;top:0;background:var(--bg-subtle);font-family:Archivo,sans-serif;font-size:8.5px;
-  font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint);
+  position:sticky;top:0;background:var(--bg-subtle);font-size:11px;font-weight:500;color:var(--fg-muted);
   padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);
 }
-.log td{padding:5px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.log td{padding:5px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-muted);white-space:nowrap}
 .log td.ok{color:var(--ok)}
 .log td.bad{color:var(--crit)}
 
-/* ------------------------------------------------------------ tick chart */
-/* Sits above the chain. Height is user-draggable and remembered; C collapses it. */
-/* The seam moved to the pane below it when P10a stacked the panes (row 5): border-bottom here
-   plus border-top there would draw the 1px line twice. */
-.chart{
-  flex:0 0 auto;display:flex;flex-direction:column;
-  background:var(--bg-panel);
-}
-.chart-h{display:flex;align-items:center;gap:14px;padding:8px 16px;flex-wrap:wrap}
-.chart-h .ct{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)}
-.chart-h .cpx{font-size:19px;font-weight:600;letter-spacing:-.01em}
-.chart-h .cchg{font-size:11.5px}
-.legend{display:flex;gap:14px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint)}
-.legend span{display:flex;align-items:center;gap:5px}
-.dot{width:6px;height:6px;border-radius:999px;display:inline-block}
+/* ------------------------------------------------------------ chart card */
+.chart{flex:0 0 auto;display:flex;flex-direction:column}
+.chart-card{display:flex;flex-direction:column;overflow:hidden}
+.chart-h{display:flex;align-items:center;gap:12px;min-height:44px;padding:7px 16px;flex-wrap:wrap}
+.chart-h .ct{font-size:14px;font-weight:600;color:var(--fg-base);white-space:nowrap}
+.chart-h .cpx{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.chart-h .cchg{font-size:12px;font-weight:500}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--fg-muted)}
+.legend span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:12px;height:3px;border-radius:2px;display:inline-block}
 .dot.tick{background:var(--up)}
-.dot.slow{background:var(--accent)}
-.feedpill{
-  display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.05em;
-  text-transform:uppercase;color:var(--fg-muted);background:var(--bg-subtle);
-  border:1px solid var(--border);border-radius:999px;padding:3px 10px;
-}
-.feedpill i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
-.feedpill.live{color:var(--ok);border-color:var(--ok)}
-.feedpill.live i{background:var(--ok);animation:pulse 2.4s infinite}
-.feedpill.bad{color:var(--crit);border-color:var(--crit)}
-.feedpill.bad i{background:var(--crit)}
-.tickrate{font-size:10.5px;color:var(--fg-faint)}
-.range,.tools{display:flex;gap:3px}
+.dot.slow{background:var(--fg-faint)}
+.range,.tools{display:flex;gap:0}
 .range button,.tools button{
-  font-family:"IBM Plex Mono",monospace;font-size:10px;padding:3px 8px;min-height:24px;cursor:pointer;
-  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:4px;
+  font-size:12px;font-weight:500;height:30px;padding:0 10px;cursor:pointer;
+  background:var(--bg-panel);color:var(--fg-muted);border:1px solid var(--border-strong);border-radius:0;margin-left:-1px;
   transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms;
 }
-.range button:hover,.tools button:hover{background:var(--bg-inset);color:var(--fg-base)}
+.range button:first-child,.tools button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.range button:last-child,.tools button:last-child{border-radius:0 6px 6px 0}
+.range button:hover,.tools button:hover{background:var(--bg-subtle);color:var(--fg-base)}
 .range button[aria-pressed="true"],.tools button[aria-pressed="true"]{
-  background:var(--accent);border-color:var(--accent);color:var(--accent-fg);
+  position:relative;background:var(--accent);border-color:var(--accent);color:var(--accent-fg);
 }
 /* drawing tools — docs/spec/chart-tools-v1.md rows 10, 21, 25 */
-.tools button{min-width:26px;font-size:11px;line-height:1}
+.tools button{min-width:30px;padding:0 8px;font-size:13px;line-height:1}
 .tools button:disabled{opacity:.4;cursor:not-allowed}
-.tools button:disabled:hover{background:var(--bg-subtle);color:var(--fg-muted)}
-.tools button.confirm{border-color:var(--crit);color:var(--crit);font-size:9.5px}
+.tools button:disabled:hover{background:var(--bg-panel);color:var(--fg-muted)}
+.tools button.confirm{border-color:var(--crit);color:var(--crit);font-size:11px}
 
 .chart-body{position:relative;height:190px;min-height:70px;padding:0 16px 8px}
 .chart-body svg{width:100%;height:100%;display:block;overflow:visible}
 .chart-empty{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);pointer-events:none;
+  font-size:12px;color:var(--fg-faint);pointer-events:none;
 }
 /* Pointer targets for the crosshair/drawings and the price axis. They line up with the svg's
    content box: .chart-body pads 16px left/right and 8px bottom, and the axis gutter is 76px
@@ -455,56 +483,52 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;back
 .chart-surface{position:absolute;left:16px;right:92px;top:0;bottom:8px;cursor:crosshair;touch-action:none}
 .chart-axis{position:absolute;right:16px;top:0;bottom:8px;width:76px;cursor:ns-resize;touch-action:none}
 .chart-axis:hover{background:var(--accent-wash)}
-body.nochart .chart-body,body.nochart .psplit{display:none}
+/* Collapsed chart. Only splitter #1 goes away now — the drawer's grip is its own card gap — and
+   the chart pane keeps the 12px gap the grip used to provide. */
+body.nochart .chart-body,body.nochart #chartGrip{display:none}
+body.nochart #chartWrap{margin-bottom:12px}
 body.nochart #chartBtn{transform:rotate(-90deg)}
 
 /* a cell whose price came from a tick, not from the 3 s snapshot */
-@keyframes tickup{from{background:color-mix(in srgb,var(--up) 34%,transparent)}to{background:transparent}}
-@keyframes tickdown{from{background:color-mix(in srgb,var(--down) 34%,transparent)}to{background:transparent}}
+@keyframes tickup{from{background:color-mix(in srgb,var(--up) 26%,transparent)}to{background:transparent}}
+@keyframes tickdown{from{background:color-mix(in srgb,var(--down) 26%,transparent)}to{background:transparent}}
 td.tup{animation:tickup 520ms cubic-bezier(.16,1,.3,1)}
 td.tdn{animation:tickdown 520ms cubic-bezier(.16,1,.3,1)}
 
 /* ------------------------------------------------- option candles (P9) */
-/* docs/spec/option-candles-v1.md rows 2, 9, 13. The chart strip switches MODE rather than
-   opening a second chart: one grip, one resize path, one paint budget.
-
-   Both display toggles carry !important on purpose. `.chart-empty` and `.chart-body svg` set
-   their own `display`, and a plain `.opt{display:none}` loses to them exactly the way the
-   scanner panel's `display:flex` beat the UA's `[hidden]{display:none}` in P8 — the failure
-   looks like broken JavaScript, not like CSS. */
+/* Both display toggles carry !important on purpose: `.chart-empty` and `.chart-body svg` set their
+   own `display`, and a plain `.opt{display:none}` loses to them — the P8 trap. */
 body:not(.optmode) .opt{display:none!important}
 body.optmode .tickonly{display:none!important}
 #candleMsg[hidden]{display:none!important}
 
-.chart-h .opt.ct{font-size:11.5px;letter-spacing:.02em;text-transform:none;color:var(--fg-base);font-weight:600}
-.chart-h #candleBack{font-size:10.5px;padding:3px 9px;min-height:24px}
-.candlecount{font-size:10px;color:var(--fg-faint)}
+.chart-h .opt.ct{font-size:14px;font-weight:600;color:var(--fg-base)}
+.candlecount{font-size:11px;color:var(--fg-muted)}
 .dot.bigin{background:var(--big-in)}
 .dot.bigout{background:var(--big-out)}
 
 #candleSvg{width:100%;height:100%;display:block;overflow:visible}
 
-/* Row 13 — the tooltip prints the exact inputs the colour was computed from, so the rule can be
-   redone by hand without trusting the code that ran it. */
+/* P9 row 13 — the tooltip prints the exact inputs the colour was computed from. */
 .candletip{
   position:absolute;z-index:6;pointer-events:none;
-  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:6px;
-  box-shadow:var(--shadow-md);padding:7px 9px;min-width:236px;
-  font-size:10.5px;color:var(--fg-muted);
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;
+  box-shadow:var(--shadow-md);padding:8px 10px;min-width:236px;
+  font-size:11px;color:var(--fg-muted);
 }
 .candletip .tt-h{
-  font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--fg-base);
-  padding-bottom:5px;margin-bottom:5px;border-bottom:1px solid var(--border);
+  font-size:12px;font-weight:600;color:var(--fg-base);
+  padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--border);
 }
 .candletip table{border-collapse:collapse;width:100%}
-.candletip th{text-align:left;font-weight:400;color:var(--fg-faint);padding:1px 10px 1px 0;white-space:nowrap}
+.candletip th{text-align:left;font-weight:400;color:var(--fg-muted);padding:1px 10px 1px 0;white-space:nowrap}
 .candletip td{text-align:right;color:var(--fg-base);white-space:nowrap}
 .candletip td.ok{color:var(--ok)}
 .candletip td.no{color:var(--fg-faint)}
 .candletip td.blue{color:var(--big-in);font-weight:600}
 .candletip td.yellow{color:var(--big-out);font-weight:600}
 
-/* Row 2 — the charted half of the row is outlined, so the chart and the chain never disagree
+/* P9 row 2 — the charted half of the row is outlined, so the chart and the chain never disagree
    about which contract is on screen. */
 #ocBody tr.selce td:nth-child(-n+12),
 #ocBody tr.selpe td:nth-child(n+14){
@@ -519,102 +543,87 @@ body.optmode .tickonly{display:none!important}
 
 /* --------------------------------------------------------- scanner (P8) */
 /* Overlay, not a route: a route change would tear down the chain poll and the tick feed.
-   scanner-v1.md row 12. */
+   P13 row 16 — a white modal card on a dark backdrop. */
 .scan{
-  position:fixed;inset:52px 0 0 0;z-index:40;display:flex;justify-content:center;
-  padding:20px 20px 24px;background:color-mix(in srgb,var(--bg-base) 78%,transparent);
-  backdrop-filter:blur(2px);
+  position:fixed;inset:0;z-index:40;display:flex;justify-content:center;
+  padding:56px 20px 24px;background:rgba(13,13,13,.45);
 }
-/* `display:flex` above outranks the UA's [hidden]{display:none}, so without this the panel is
-   on screen from page load and neither Esc nor the close button can put it away. */
+/* `display:flex` above outranks the UA's [hidden]{display:none} — the P8 trap. */
 .scan[hidden]{display:none}
 .scan-box{
   width:100%;max-width:1180px;display:flex;flex-direction:column;min-height:0;
-  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;
   box-shadow:var(--shadow-md);overflow:hidden;
 }
 .scan-h{
-  flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:11px 14px;
-  border-bottom:1px solid var(--border);background:var(--bg-subtle);
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:52px;padding:10px 16px;
+  border-bottom:1px solid var(--border);background:var(--bg-panel);
 }
-.scan-h h2{
-  margin:0;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--fg-base);
-}
-.scan-hint{font-size:10.5px;color:var(--fg-faint);letter-spacing:.03em}
-.scan-meta{font-size:10.5px;color:var(--fg-muted)}
-a.tog{text-decoration:none;display:inline-flex;align-items:center}
+.scan-h h2{margin:0;font-size:14px;font-weight:600;color:var(--fg-base)}
+.scan-hint{font-size:12px;color:var(--fg-muted)}
+.scan-meta{font-size:12px;color:var(--fg-muted)}
+a.tog{text-decoration:none}
 a.tog.off{opacity:.45;pointer-events:none}
 
-/* The P8 trap once more: display:flex outranks the UA's [hidden]{display:none}, so scan.js's
-   two `hidden = true` sites left the PREVIOUS scan's funnel counts on screen through a Rescan
-   and through the error state — last run's numbers presented as this run's. */
+/* The P8 trap once more: display:flex outranks [hidden], so a stale funnel would stay on screen. */
 .scan-funnel[hidden]{display:none}
 .scan-funnel{
   flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;
+  padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;background:var(--bg-subtle);
 }
-.scan-funnel.bad{background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.scan-funnel.bad{background:color-mix(in srgb,var(--crit) 10%,transparent)}
 .fstep{display:flex;align-items:baseline;gap:5px}
 .fstep b{font-size:15px;font-weight:700;color:var(--fg-base)}
-.fstep.last b{color:var(--accent)}
-.fstep em{font-style:normal;font-size:10px;color:var(--fg-faint);letter-spacing:.04em}
+.fstep.last b{color:var(--up)}
+.fstep em{font-style:normal;font-size:11px;color:var(--fg-muted)}
 .farrow{font-style:normal;color:var(--fg-faint)}
-.fnote{font-size:10.5px;color:var(--fg-faint)}
+.fnote{font-size:11px;color:var(--fg-faint)}
 
-.scan-body{flex:1;min-height:0;overflow:auto;padding:14px}
-.scan-sec{margin:0 0 18px}
+.scan-body{flex:1;min-height:0;overflow:auto;padding:16px}
+.scan-sec{margin:0 0 20px}
 .scan-sec h3{
-  margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  margin:0 0 8px;font-size:13px;font-weight:600;
   display:flex;align-items:baseline;gap:6px;
 }
 .scan-sec.long h3{color:var(--up)}
 .scan-sec.short h3{color:var(--down)}
-.scan-sec h3 span{color:var(--fg-faint);font-weight:600;letter-spacing:.04em}
-.scan-none{margin:0;font-size:11.5px;color:var(--fg-faint)}
+.scan-sec h3 span{color:var(--fg-muted);font-weight:500}
+.scan-none{margin:0;font-size:12px;color:var(--fg-faint)}
 
-table.scan-t{
-  border-collapse:separate;border-spacing:0;width:100%;font-size:11px;
-  font-variant-numeric:tabular-nums;
-}
+table.scan-t{border-collapse:separate;border-spacing:0;width:100%;font-size:12px;font-variant-numeric:tabular-nums}
 table.scan-t th{
-  position:sticky;top:0;z-index:1;text-align:right;font-weight:600;font-size:9.5px;
-  letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint);
-  padding:6px 8px;background:var(--bg-panel);border-bottom:1px solid var(--border-strong);
+  position:sticky;top:0;z-index:1;text-align:right;font-weight:500;font-size:11px;color:var(--fg-muted);
+  padding:7px 8px;background:var(--bg-subtle);border-bottom:1px solid var(--border);
 }
-table.scan-t td{
-  text-align:right;padding:7px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-base);
-}
+table.scan-t td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-base)}
 table.scan-t th.l,table.scan-t td.l{text-align:left}
 table.scan-t tbody tr:hover td{background:var(--bg-subtle)}
-table.scan-t td .nm{display:block;font-size:9.5px;color:var(--fg-faint);font-family:Archivo,sans-serif}
+table.scan-t td .nm{display:block;font-size:10.5px;color:var(--fg-faint)}
 table.scan-t td.up{color:var(--up)}
 table.scan-t td.down{color:var(--down)}
 table.scan-t td.flat{color:var(--flat)}
 table.scan-t td.dim{color:var(--fg-faint)}
 
 .scan-skip{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
-.scan-skip summary{
-  cursor:pointer;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
-  font-weight:600;color:var(--fg-muted);
-}
-.skgroup{display:flex;gap:8px;align-items:baseline;padding:6px 0 0 14px;font-size:11px}
-.skreason{color:var(--warn);white-space:nowrap;font-size:10.5px}
-.skl{color:var(--fg-muted);font-size:10.5px}
+.scan-skip summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--fg-muted)}
+.skgroup{display:flex;gap:8px;align-items:baseline;padding:6px 0 0 14px;font-size:12px}
+.skreason{color:var(--warn);white-space:nowrap;font-size:11px}
+.skl{color:var(--fg-muted);font-size:11px}
 
 .scan-run,.scan-zero,.scan-err{
   display:flex;flex-direction:column;align-items:center;gap:8px;
   padding:52px 16px;text-align:center;
 }
 .scan-run b,.scan-zero b{font-size:14px}
-.scan-run span,.scan-zero span{font-size:11.5px;color:var(--fg-muted);max-width:520px}
+.scan-run span,.scan-zero span{font-size:12px;color:var(--fg-muted);max-width:520px}
 .scan-run .dim,.zf{color:var(--fg-faint)}
-.zface{font-size:26px;color:var(--accent);letter-spacing:.08em}
+.zface{font-size:26px;color:var(--fg-muted);letter-spacing:.08em}
 .spin{
   width:20px;height:20px;border-radius:999px;border:2px solid var(--border-strong);
   border-top-color:var(--accent);animation:spin 800ms linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 .pbar{width:280px;height:4px;border-radius:999px;background:var(--bg-inset);overflow:hidden}
-.pbar i{display:block;height:100%;background:var(--accent);transition:width 200ms linear}
+.pbar i{display:block;height:100%;background:var(--up);transition:width 200ms linear}
 .scan-err{color:var(--crit)}
-.scan-err span{color:var(--fg-muted);font-size:11px;max-width:620px}
+.scan-err span{color:var(--fg-muted);font-size:12px;max-width:620px}

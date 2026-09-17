@@ -6,18 +6,28 @@
 <title>Dhan Option Chain Terminal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 
-<!-- P10b row 15: #latMini is gone, the rail carries it. Rows 13 and 15 also move the conn dot,
-     the mode badge and the clock down into the rail rather than duplicating them here — two
-     places showing the same number is how they come to disagree. -->
-<header class="topbar">
-  <span class="brand">DHAN <b>OPTION CHAIN</b></span>
-  <span class="grow"></span>
-  <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
+<!-- P13 row 2 — the black nav. Scanner and Latency are the same #scanBtn / #panelBtn elements that
+     used to live in the header strip and the status rail, moved rather than duplicated, so scan.js
+     and telemetry.js keep owning them untouched. -->
+<header class="nav">
+  <span class="brand">DHAN <b>OPTIONS</b></span>
+  <nav class="navlinks" aria-label="Sections">
+    <span class="navlink on" aria-current="page"><i></i>Option Chain</span>
+    <button class="navlink" id="scanBtn" type="button"
+            title="Scan the 210-stock NSE F&amp;O universe (S)">Scanner</button>
+    <button class="navlink" id="panelBtn" type="button" aria-pressed="false"
+            title="Toggle the latency drawer (L)">Latency</button>
+  </nav>
+  <span class="navright">
+    <span class="badge" id="modeBadge">…</span>
+    <span class="navdate" id="navDate"></span>
+    <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
+  </span>
 </header>
 
 <div class="replaybar" id="replayBar" hidden>
@@ -26,67 +36,76 @@
   <code>REPLAY=1</code> for live data.
 </div>
 
-<nav class="chips" id="chips" aria-label="Underlying"></nav>
+<!-- P13 row 4 — the index strip. Names only: only the selected underlying is ever fetched, so a
+     price beside the other five would have to be invented. -->
+<div class="tstrip">
+  <nav class="chips" id="chips" aria-label="Underlying"></nav>
+  <span class="grow"></span>
+  <span class="clock mono" id="clock">--:--:--</span>
+</div>
 
-<section class="hstrip">
-  <div class="hs-name">
-    <span class="nm"><i class="pulse" id="pulse"></i><span id="uName">—</span></span>
+<div class="page">
+
+<!-- P13 rows 5 and 6 — the 248px left column. 248 is the widest sidebar that still leaves the
+     17-column chain (1132px) without horizontal scroll at 1440px. -->
+<aside class="lcol" aria-label="Underlying and connection">
+
+  <!-- `hstrip` is kept as a class because app.js hides `.hstrip` when /api/instruments fails. -->
+  <section class="card ucard hstrip">
+    <div class="nm"><i class="pulse" id="pulse"></i><span id="uName">—</span></div>
     <span class="spot mono" id="uSpot">—</span>
     <span class="chg mono" id="uChg">—</span>
-  </div>
-  <div class="stats">
-    <div class="stat"><span class="k">ATM Strike</span><span class="v mono" id="sAtm">—</span></div>
-    <div class="stat"><span class="k">ATM IV</span><span class="v mono" id="sIv">—</span></div>
-    <div class="stat" id="ivcWrap"><span class="k">IV Change %</span><span class="v mono" id="sIvc">—</span></div>
-    <div class="stat"><span class="k">PCR</span><span class="v mono" id="sPcr">—</span></div>
-    <div class="stat"><span class="k">Market Lot</span><span class="v mono" id="sLot">—</span></div>
-    <div class="stat"><span class="k">Days for Expiry</span><span class="v mono" id="sDte">—</span></div>
-    <div class="stat"><span class="k">Strikes</span><span class="v mono" id="sStrikes">—</span></div>
-  </div>
-  <span class="grow"></span>
-  <span class="statechip" id="stateChip" hidden></span>
-  <span class="statechip flat" id="peakChip" hidden></span>
-  <span class="statechip flat" id="filterChip" hidden></span>
-  <button class="tog" id="greeksBtn" type="button" aria-pressed="false"
-          title="Show the eight greek columns (G)">Greeks</button>
-  <button class="tog" id="breachBtn" type="button" aria-pressed="false"
-          title="Show only strikes whose OI is above yesterday's peak (P)">Breached</button>
-  <button class="tog" id="scanBtn" type="button"
-          title="Scan the 210-stock NSE F&amp;O universe (S)">Scan</button>
-  <label class="srch">
-    <span class="sr-only">Search strike</span>
-    <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
-  </label>
-  <label class="expwrap">
-    <span class="sr-only">Expiry</span>
-    <select id="expiry" class="mono"></select>
-  </label>
-</section>
+    <div class="uchips">
+      <span class="statechip" id="stateChip" hidden></span>
+      <span class="statechip flat" id="peakChip" hidden></span>
+      <span class="statechip flat" id="filterChip" hidden></span>
+    </div>
+  </section>
 
-<!-- P8's scanner overlay. position:fixed, above the shell, untouched by P10 — spec row 17. It is
-     lifted out of the pane column only so that "above the shell" is true of the DOM as well. -->
-<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
-  <div class="scan-box">
-    <header class="scan-h">
-      <h2 id="scanTitle">F&amp;O SCANNER</h2>
-      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
-      <span class="statechip flat" id="scanMode" hidden></span>
-      <span class="grow"></span>
-      <span class="scan-meta mono" id="scanMeta"></span>
-      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
-      <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
-      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
-    </header>
-    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
-    <div class="scan-body" id="scanBody"></div>
-  </div>
-</section>
+  <section class="card">
+    <h2 class="card-t">Chain summary</h2>
+    <div class="stats">
+      <div class="stat"><span class="k">ATM Strike</span><span class="v mono" id="sAtm">—</span></div>
+      <div class="stat"><span class="k">ATM IV</span><span class="v mono" id="sIv">—</span></div>
+      <div class="stat" id="ivcWrap"><span class="k">IV Change %</span><span class="v mono" id="sIvc">—</span></div>
+      <div class="stat"><span class="k">PCR</span><span class="v mono" id="sPcr">—</span></div>
+      <div class="stat"><span class="k">Market Lot</span><span class="v mono" id="sLot">—</span></div>
+      <div class="stat"><span class="k">Days to Expiry</span><span class="v mono" id="sDte">—</span></div>
+      <div class="stat"><span class="k">Strikes</span><span class="v mono" id="sStrikes">—</span></div>
+    </div>
+  </section>
 
-<!-- P10a terminal shell — the panes stacked in one column with 1px seams and no gap, two
-     splitters, and (from P10b) the status rail pinned beneath them. Spec rows 2 and 5. -->
+  <!-- The P10b status rail, as a card (P13 row 6). Same ids, so telemetry.js writes into it as
+       before. It still costs the chain zero width. -->
+  <section class="card rail" id="rail">
+    <h2 class="card-t">Connection</h2>
+    <div class="rrow">
+      <span class="conn" id="conn"><i></i><span>connecting</span></span>
+      <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
+    </div>
+    <div class="rgrid">
+      <span class="rstat"><em>RTT</em><b class="rv mono" id="mRtt">—</b></span>
+      <span class="rstat"><em>Age</em><b class="rv mono" id="mAge">—</b></span>
+      <span class="rstat"><em>Next poll</em><span class="rnext"><b class="rv mono" id="mNext">—</b>
+        <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
+          <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--up)" stroke-width="3"
+                  stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
+        </svg></span>
+      </span>
+      <span class="rstat"><em>OK</em><b class="rv mono" id="okRate">—</b></span>
+      <span class="rstat"><em>Ticks</em><b class="tickrate mono" id="tickRate">0 t/s</b></span>
+    </div>
+  </section>
+
+</aside>
+
+<!-- P13 rows 7 and 8 — the right column is the P10a shell, now a stack of cards. #shell keeps its
+     id and its flex column, so panes.js and telemetry.js measure the same element they always did. -->
 <div class="shell" id="shell">
 
 <section class="chart pane" id="chartWrap">
+  <div class="card chart-card">
   <div class="chart-h">
     <button class="tog opt" id="candleBack" type="button"
             title="Back to the underlying chart (Esc)">&larr; underlying</button>
@@ -95,7 +114,7 @@
       <span><i class="dot bigin"></i>blue: big player entering</span>
       <span><i class="dot bigout"></i>yellow: exiting</span>
     </span>
-    <span class="ct tickonly">LIVE TICK CHART</span>
+    <span class="ct tickonly">Live tick chart</span>
     <span class="cpx mono tickonly" id="chartPx">—</span>
     <span class="cchg mono tickonly" id="chartChg">—</span>
     <span class="legend tickonly">
@@ -109,9 +128,6 @@
       <button type="button" data-iv="5" aria-pressed="true">5m</button>
       <button type="button" data-iv="15">15m</button>
     </span>
-    <!-- #feedPill and #tickRate moved to the status rail (row 13). They were `tickonly` here
-         because P9 found them reading as an option's numbers next to an option's candles; in a
-         global rail below every pane that ambiguity does not exist. -->
     <span class="tools tickonly" id="chartTools" role="group" aria-label="Drawing tools">
       <button type="button" data-tool="cursor" aria-pressed="true" title="Cursor (V)" aria-label="Cursor">↖</button>
       <button type="button" data-tool="trend" aria-pressed="false" title="Trendline (D)" aria-label="Trendline">╱</button>
@@ -138,14 +154,32 @@
     <div class="chart-surface opt" id="candleSurface"></div>
     <div class="candletip mono" id="candleTip" hidden></div>
   </div>
-  <!-- Splitter #1 — spec row 3. The P5 grip generalised: same element and cursor, now focusable
-       and keyboard-driven. panes.js owns the drag. -->
+  </div>
+  <!-- Splitter #1 stays INSIDE #chartWrap: panes.js measures "chrome" as #chartWrap minus
+       #chartBody, and the grip has to be part of that number or the chain loses its 200px floor. -->
   <div class="psplit" id="chartGrip" role="separator" tabindex="0" aria-orientation="horizontal"
        aria-label="Resize the chart pane" aria-controls="chartBody"
        title="Drag to resize · double-click to reset · Arrow keys when focused"></div>
 </section>
 
-<main class="work pane" id="work">
+<main class="work pane card" id="work">
+
+  <div class="card-h chain-h">
+    <h2 class="card-t">Option Chain</h2>
+    <span class="grow"></span>
+    <button class="tog" id="greeksBtn" type="button" aria-pressed="false"
+            title="Show the eight greek columns (G)">Greeks</button>
+    <button class="switch" id="breachBtn" type="button" aria-pressed="false"
+            title="Show only strikes whose OI is above yesterday's peak (P)"><i></i>Breached</button>
+    <label class="srch">
+      <span class="sr-only">Search strike</span>
+      <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
+    </label>
+    <label class="expwrap">
+      <span class="sr-only">Expiry</span>
+      <select id="expiry" class="mono"></select>
+    </label>
+  </div>
 
   <section class="gridwrap" aria-label="Option chain">
     <div class="gridscroll" id="gridScroll">
@@ -153,17 +187,17 @@
         <colgroup id="cg"></colgroup>
         <thead>
           <tr class="sides">
-            <th class="side ce" colspan="12">CALLS · CE</th>
-            <th class="spine" rowspan="2">STRIKE</th>
-            <th class="side pe" colspan="12">PUTS · PE</th>
+            <th class="side ce" colspan="12">Calls <span class="tpill ce">CE</span></th>
+            <th class="spine" rowspan="2">Strike</th>
+            <th class="side pe" colspan="12">Puts <span class="tpill pe">PE</span></th>
           </tr>
-          <!-- `gk` marks the eight greek columns. Off by default (spec row 7); app.js keeps the
+          <!-- `gk` marks the eight greek columns. Off by default (P10 row 7); app.js keeps the
                two side colspans and the <colgroup> in step with the toggle. -->
           <tr class="cols">
             <th class="gk">Vega</th><th class="gk">Theta</th><th class="gk">Gamma</th><th class="gk">Delta</th><th>OI</th>
             <th title="Live OI as a percentage of yesterday's peak OI">Pk %</th><th>OI Chg</th>
-            <th>Volume</th><th>Vol Chg%</th><th>IV</th><th>LTP Chg</th><th class="ltp">LTP</th>
-            <th class="ltp">LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg%</th><th>Volume</th>
+            <th>Volume</th><th>Vol Chg %</th><th>IV</th><th>LTP Chg</th><th class="ltp">LTP</th>
+            <th class="ltp">LTP</th><th>LTP Chg</th><th>IV</th><th>Vol Chg %</th><th>Volume</th>
             <th>OI Chg</th><th title="Live OI as a percentage of yesterday's peak OI">Pk %</th>
             <th>OI</th><th class="gk">Delta</th><th class="gk">Gamma</th><th class="gk">Theta</th><th class="gk">Vega</th>
           </tr>
@@ -189,15 +223,12 @@
 
 </main>
 
-<!-- Splitter #2 and the telemetry drawer — P10b rows 12 and 14. The 380px right dock is gone;
-     the same four blocks are re-laid horizontally so each gets more room than 380px gave it and
-     the call log stops being the only thing below the fold. Closed by default; `L` or the rail's
-     button opens it. It costs height, never width — that is the whole point. -->
+<!-- Splitter #2 and the latency drawer card — P10b rows 12 and 14, restyled by P13 row 7. -->
 <div class="psplit" id="drawerGrip" role="separator" tabindex="0" aria-orientation="horizontal"
      aria-label="Resize the telemetry drawer" aria-controls="drawer"
      title="Drag to resize · double-click to reset" hidden></div>
 
-<section class="drawer pane" id="drawer" aria-label="Latency and telemetry" hidden>
+<section class="drawer pane card" id="drawer" aria-label="Latency and telemetry" hidden>
   <div class="dcol">
     <p class="k"><span>Last call — stage waterfall</span><span class="mono" id="wfTotal">—</span></p>
     <div class="wf" id="wf">
@@ -238,29 +269,25 @@
 </section>
 
 </div><!-- /.shell -->
+</div><!-- /.page -->
 
-<!-- Status rail — P10b row 13. 26px, full width, pinned under every pane, never closable.
-     It costs zero chain width, which is why the 380px dock could be deleted at all. -->
-<footer class="rail" id="rail">
-  <span class="conn" id="conn"><i></i><span>connecting</span></span>
-  <span class="badge" id="modeBadge">…</span>
-  <span class="rstat"><em>RTT</em><b class="rv mono" id="mRtt">—</b></span>
-  <span class="rstat"><em>AGE</em><b class="rv mono" id="mAge">—</b></span>
-  <span class="rstat"><em>NEXT</em><b class="rv mono" id="mNext">—</b>
-    <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
-      <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3"
-              stroke-dasharray="56.5" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 12 12)"/>
-    </svg>
-  </span>
-  <span class="rstat rdrop1"><em>OK</em><b class="rv mono" id="okRate">—</b></span>
-  <span class="grow"></span>
-  <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
-  <span class="tickrate mono" id="tickRate">0 t/s</span>
-  <button class="railbtn" id="panelBtn" type="button" aria-pressed="false"
-          title="Toggle the telemetry drawer (L)">⇥ latency</button>
-  <span class="clock mono rdrop2" id="clock">--:--:--</span>
-</footer>
+<!-- P8's scanner overlay. position:fixed above everything; restyled as a modal card (P13 row 16). -->
+<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+  <div class="scan-box">
+    <header class="scan-h">
+      <h2 id="scanTitle">F&amp;O Scanner</h2>
+      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
+      <span class="statechip flat" id="scanMode" hidden></span>
+      <span class="grow"></span>
+      <span class="scan-meta mono" id="scanMeta"></span>
+      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
+      <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
+      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
+    </header>
+    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
+    <div class="scan-body" id="scanBody"></div>
+  </div>
+</section>
 
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
