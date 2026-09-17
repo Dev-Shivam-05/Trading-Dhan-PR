@@ -12,6 +12,7 @@ import {
 } from './instruments.ts';
 import { readCredentials } from './dhan.ts';
 import { Scanner, scanCsv } from './scanner.ts';
+import { NseScanner, nseScanCsv, TOP_N_CHOICES, DEFAULT_TOP_N, type TopN } from './scanner-nse.ts';
 import { CandleService, INTERVALS, type Interval } from './candles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
@@ -26,6 +27,7 @@ const hub = new PollerHub(creds);
 const feed = new FeedClient(creds);
 const history = new TickHistory();
 const scanner = new Scanner(creds);
+const nseScanner = new NseScanner();
 const candles = new CandleService(creds);
 
 /**
@@ -153,14 +155,50 @@ function scanEnabled(): { enabled: boolean; sessionOpen: boolean; reason: string
   return { enabled: session.openNow, sessionOpen: session.openNow, reason: session.reason };
 }
 
-app.get('/api/scan/status', async () => ({
-  ...scanEnabled(),
-  mode: isReplay() ? 'replay' : 'live',
-  progress: scanner.progress,
-  hasResult: scanner.last !== null,
-}));
+/**
+ * P13 adds a second source. `source=nse` (the default) reads nseindia.com and has no session
+ * gate - the button is manual and the result carries NSE's own timestamp and market status
+ * (scanner-nse-v1.md rows 8, 9). `source=dhan` is P8, unchanged, gate included.
+ *
+ * Query parameters are the only user input here, so both are whitelisted rather than parsed.
+ */
+type ScanSource = 'nse' | 'dhan';
 
-app.get('/api/scan', async (_req, reply) => {
+function scanQuery(q: unknown): { source: ScanSource; n: TopN; reuse: boolean } | { error: string } {
+  const query = (q ?? {}) as Record<string, string | undefined>;
+  const source = query.source ?? 'nse';
+  if (source !== 'nse' && source !== 'dhan') return { error: 'source must be nse or dhan' };
+  const n = query.n === undefined ? DEFAULT_TOP_N : Number(query.n);
+  if (!(TOP_N_CHOICES as readonly number[]).includes(n)) return { error: `n must be one of ${TOP_N_CHOICES.join(', ')}` };
+  return { source, n: n as TopN, reuse: query.reuse === '1' };
+}
+
+app.get('/api/scan/status', async (req, reply) => {
+  const q = scanQuery(req.query);
+  if ('error' in q) return reply.code(400).send({ error: q.error });
+  if (q.source === 'nse') {
+    return {
+      source: 'nse', enabled: true, sessionOpen: sessionState('NSE_BSE_FNO').openNow,
+      reason: 'manual - NSE data carries its own timestamp',
+      mode: process.env.NSE_FIXTURE ? 'fixture' : 'live',
+      progress: nseScanner.progress,
+      hasResult: nseScanner.last !== null,
+    };
+  }
+  return {
+    source: 'dhan',
+    ...scanEnabled(),
+    mode: isReplay() ? 'replay' : 'live',
+    progress: scanner.progress,
+    hasResult: scanner.last !== null,
+  };
+});
+
+app.get('/api/scan', async (req, reply) => {
+  const q = scanQuery(req.query);
+  if ('error' in q) return reply.code(400).send({ error: q.error });
+  if (q.source === 'nse') return nseScanner.run(q.n, q.reuse);
+
   const gate = scanEnabled();
   if (!gate.enabled) {
     return reply.code(409).send({ error: `the NSE equity session is closed - ${gate.reason}` });
@@ -170,11 +208,16 @@ app.get('/api/scan', async (_req, reply) => {
   return scanner.run();
 });
 
-app.get('/api/scan.csv', async (_req, reply) => {
-  if (!scanner.last) return reply.code(404).send({ error: 'no scan has been run yet' });
+app.get('/api/scan.csv', async (req, reply) => {
+  const q = scanQuery(req.query);
+  if ('error' in q) return reply.code(400).send({ error: q.error });
+  const csv = q.source === 'nse'
+    ? (nseScanner.last ? nseScanCsv(nseScanner.last) : null)
+    : (scanner.last ? scanCsv(scanner.last) : null);
+  if (csv === null) return reply.code(404).send({ error: 'no scan has been run yet' });
   return reply.type('text/csv; charset=utf-8')
-    .header('content-disposition', 'attachment; filename="dhan-scan.csv"')
-    .send(scanCsv(scanner.last));
+    .header('content-disposition', `attachment; filename="${q.source}-scan.csv"`)
+    .send(csv);
 });
 
 /* ------------------------------------------------------ option candles (P9) */

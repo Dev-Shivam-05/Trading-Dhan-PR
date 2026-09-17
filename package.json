@@ -18,11 +18,11 @@
     "live:probe": "node --env-file-if-exists=.env scripts/live-probe.ts"
   },
   "dependencies": {
-    "fastify": "^5.2.1"
+    "fastify": "^5.2.1",
+    "playwright": "^1.62.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "playwright": "^1.62.1",
     "typescript": "^5.7.0"
   }
 }
