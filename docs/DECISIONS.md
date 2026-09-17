@@ -407,3 +407,32 @@ P7's peak, P8's closing OI and the previous session are recomputed with `Intl` i
 a digit-count unit test, not `istParts()`'s `+05:30` arithmetic and `>1e11` threshold. A second
 implementation that imports the first cannot catch a bug in it — the same rule as the P8/P9
 independent re-implementations.
+
+## 2026-09-17 — The scanner reads NSE, because that is what the user named and it is reachable
+The 14-09 recordings restate P8 and name the source outright: "NSE spurt". The 2026-08-28 refusal
+rested on two facts — NSE unreachable, OI Spurts capped at 25 — and both fell to one measurement
+with a headed Chrome. With Dhan access dead, NSE is also the only source that works today. P8 is not
+removed: it stays behind Source `Dhan`, untouched, for the day the plan is active.
+
+## 2026-09-17 — "Top 20" means the top 20 of the F&O stocks, not of the whole market
+The pasted analysis of the second recording says "poore market (5000+) ke Top 20 … cross-match";
+the transcript it summarises says "poore market ke top gainer loser nahi chahiye … 250 mein se kon".
+The transcript is the source, and measurement agreed with it: the whole-market top 20 gainers on
+17-Sep were all 20–38% movers and contained **zero** F&O stocks, so that reading returns an empty
+list on an ordinary day.
+
+## 2026-09-17 — OI filter is rising OI only for the NSE source
+"equal to 7 or greater than 7", said twice, with the recording's own gloss that new positions are
+being built. P8 locked `abs(oiPct) >= 7` for Dhan with a short-covering argument; that row is not
+reopened for P8, but P14 follows the user's words. On 17-Sep the two rules give the same answer
+(no F&O underlying fell 7% in OI), so the difference is untested on real data.
+
+## 2026-09-17 — Changing N re-ranks the same fetch; Run re-fetches
+Comparing 20 / 25 / 30 is only meaningful on identical numbers, and every re-fetch costs NSE three
+page loads. The header says `same fetch, re-ranked` so the two cannot be confused.
+
+## 2026-09-17 — The phase is P14, and its branch is not stacked on P13
+Another session built a card-layout P13 in a second worktree the same evening. This work was renamed
+rather than rebased: that branch rewrites the very `index.html` / `app.css` blocks this phase
+touches, it was still being worked on, and rebasing onto a moving branch would have mixed two
+unmerged phases into one verification. The conflict is left for the merge, described in HANDOFF.

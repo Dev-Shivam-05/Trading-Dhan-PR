@@ -55,6 +55,9 @@ the project root. Put it in `.cache/`.
 - Every row of the master has exactly 33 comma-separated fields, so awk-style column parsing is
   safe for one-off analysis — but keep using the quoted splitter in code, a company name with a
   comma would silently shift every column.
+- `data/fno-list.txt` is the user's own F&O list (210, tab-separated). On 2026-09-17 it matched NSE
+  `master-quote`, NSE `underlying-information`, NSE OI Spurts and Dhan's `fnoUniverse()` exactly.
+  P14's scanner ranks only symbols in it and names every mismatch in both directions.
 - `POST /v2/marketfeed/quote` takes **1000 instruments per request** (1 req/sec) and returns
   `last_price`, `ohlc`, `volume`, `oi` and `net_change` (absolute change from previous close).
   All 210 F&O stocks therefore fit in **one** call — there is no top-gainer/loser endpoint in
@@ -88,12 +91,22 @@ scanner panel was on screen from page load and neither `Esc` nor its close butto
 away. Any element toggled with the `hidden` attribute that also gets a `display:` rule needs an
 explicit `.thing[hidden]{display:none}`. The failure looks like broken JavaScript, not like CSS.
 
-## nseindia.com is not reachable from a server here
-Plain fetch/curl to `nseindia.com` returns **HTTP 000** (connection refused) while example.com and
-dhanhq.co return 200 on the same run — browser UA and cookie bootstrap do not help. It also
-publishes only the **top 25** underlyings on the OI Spurts page. Treat any NSE-scraping plan as
-blocked-and-lossy until proven otherwise with a real Chromium, and prefer computing the same number
-from Dhan.
+## nseindia.com is reachable — but only from a headed Chrome (corrected 2026-09-17)
+The 2026-08-28 note here said NSE was unreachable and OI Spurts listed only the top 25. **Both were
+wrong once measured with a real browser.** curl is still HTTP 000, and headless Chromium *and*
+headless Chrome both die with `ERR_HTTP2_PROTOCOL_ERROR`, but `chromium.launch({ headless: false,
+channel: 'chrome', args: ['--window-position=-32000,-32000'] })` gets 200s in ~3 s. OI Spurts
+(`/api/live-analysis-oi-spurts-underlyings`) returns **all 216** F&O underlyings (210 stocks + 6
+indices), and its oddly named `avgInOI` **is** the OI change % (216/216 recomputed). Full F&O prices
+with NSE's own `pChange`: `/api/NextApi/apiClient/marketWatchApi?functionName=getIndicesData&symbol=SECURITIES%20IN%20F%26O`
+(the old `/api/equity-stockIndices` is 404). `src/server/nse.ts` owns all of this. NSE's terms of
+use restrict automated access — the scanner makes 3 page loads per button press, and that is the
+user's call, recorded in `scanner-nse-v1.md`.
+
+## Look at the screenshot; a passing check can still be wrong on screen
+P14's browser suite was 32/32 green while the error state printed "nothing skipped" under a failed
+scan and the header wrapped every button onto two lines. Both were only visible in the PNGs. Read
+each screenshot before calling a UI phase done, then add a check for whatever you saw.
 
 ## "Now" is an argument, not a clock, wherever a rule depends on it
 P9's rule must never colour the candle that is still forming, and the market is shut for almost
@@ -176,12 +189,14 @@ case, not the edge case.
 82 contracts with `key: \`thing:${securityId}\`` dispatches all 82 simultaneously. Anything doing a
 fan-out shares ONE key (P7 uses `peak:oi`, P8's spec locks `scan:quote` / `scan:oi`).
 
-## `pkill` does not kill the dev server here — use `taskkill`, then verify
+## `pkill` does not kill the dev server here — use `taskkill` by PID, then verify
 `pkill -f "node.*src/server/index"` reports success and kills nothing on this machine. The old
 server keeps port 8787, the new one dies with `EADDRINUSE` **into the log file**, and every
 subsequent curl silently hits the STALE build — which is how a tuning change to `replay.ts` was
-measured against the code it replaced and read as having no effect. Use
-`taskkill //F //IM node.exe`, then re-check `/api/...` before trusting any number. A restart that
+measured against the code it replaced and read as having no effect. Find the PID that owns the port
+(`netstat -ano | grep ':8787 ' | grep LISTEN`) and `taskkill //F //PID <pid>`, then re-check
+`/api/...` before trusting any number. (This note used to say `//IM node.exe`; that also kills MCP
+servers and any other session's server — see the worktree note below.) A restart that
 you did not confirm is a measurement of the previous commit.
 
 ## A self-check whose inputs come from its own expected answer is decoration
@@ -197,6 +212,18 @@ everywhere else in this project.
 The reply that starts with the server already up and `http://127.0.0.1:8787` on the first line is
 the one that answers the question. Credentials status, mode and verification belong under it, not
 in front of it.
+
+## Another session may be running this repo from a second worktree — on the same port
+`git worktree list` showed `D:/Temp/Dhan-p13` on `p13-card-layout`, driven by a parallel Claude
+session that (a) took the phase number P13 and (b) restarted *its* server on 8787 while this
+session's regression suite was running, so part of that run measured the other checkout's
+`scan.js`. The symptom was a verify script timing out on a feature that plainly existed on disk.
+Before trusting any number: `git worktree list`, confirm the listening PID's command line
+(`Get-CimInstance Win32_Process -Filter "ProcessId = <pid>"`), and fetch a file only this build
+serves. If a peer is on 8787, run on another `PORT` and say so (`ListAgents` / `SendMessage`).
+**Never `taskkill //IM node.exe`** here: this machine also runs MCP servers and other tools as
+`node.exe`. Kill by the PID that owns the port. Check the board on *every* branch
+(`git branch -a`) before choosing a phase number.
 
 ## A background `npm run dev` with an `||` fallback respawns the server you just killed
 `REPLAY=1 npm run dev > log 2>&1 || mkdir -p .cache && REPLAY=1 npm run dev > log 2>&1` looks

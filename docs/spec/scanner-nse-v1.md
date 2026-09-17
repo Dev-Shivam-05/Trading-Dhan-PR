@@ -1,5 +1,9 @@
 # SPEC LOCK — P14 9:20 F&O scanner on NSE data
 
+Phase number: **P14**. It was written as P13 and renamed the same evening, because another session
+had already built and pushed a different P13 (card layout, branch `p13-card-layout`). Commits
+`22cb115` and `7f1b0dc` still say `p13:` — history is not rewritten.
+
 Status: **locked** 2026-09-17. The 12-row proposal was approved with `go`; the same message carried a
 second recording that changes rows 2 and 6 and adds a pre-defined F&O list. Those changes are the
 user's words, not new choices, and are marked **AMENDED (rec 2)**.
@@ -55,7 +59,7 @@ untouched, as the second source.
 | 12 | Output | Panel header gets `Source [NSE|Dhan]` and `Top [20|25|30]`. NSE columns: Symbol, LTP, Chg %, OI Chg %, Latest OI, Prev OI, Volume. Funnel `210 → 40 → 26 → 4` labelled `F&O list / top 20 + 20 / chg ≥ 2% / OI chg ≥ 7%` | Same panel as P8, so nothing new to learn |
 | 13 | Counts reconcile | `skipped + excluded-by-rank + rejected-2% + rejected-OI + survivors = list size`, each counted **at the point of rejection** and compared against the list's length read independently | CLAUDE.md: a self-check derived from its own answer is decoration |
 | 14 | Evidence | Every raw body saved to `.cache/nse/<YYYY-MM-DD>-<HHmmss>-<name>.json` (IST) | Same as P12's probe |
-| 15 | Calls per scan | 3 page loads: homepage (cookies), the F&O feed, OI Spurts. A second request while one is running joins it. Changing N re-computes from the last fetch **only if** it is the same scan request; a new Run always re-fetches | Minimal load on NSE |
+| 15 | Calls per scan | 3 page loads: homepage (cookies), the F&O feed, OI Spurts. A second request while one is running joins it. **Changing N re-ranks the last fetch** (`reuse=1`, header reads `same fetch, re-ranked`) so 20/25/30 compare the same numbers; Run and Rescan always fetch again | Minimal load on NSE. *Wording clarified during the build; the locked text was ambiguous about which action re-fetches* |
 | 16 | Test data | The 2026-09-17 closing bodies are committed at `test/fixtures/nse-2026-09-17/`. `NSE_FIXTURE=<dir>` makes the source read them instead of Chrome; the badge then reads `FIXTURE` | Real data, deterministic |
 | 17 | Files | New `src/server/nse.ts` (browser + validation + evidence), `src/server/scanner-nse.ts` (pure funnel), `data/fno-list.txt`. Changed `src/server/index.ts`, `public/scan.js`, `public/index.html`, `public/app.css`, `package.json` | 7 code files, inside the ~8 rule |
 
@@ -67,15 +71,36 @@ untouched, as the second source.
 - Any change to P8's Dhan path
 
 ## Acceptance criteria
-- [ ] With `NSE_FIXTURE=test/fixtures/nse-2026-09-17`, N=20 returns exactly **Long MFSL; Short POLICYBZR, PNBHOUSING, FEDERALBNK**, funnel **210 → 40 → 26 → 4**; N=25 `210 → 50 → 31 → 4`; N=30 `210 → 60 → 36 → 4`.
-- [ ] A second implementation that does not import `scanner-nse.ts` recomputes all three funnels from the fixture and agrees on every count and every symbol.
-- [ ] The counts reconcile (row 13) for all three N.
-- [ ] Deliberately broken fixtures fail or skip as rows 3, 7, 10 and 11 say: a list symbol removed from the feed, an unlisted symbol added, a stock removed from OI Spurts, mismatched dates, a `pChange` off by 0.5, a non-JSON body.
-- [ ] One **real** NSE scan from this machine returns HTTP 200 bodies, a result whose counts reconcile, and three evidence files in `.cache/nse/`.
-- [ ] In the browser: `S` opens and runs; switching Top to 25 and 30 changes the funnel to the values above; switching Source to Dhan still runs P8 in replay; Esc closes; zero console errors.
-- [ ] Screenshots, both themes: results, the N=30 funnel, the skipped disclosure, an error state.
-- [ ] `npm run typecheck` clean.
+- [x] With `NSE_FIXTURE=test/fixtures/nse-2026-09-17`, N=20 returns exactly **Long MFSL; Short POLICYBZR, PNBHOUSING, FEDERALBNK**, funnel **210 → 40 → 26 → 4**; N=25 `210 → 50 → 31 → 4`; N=30 `210 → 60 → 36 → 4`.
+- [x] A second implementation that does not import `scanner-nse.ts` recomputes all three funnels from the fixture and agrees on every count and every symbol.
+- [x] The counts reconcile (row 13) for all three N.
+- [x] Deliberately broken fixtures fail or skip as rows 3, 7, 10 and 11 say: a list symbol removed from the feed, an unlisted symbol added, a stock removed from OI Spurts, mismatched dates, a `pChange` off by 0.5, a non-JSON body.
+- [x] One **real** NSE scan from this machine returns HTTP 200 bodies, a result whose counts reconcile, and ~~three~~ **two** evidence files in `.cache/nse/` (the homepage is a cookie load, not data, so it is not saved — the criterion's "three" was a miscount of row 14, which names only the feeds).
+- [x] In the browser: `S` opens and runs; switching Top to 25 and 30 changes the funnel to the values above; switching Source to Dhan still runs P8 in replay; Esc closes; zero console errors.
+- [x] Screenshots, both themes: results, the N=30 funnel, the skipped disclosure, an error state.
+- [x] `npm run typecheck` clean.
 - [ ] **Not measurable tonight:** a scan pressed at 09:20 IST on a trading day. Recorded as open, not as a pass.
+
+## Verification (2026-09-17, after the close)
+
+| What | Measured |
+|---|---|
+| Server, fixture | `.cache/p13-verify-server.ts` **31/31**: three funnels, second implementation (raw JSON, own list reader, own sort, OI % recomputed from `latestOI/prevOI`) agrees on every count and symbol, reconciliation for all three N, every survivor re-checked against the raw payload, 7 broken fixtures, the 7.00 / 6.99 / −20% OI boundary, a malformed list line |
+| Live NSE, production code | `.cache/p13-live-once.ts`: `210 → 40 → 26 → 4` in **5.4 s**, reconciles, both evidence files written, independent recomputation from those files agrees |
+| Live NSE, through the browser | `.cache/p14-live-ui.js` on the running server: chip `NSE LIVE`, **9.1 s**, same four stocks, zero console errors |
+| Browser, fixture | `.cache/p13-verify-ui.js` **35/35** at 1440x900 and 1024x800, both themes: on-screen % equal the payload to 2 dp, NSE timestamps in the header, Top 25/30 re-rank the same fetch, Rescan re-fetches, Dhan source still P8, prefs survive reload, Long/Short columns align, skipped / not-in-list / error states |
+| Regressions | P8 recompute **10/10** and UI **22/22** (pinned to `source=dhan`), P2–P9 re-proof **37/37**, P10a **41/41**, P10b **30/30** — all against this build on port 8788 |
+| API boundary | `source=x`, `n=21`, `n=20;drop`, `n=1e1` → 400 |
+
+**Two defects found by looking at the screenshots, not by the checks** (checks added for both):
+the error state printed "Every stock in your F&O list was carried through — nothing skipped" under a
+failed scan (P8's error state had the same false line), and the header squeezed the title, chip and
+Export button onto two lines each while the Long and Short tables did not line up column for column.
+
+**Measurement hazard hit during verification:** a second Claude session (worktree `D:/Temp/Dhan-p13`,
+branch `p13-card-layout`) restarted *its* server on 8787 mid-run, so for a while 8787 served the
+other checkout's `scan.js`. Every number above was re-measured on port 8788 after confirming the
+listening PID's command line and that the served `scan.js` contains this phase's code.
 
 ## Risks
 - **NSE's terms of use restrict automated access.** This is a personal tool making 3 page loads per button press. Flagged; the user's call.
