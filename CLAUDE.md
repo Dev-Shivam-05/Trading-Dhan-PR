@@ -276,3 +276,24 @@ It answers P12's intraday and quote questions in five calls and keeps the raw bo
 `.cache/live/`. Dhan's docs show intraday `fromDate`/`toDate` as `YYYY-MM-DD HH:MM:SS` while
 `fetchIntraday()` sends date-only — if the probe prints `FAIL date format`, fix that before
 driving any P7/P8/P9 screen live, or every candle-backed column reads "request failed".
+
+## "No horizontal scroll" does not mean "no clipped number" — the chain clips silently
+`table.oc td` has `overflow:hidden` and `table-layout:fixed`, and the 1132px column set only reads
+cleanly when the table is scaled up to about 1414px. P13's locked 248px sidebar kept
+`scrollWidth === clientWidth` and still cut **2,005 cell samples by up to 32px** — `+261.30` with
+its `%` gone, and nothing on screen to say so. Any change to chain width or cell font must measure
+**text** overflow (range client rects vs the cell's content box, not `scrollWidth`: the OI peak
+marker sits at `left:100%`) across **all six** underlyings, not just NIFTY. IV clipped only on the
+other five. `.cache/p13-clip-all.mjs` in the P13 worktree does exactly this.
+
+## Two live sessions: a worktree, a port, and kill by PID
+When another session is working in `D:/Temp/Dhan`, build in a worktree
+(`git worktree add -b <branch> ../Dhan-<phase> <sha>`), junction `node_modules` to the main checkout
+(`New-Item -ItemType Junction`), **copy** the `.cache` master files rather than linking them, and
+run on another port (`PORT=8788 REPLAY=1 node src/server/index.ts`). The `taskkill //F //IM node.exe`
+advice above then becomes destructive — it kills the other session's server. Stop yours by PID.
+
+## A class named after a region can collide with the grid's own classes
+The chain's header cells are `th.side.ce` / `th.side.pe`. P13's first sidebar was `<aside class="side">`,
+so `.side{display:flex}` restyled both header cells and the "Calls / Puts" row vanished under the
+body rows. It looked like broken sticky positioning. Grep `public/` for a class name before using it.

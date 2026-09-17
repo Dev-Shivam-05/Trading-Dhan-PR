@@ -407,3 +407,28 @@ P7's peak, P8's closing OI and the previous session are recomputed with `Intl` i
 a digit-count unit test, not `istParts()`'s `+05:30` arithmetic and `>1e11` threshold. A second
 implementation that imports the first cannot catch a bug in it — the same rule as the P8/P9
 independent re-implementations.
+
+## 2026-09-17 — P13 takes the reference's visual language, not its features
+The user's reference was an options strategy builder (payoff chart, legs, Execute, margin). The
+terminal is read-only and has no data for any of that, so P13 copied the layout, tokens and component
+shapes only. A payoff builder would be its own phase with its own data design.
+
+## 2026-09-17 — A sidebar costs the chain its legibility, not just its width
+The locked 248px left column kept the 17 columns without horizontal scroll, which is the only thing
+it was checked against. It also left the table at 1154px. The column set only reads cleanly when
+scaled up to about 1414px, so 2,005 cell samples were clipped by up to 32px. They were cut
+silently, with nothing on screen to say a digit was missing. The build stopped, both variants were
+screenshotted, and the user approved moving the three cards into one row above the chart. The rule
+this leaves: "no horizontal scroll" is not the same criterion as "no value clipped", and a layout
+spec for this table needs both.
+
+## 2026-09-17 — Column widths are measured from text across every underlying
+The first rebalance was measured on NIFTY alone and still clipped IV on the other five and LTP Chg
+on GOLD. The final widths come from the widest rendered text of all six replay underlyings, with the
+1132px total unchanged. They are replay-sized; live values wider than replay's will need re-measuring.
+
+## 2026-09-17 — Parallel sessions get a worktree and a port, and servers die by PID
+P13 ran while another session worked P12 in the main checkout. It was built in `D:/Temp/Dhan-p13`
+on its own branch and port 8788, with `node_modules` as a junction and `.cache` master files copied.
+The project's own `taskkill //F //IM node.exe` advice would have killed the other session's server,
+so it does not apply when two sessions are live.

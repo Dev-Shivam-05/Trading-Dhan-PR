@@ -1,65 +1,55 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 12 (prep only, still blocked) — 2026-09-17
+# HANDOFF — Dhan Option Chain Terminal — Phase 13 (card layout) — 2026-09-17
+
+Built in a **separate git worktree** (`D:/Temp/Dhan-p13`, branch `p13-card-layout`, forked from
+`p12-live-verify` at `30e8a0d`) while another session was working on P12 in `D:/Temp/Dhan`. That
+checkout, its branch and its server on port 8787 were never touched.
 
 ## Done
-- **`npm run live:probe` exists.** Once the token and the Data API plan are both good, one command
-  makes five serial calls and prints a PASS / CHECK / FAIL line for each question P7, P8 and P9
-  guessed about Dhan's responses:
-  - **Intraday candles:** which date format Dhan accepts, the envelope, the seven parallel arrays,
-    seconds vs milliseconds, and whether today's candles arrive.
-  - **Open interest:** whether `open_interest` is in units or contracts, and whether it is in the
-    same unit as the chain's `oi`.
-  - **Hand checks:** P7's peak and P8's closing OI, re-derived by hand and compared with the app.
-  - **Quote:** coverage of the scanner's real 420-instrument body, and what `net_change` and
-    `ohlc.close` mean.
-  - **Raw bodies** are saved to `.cache/live/<date>-*.json`, so the evidence outlives the token.
-- **On a bad token it stops cleanly.** It prints which gate failed and the fix, exits 1 and writes
-  nothing. With no credentials it exits 2.
-- **Its verdict logic is proven offline:** 36/36 branches against replay payloads and deliberately
-  broken ones (`.cache/p12-shape-selftest.ts`, run with `REPLAY=1 node .cache/p12-shape-selftest.ts`).
-- **`dhan-api-contract.md` now documents the two endpoints** P7, P8 and P9 depend on (§2.5
-  intraday, §2.6 quote), read from Dhan's docs, with every open question listed.
-- **None of P12's done-when criteria are met.** The token in `.env` is still the one that expired
-  on 2026-08-28.
+- The screen follows the user's reference screenshot (a light, card-based options screen):
+  - a 44px black nav with **Option Chain · Scanner · Latency**, the REPLAY/LIVE badge, the IST date and the theme toggle;
+  - a slim yellow replay banner;
+  - an index strip of the six underlyings (`NIFTY 50 / BANK NIFTY / …`), active one green-underlined, IST clock right;
+  - one row of three cards: **Underlying** (spot, change, state chips) · **Chain summary** (7 stats with dividers) · **Connection** (the old status rail);
+  - full-width **chart**, **option chain** and **latency drawer** cards with 12px draggable gaps.
+- Light is the default theme; `T` still switches to dark and persists. Inter font, tabular numerals.
+- The chain header carries Calls **CE** / Puts **PE** pills, and the Breached filter is a switch.
+- **No chain value is clipped at 1440x900**: 0 text overflows across all six replay underlyings. The
+  first build clipped 2,005 cell samples; see the decisions below.
+- **38/38 acceptance checks pass in replay** (`docs/spec/card-layout-v1.md` AC 1-15, plus two added
+  mid-build): nav and cards, 17-column fit at 1440px, sticky spine at 1024px greeks-on, row count ===
+  payload strikes, ATM and PCR recomputed from the raw SSE payload, splitter drag and persistence,
+  drawer costs height not width, every keyboard shortcut, candle mode, scanner Esc and close, theme
+  default and persistence, and zero console errors over a 60 s run and at 1024px. All 89 element ids
+  from `30e8a0d` are still present.
+- Screenshots: light and dark at 1440, 1024 greeks-on, drawer open, 1024 drawer open, scanner open,
+  candle mode, error state. They are in the session scratchpad, not in `docs/shots/`.
 
 ## Files changed
-- `scripts/live-probe.ts` — **new.** The runner: gates first, then chain → intraday → quote, raw
-  bodies saved, exits 0/1/2.
-- `scripts/live-shape.ts` — **new.** Pure verdict functions (`intradayReport`, `quoteReport`) with
-  no network access, so they can be tested without a plan.
-- `package.json` — the `live:probe` script.
-- `docs/spec/dhan-api-contract.md` — §2.5 and §2.6 added, with the date-format discrepancy flagged.
-- `docs/PHASES.md` — the P12 status note, `## Now`, `## Next 3`, a session log row.
-- `docs/DECISIONS.md`, `CLAUDE.md`, this file.
+- `public/index.html` — the new structure (nav, index strip, summary row, card shell). Every id kept, so the JS wiring is unchanged.
+- `public/app.css` — rewritten on the P13 tokens (light and dark); every selector the JS emits is still styled.
+- `public/app.js` — light default theme, the nav date, and `CE_COLS` side widths re-measured (still 520px per side).
+- `public/panes.js` — chain floor 200 -> 244 (+44px card header); the chart re-clamps when `#shell` resizes.
+- `public/telemetry.js` — the same 244px chain floor.
+- `docs/spec/card-layout-v1.md` — the spec: 17 rows, amendment rows 18-20, and an "as built" note.
+- `docs/PHASES.md`, `docs/DECISIONS.md`, `CLAUDE.md` — board, decisions, two new traps.
 
 ## Decisions made
-- **A `go` on a blocked phase became the credential-free half of it, and P12 stays `blocked`.**
-  Nothing here meets a done-when criterion, and the board says so.
-- **`fetchIntraday()`'s date format was not changed on documentation alone.** The docs *show*
-  `YYYY-MM-DD HH:MM:SS` but never say date-only is rejected. The probe sends the app's form first
-  and retries with the documented one only on `DH-905`, so the first live call decides it.
-- **The probe re-derives dates through `Intl` (`Asia/Kolkata`) and digit counts, not the app's
-  `+05:30` arithmetic and `>1e11` test.** A hand check that shares the app's date code cannot catch
-  a bug in it.
-- **`resolveRegistry({})` is called without credentials in the probe.** With credentials, an
-  unresolved GOLD chip spends calls that the "five calls" claim does not account for.
+- **Visual language only, not the reference's features.** No payoff chart, strategy legs, Execute, margin or positions: the app is read-only and has no data for them.
+- **Sidebar abandoned mid-build (user approved with one `go`).** A 248px left column left the chain 1154px wide and clipped values by up to 32px. The three cards moved into one row above the chart.
+- **Column widths come from measured text**, across all six underlyings. The 1132px total is unchanged.
+- **Light replaces dark as the default** (supersedes P10 row 11). The 26px rail and the 1px seams are superseded too.
+- **`#feedPill` stays visible in candle mode** (CSS override). Hiding it re-flowed the summary row on every mode switch.
 
 ## Known broken / deliberately skipped
-- **Everything past the login check is unrun live**, because the token expired on 2026-08-28. The
-  data-plan gate (`806`) cannot even be observed until the token is fresh.
-- **The likely date-format bug in `src/server/peakoi.ts:181` is unfixed**, because the evidence is
-  docs-only and the probe settles it in one call.
-- **`npm run feed:probe`, the P7/P8/P9 screens on live data, and P8's AC5** are all untouched. They
-  need the plan, and AC5 also needs 09:15–15:30 IST.
-- **Eight stacked branches, no PRs.** Merge order: `p6-chart-tools`, `p8-p9-spec-lock`,
-  `p7-peak-oi`, `p8-scanner`, `p9-option-candles`, `p10-spec-lock`, `p10a-terminal-shell`,
-  `p12-live-verify`.
-- **`assets/voice-recordings/` is untracked and was not touched.** It is not this session's work.
+- **1024x800 with the drawer open**: the chain gets 160px, below its 244px floor. The summary row wraps to two lines at 1024 (201px vs 123px at 1440), so chart 70 + drawer 88 + chain 244 no longer fit. P10b's "the chain floor is never broken" does not hold there — it needs a compact summary row below 1280px.
+- **Greeks on at 1440** clips values. With greeks on, the table (1484px) is wider than the viewport, so nothing scales up. This was already true in P10, and AC 15 covers greeks-off only.
+- **Column widths are sized from replay values only.** Live values wider than replay's (e.g. a 6-digit Vol Chg %) would clip again. Re-run the width measurement once P12 has live data.
+- **`docs/shots/` not re-baselined.** Out of scope by the spec, and it would conflict with the P12 branch.
+- **P10a/P10b/P10 re-proof scripts not re-run.** Several of their checks (26px rail, 1px seams, dark default) are superseded. `.cache/p13-verify.mjs` covers the rest.
+- **At 1024 the chart header wraps** and puts the collapse button on its own line. Cosmetic.
+- **Not merged or PR'd.** The branch is pushed. The replay server on 8788 was stopped at session end.
 
 ## Next session starts here
-- Phase P12 (still): paste a fresh token, confirm both gates, then run both probes and fix what
-  they report — ideally on a weekday during 09:15–15:30 IST, so AC5 can be measured in the same
-  sitting.
-- First command: `npm run check`, then `npm run live:probe` once it says READY.
-- Watch out for: **a READY from `npm run check` is not the finish line.** If `live:probe` prints
-  `FAIL date format`, change `fetchIntraday()` before driving any P7/P8/P9 screen live. Otherwise
-  every candle-backed column reads as "request failed" and looks like a plan problem.
+- Phase: **look at P13 in the browser and decide whether it ships**; then P12 still needs live credentials.
+- First command: `cd D:/Temp/Dhan-p13 && PORT=8788 REPLAY=1 npm run dev`, then open http://127.0.0.1:8788. Re-verify with `node .cache/p13-verify.mjs <outdir>` (the script lives in the worktree's gitignored `.cache/`).
+- Watch out for: **two sessions, two checkouts, two ports.** `taskkill //F //IM node.exe` (the CLAUDE.md reflex) kills the other session's server too — stop servers by PID. And `p13-card-layout` forks from `30e8a0d`, so rebase it if `p12-live-verify` moves.
