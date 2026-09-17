@@ -542,6 +542,21 @@ body.optmode .tickonly{display:none!important}
 }
 .scan-hint{font-size:10.5px;color:var(--fg-faint);letter-spacing:.03em}
 .scan-meta{font-size:10.5px;color:var(--fg-muted)}
+/* P14 source / top-N pickers - same control as the expiry select, labelled inline. */
+.scan-opt{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--fg-faint)}
+.scan-opt select{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--fg-base);cursor:pointer;
+  background:var(--bg-subtle);border:1px solid var(--border-strong);border-radius:4px;
+  padding:6px 8px;min-height:30px;
+}
+.scan-opt select:disabled{opacity:.45;cursor:default}
+/* With P14's two pickers the header no longer fits on one line at 1440px: fixed items keep their
+   own words on one line and the free-text meta is the one that wraps. */
+.scan-h{flex-wrap:wrap;row-gap:8px}
+.scan-h h2,.scan-h .scan-hint,.scan-h .statechip,.scan-h .tog,.scan-opt{white-space:nowrap;flex-shrink:0}
+.scan-h .scan-meta{flex:0 1 auto;min-width:0;text-align:right}
+table.scan-t.nse{table-layout:fixed}
 a.tog{text-decoration:none;display:inline-flex;align-items:center}
 a.tog.off{opacity:.45;pointer-events:none}
 

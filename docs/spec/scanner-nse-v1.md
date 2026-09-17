@@ -1,4 +1,4 @@
-# SPEC LOCK — P13 9:20 F&O scanner on NSE data
+# SPEC LOCK — P14 9:20 F&O scanner on NSE data
 
 Status: **locked** 2026-09-17. The 12-row proposal was approved with `go`; the same message carried a
 second recording that changes rows 2 and 6 and adds a pre-defined F&O list. Those changes are the

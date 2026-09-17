@@ -71,6 +71,23 @@
       <h2 id="scanTitle">F&amp;O SCANNER</h2>
       <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
       <span class="statechip flat" id="scanMode" hidden></span>
+      <!-- P14: NSE is the default source; Dhan is P8 unchanged. Top N applies to NSE only
+           (scanner-nse-v1.md rows 1, 2, 12). -->
+      <label class="scan-opt">
+        <span>Source</span>
+        <select id="scanSource" class="mono">
+          <option value="nse">NSE</option>
+          <option value="dhan">Dhan</option>
+        </select>
+      </label>
+      <label class="scan-opt">
+        <span>Top</span>
+        <select id="scanTopN" class="mono">
+          <option value="20">20</option>
+          <option value="25">25</option>
+          <option value="30">30</option>
+        </select>
+      </label>
       <span class="grow"></span>
       <span class="scan-meta mono" id="scanMeta"></span>
       <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>

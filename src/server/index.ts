@@ -156,7 +156,7 @@ function scanEnabled(): { enabled: boolean; sessionOpen: boolean; reason: string
 }
 
 /**
- * P13 adds a second source. `source=nse` (the default) reads nseindia.com and has no session
+ * P14 adds a second source. `source=nse` (the default) reads nseindia.com and has no session
  * gate - the button is manual and the result carries NSE's own timestamp and market status
  * (scanner-nse-v1.md rows 8, 9). `source=dhan` is P8, unchanged, gate included.
  *

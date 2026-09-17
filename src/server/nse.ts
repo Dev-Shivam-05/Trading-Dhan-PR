@@ -1,5 +1,5 @@
 /**
- * P13 - nseindia.com as a data source for the scanner.
+ * P14 - nseindia.com as a data source for the scanner.
  *
  * Spec: docs/spec/scanner-nse-v1.md. Two JSON endpoints, the same two a user reads by hand:
  *  - the "Securities in F&O" price feed (every F&O stock with NSE's own pChange), and

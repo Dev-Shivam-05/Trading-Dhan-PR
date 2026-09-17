@@ -1,5 +1,5 @@
 /**
- * P13 - the 9:20 F&O scanner, on NSE's own numbers.
+ * P14 - the 9:20 F&O scanner, on NSE's own numbers.
  *
  * Spec: docs/spec/scanner-nse-v1.md.
  *
