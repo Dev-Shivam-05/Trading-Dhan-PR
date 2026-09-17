@@ -96,7 +96,7 @@ function drawSpark() {
   const vals = samples.filter(s => s.ok && s.timing.roundTrip !== null).map(s => s.timing.roundTrip);
   if (vals.length < 2) {
     svg.innerHTML = `<text x="150" y="30" text-anchor="middle" fill="var(--fg-faint)"
-      font-family="IBM Plex Mono, monospace" font-size="10">collecting — ${vals.length} of 2 calls</text>`;
+      font-family="Geist Mono, monospace" font-size="10">collecting — ${vals.length} of 2 calls</text>`;
     return;
   }
   const W = 300, H = 54;

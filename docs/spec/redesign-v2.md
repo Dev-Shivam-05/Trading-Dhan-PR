@@ -49,6 +49,11 @@ extraordinary and aesthetic".
 | 21 | 14 | Spot pill 10px text, **12px tall**, centred on the dashed line; its spine cell `z-index:5` | A 16px pill clipped the 24,050 glyphs; and every sticky spine cell is `z-index:1`, so the next row's solid ATM cell painted over the pill's lower half. Zoomed at 2x in both themes after the fix |
 | 22 | 15 | OI text aligned to the **outer** edge (CE left, PE right) | With text at the inner edge the bars started exactly under the numbers and the butterfly read as blocks |
 
+| 23 | 4, 12, 14 | **Kept from P10:** the strike spine stays **92px** (not 96), the status rail stays **26px** (not 28), and `#modeBadge` + `#clock` stay in the rail. The three state chips (`#stateChip`, `#peakChip`, `#filterChip`) move **into the rail** | P10a row 20's "greeks off at 1024px scrolls exactly 108px" is 1132 − 1024 and only holds with a 92px spine; P10b row 13 locks the 26px rail and the ids' home. The 64px bar has no room for `MARKET CLOSED · closed at 15:30 IST`, and a status chip belongs in the status rail |
+| 24 | 17 | **`S` always means "scan".** In the chain it opens the Scanner and runs; in the Scanner it runs again. `Esc` is what leaves | Row 17 promised unchanged shortcuts, and `S` is still "scan" — but "a second `S` closes it" was modal behaviour. A workspace has a tab and `Esc` |
+| 25 | acceptance | Chart collapsed at 1440x900: **≥ 23 rows in replay, ≥ 24 live** | Measured: chrome is 48 nav + 28 replay + 64 bar + 29 collapsed strip + 52 thead + 26 rail = 247, leaving 653px = 23.3 rows. The 28px replay line is the whole difference and it is only on screen in replay — which is the only mode this can be measured in. The mock read 24 because its `C` hid the strip's header too; the app keeps the header, and its tools, on screen |
+| 26 | 18 | **8 code files, not 5**: `public/index.html`, `app.css`, `app.js`, `scan.js`, `panes.js` (112px default), plus `candles.js`, `chart-tools.js`, `telemetry.js` (the `MONO` constant and the SVG label sizes) and `scripts/shots.ts` (seed the chain workspace) | Rows 6 and 7 apply to SVG text too, and those four files write `font-family` / `font-size` into markup the stylesheet cannot reach. Over the ~8-file guideline by one and recorded as such |
+
 ## Stage A measurements (mock, 1440x900, both themes)
 `.cache/p16-mock-shots.js` **19/19**: scanner fits without scrolling; exactly Geist + Geist Mono; font sizes used 10/11/12/13/14/22/32 (all in the scale); chain **19** full rows with the chart, **24** collapsed; no horizontal scroll; zero console errors.
 
@@ -74,3 +79,33 @@ extraordinary and aesthetic".
 - **Scanner as default workspace** (row 3) is a reading of today's situation; once Dhan is live it may be the wrong default. One-line change.
 - **Geist from Google Fonts** needs the network on first load. The fallback stack is `system-ui` / `ui-monospace`, and the row-7 size check still holds.
 - **The concurrent session** may keep building on `p13-card-layout`. That work would be superseded; the user should tell it.
+
+## Stage B measurements (the real app, 8788, replay + NSE fixture)
+
+`.cache/p16-verify.js` **37/37**:
+
+| What | Measured |
+|---|---|
+| Chain rows at 1440x900 | **19** with the chart, **23** collapsed in replay, **24** collapsed without the replay line (live) — both themes |
+| Instrument bar | exactly **64px** on one line in both themes, and **64px on GOLD**, whose 7-digit spot (`1,63,848.93`) is the widest of the six |
+| Sideways scroll | `table.oc scrollWidth === #gridScroll clientWidth === 1440`, zero overflow, greeks off |
+| Spine at 1024x800, greeks on | inside the viewport at scrollLeft 0 / 230 / 460 |
+| Type | exactly **Geist + Geist Mono**; sizes on screen 10/11/12/13/14/22 (chain) and 10/11/12/13/14/22/32 (scanner) — all in the scale, zero offenders, SVG labels included |
+| Spot pill | **12px** tall, centred on the dashed line to 0px (amendment 21) |
+| Scanner | fits 1440x900 with no scrolling in both themes; funnel `210 → 40 → 26 → 4` with sized bars; two side-by-side cards; the 40-row trace; the automatic-runs card; starts at y=76 (under the replay line) |
+| States | zero state prints the whole funnel; the error state prints the reason and no false "nothing skipped" |
+| Soak | 60 s in each workspace, zero console errors |
+| Contrast, computed before building | dark: every `--fg-*` ≥ 4.77:1 on `--raised`; light **failed** at 3.39 / 4.18 / 3.64 for up / down / warn, which is why amendment 19 exists; after it, 5.48 / 5.67 / 5.93 on white |
+
+**Earlier suites, re-run against the redesign:** P10a **42/42** (one check amended — see below), P10b **30/30**, P2–P9 re-proof **37/37**, P8 UI **22/22** and recompute **10/10**, P14 UI **35/35**, scanner server **31/31**, `tsc` clean.
+
+**Two test edits, both because the spec changed the fact:** every suite now seeds `ws=chain`
+(the app opens on the Scanner), and P10a's `-60px` splitter drag is measured from a seeded 200px
+height — from the new 112px default the drag clamps at the 70px floor and reports 42px, so the
+criterion as written could not pass. P14's column-alignment check compares positions relative to
+each table now that Long and Short are two side-by-side cards.
+
+`docs/shots/` re-baselined once, at the end: **21 images** (the 18 old ones plus
+`12-scanner-idle-dark`, `13-scanner-dark`, `13-scanner-light`). The first re-baseline was **wrong
+and thrown away** — `scripts/shots.ts` did not know about workspaces, so all 18 "chain" images came
+back showing the Scanner. Read one image before trusting a re-baseline.

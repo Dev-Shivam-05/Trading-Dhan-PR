@@ -13,7 +13,8 @@ const $ = (id) => document.getElementById(id);
 /* Row 4. 190 / 70 are the values .chart-body already carried in app.css before this phase — the
    chart strip does not get resized by a phase that is not about the chart. `legacy` is the P5-era
    key the height is migrated from, once, so a returning user keeps the size they dragged. */
-const CHART = { def: 190, min: 70, key: 'pane:chart', legacy: 'chartH' };
+// P16 row 12: the strip is 140px - a 28px header over this 112px plot (was 190).
+const CHART = { def: 112, min: 70, key: 'pane:chart', legacy: 'chartH' };
 const MAX_FRAC = 0.6;      // row 4 — no pane may take more than 60% of the shell
 const CHAIN_MIN = 200;     // row 4 — the chain keeps at least this much of the remainder
 

@@ -1,303 +1,296 @@
-/* Dhan Option Chain Terminal — tokens locked in docs/spec/ui-contract.md */
+/* Dhan terminal — redesign v2. Spec: docs/spec/redesign-v2.md (P16).
 
-:root{
-  --bg-base:#F7F8FB; --bg-subtle:#EEF1F6; --bg-inset:#E4E9F1; --bg-panel:#FFFFFF;
-  --fg-base:#10151F; --fg-muted:#4E5A6E; --fg-faint:#8390A6;
-  --accent:#A87516; --accent-hover:#8E620F; --accent-fg:#FFFFFF; --accent-wash:rgba(168,117,22,.12);
-  --up:#0E8A5F; --down:#C33A3A; --flat:#8390A6;
-  /* P9 option candles — docs/spec/option-candles-v1.md row 9. The `-line` pair is that row's
-     "1px darker stroke": derived from the token, not invented as a fifth and sixth colour. */
-  --big-in:#1E5FD8; --big-out:#D9A400;
-  --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
-  --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
-  --warn:#B3730B; --crit:#C33A3A; --ok:#0E8A5F;
-  --border:#DCE2EC; --border-strong:#C2CBDA; --ring:#A87516;
-  --net:#3D6EA8; --compute:#A87516; --render:#6E5AA8;
-  --grid-line:rgba(16,21,31,.07);
-  --itm:rgba(16,21,31,.045);
-  --shadow-sm:0 1px 2px rgba(6,10,20,.10);
-  --shadow-md:0 4px 14px rgba(6,10,20,.10);
-  color-scheme:light;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg-base:#0A0D14; --bg-subtle:#10141D; --bg-inset:#1B2130; --bg-panel:#0E121B;
-    --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
-    --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.16);
-    --up:#21B77E; --down:#E05252; --flat:#64708A;
-    --big-in:#5C93F0; --big-out:#F2C438;
-    --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
-    --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
-    --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
-    --border:#212838; --border-strong:#39445C; --ring:#C8912A;
-    --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
-    --grid-line:rgba(232,236,244,.07);
-    --itm:rgba(232,236,244,.045);
-    --shadow-sm:0 1px 2px rgba(0,0,0,.45);
-    --shadow-md:0 4px 14px rgba(0,0,0,.5);
-    color-scheme:dark;
-  }
-}
+   Rules that hold everywhere in this file:
+   - two families only: Geist for words, Geist Mono for every number (row 6)
+   - eight sizes only: 10 / 11 / 12 / 13 / 14 / 16 / 22 / 32 px (row 7) — a check enforces it
+   - one accent, and the ATM row is where it lands hardest (rows 8, 14)
+   - every token name the JS reads (--accent, --bg-panel, --fg-faint, --up, ...) is kept, and now
+     points at the v2 palette, so no renderer needed to learn new names */
+
+/* ------------------------------------------------------------------ tokens */
+:root,
 :root[data-theme="dark"]{
-  --bg-base:#0A0D14; --bg-subtle:#10141D; --bg-inset:#1B2130; --bg-panel:#0E121B;
-  --fg-base:#E8ECF4; --fg-muted:#9AA5B8; --fg-faint:#64708A;
-  --accent:#C8912A; --accent-hover:#E0A53C; --accent-fg:#0A0D14; --accent-wash:rgba(200,145,42,.16);
-  --up:#21B77E; --down:#E05252; --flat:#64708A;
+  /* rows 8 — dark is the default theme */
+  --bg-base:#07090D; --bg-panel:#0C1016; --bg-subtle:#121822; --bg-inset:#19202B;
+  --fg-base:#E6EAF2; --fg-muted:#A3ADBD; --fg-faint:#7A8597;
+  --accent:#8B7CFF; --accent-hover:#A095FF; --accent-fg:#0B0B12; --accent-wash:rgba(139,124,255,.14);
+  --up:#2FD08A; --down:#FF5C6C; --flat:#7A8597;
+  --up-bar:rgba(47,208,138,.22); --down-bar:rgba(255,92,108,.22);
+  /* P9 option candles — option-candles-v1.md row 9, unchanged by row 8 */
   --big-in:#5C93F0; --big-out:#F2C438;
   --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
   --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
-  --warn:#D99A2B; --crit:#E05252; --ok:#21B77E;
-  --border:#212838; --border-strong:#39445C; --ring:#C8912A;
+  --warn:#F5B83D; --crit:#FF5C6C; --ok:#2FD08A;
+  --border:rgba(148,163,184,.10); --border-strong:rgba(148,163,184,.20); --ring:#8B7CFF;
+  /* P3 waterfall stages — the drawer is unchanged (row 17) */
   --net:#5A8FD0; --compute:#C8912A; --render:#9B85D8;
-  --grid-line:rgba(232,236,244,.07);
-  --itm:rgba(232,236,244,.045);
-  --shadow-sm:0 1px 2px rgba(0,0,0,.45);
-  --shadow-md:0 4px 14px rgba(0,0,0,.5);
+  --grid-line:rgba(148,163,184,.10);
+  --itm:rgba(148,163,184,.035);
+  --shadow-sm:none; --shadow-md:0 12px 32px rgba(0,0,0,.45);
+  --ease:cubic-bezier(.2,.8,.2,1);
   color-scheme:dark;
+}
+:root[data-theme="light"]{
+  /* row 9, with amendment 19's up / down / warn */
+  --bg-base:#F4F5F8; --bg-panel:#FFFFFF; --bg-subtle:#FFFFFF; --bg-inset:#EEF0F4;
+  --fg-base:#0B1220; --fg-muted:#4B5565; --fg-faint:#6B7385;
+  --accent:#5B4BF5; --accent-hover:#4B3BE0; --accent-fg:#FFFFFF; --accent-wash:rgba(91,75,245,.10);
+  --up:#047857; --down:#C81E3A; --flat:#6B7385;
+  --up-bar:rgba(4,120,87,.14); --down-bar:rgba(200,30,58,.13);
+  --big-in:#1E5FD8; --big-out:#D9A400;
+  --big-in-line:color-mix(in srgb,var(--big-in) 74%,#000);
+  --big-out-line:color-mix(in srgb,var(--big-out) 74%,#000);
+  --warn:#8A5A00; --crit:#C81E3A; --ok:#047857;
+  --border:rgba(15,23,42,.08); --border-strong:rgba(15,23,42,.16); --ring:#5B4BF5;
+  --net:#3D6EA8; --compute:#A87516; --render:#6E5AA8;
+  --grid-line:rgba(15,23,42,.07);
+  --itm:rgba(15,23,42,.025);
+  --shadow-sm:0 1px 2px rgba(15,23,42,.06); --shadow-md:0 12px 32px rgba(15,23,42,.14);
+  color-scheme:light;
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
   margin:0;background:var(--bg-base);color:var(--fg-base);
-  font-family:Archivo,"Segoe UI",system-ui,sans-serif;font-size:14px;
+  font-family:Geist,system-ui,sans-serif;font-size:13px;line-height:1.4;
   display:flex;flex-direction:column;overflow:hidden;
   -webkit-font-smoothing:antialiased;
 }
-.mono{font-family:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+button,input,select{font-family:inherit}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
 .grow{flex:1}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:3px}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+.up{color:var(--up)}
+.down{color:var(--down)}
+.dim{color:var(--fg-faint)}
 
-/* ---------------------------------------------------------------- topbar */
+/* -------------------------------------------------------------- nav (row 4) */
 .topbar{
-  height:52px;flex:0 0 52px;display:flex;align-items:center;gap:12px;padding:0 16px;
-  background:var(--bg-panel);border-bottom:1px solid var(--border);
+  height:48px;flex:0 0 48px;display:flex;align-items:center;gap:24px;padding:0 16px;
+  background:var(--bg-panel);border-bottom:1px solid var(--border);position:relative;z-index:50;
 }
-.brand{font-size:12px;font-weight:600;letter-spacing:.14em;color:var(--fg-faint)}
-.brand b{color:var(--fg-base);font-weight:700}
-.badge{
-  font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:3px 9px;border-radius:999px;
-  border:1px solid var(--border-strong);color:var(--fg-muted);background:var(--bg-subtle);
+.brand{min-width:180px;font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--fg-base)}
+.brand b{font-weight:400;color:var(--fg-faint);margin-left:4px}
+.wstabs{flex:1;display:flex;justify-content:center;align-self:stretch;gap:4px}
+.wstab{
+  position:relative;border:0;background:none;padding:0 14px;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--fg-muted);transition:color 160ms var(--ease);
 }
-.badge.replay{color:var(--warn);border-color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
-.badge.live{color:var(--ok);border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
-.conn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg-muted)}
-.conn i{width:7px;height:7px;border-radius:999px;background:var(--flat)}
-.conn.on i{background:var(--ok)}
-.conn.off i{background:var(--crit)}
-.clock{font-size:12px;color:var(--fg-muted)}
+.wstab:hover{color:var(--fg-base)}
+.wstab[aria-selected="true"]{color:var(--fg-base)}
+.wstab[aria-selected="true"]::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--accent);
+}
+.wstab kbd{font:500 10px "Geist Mono",monospace;color:var(--fg-faint);margin-left:6px}
+.navr{min-width:180px;display:flex;justify-content:flex-end;align-items:center;gap:12px}
 .icon{
   width:30px;height:30px;border-radius:6px;border:1px solid var(--border-strong);
-  background:var(--bg-subtle);color:var(--fg-muted);cursor:pointer;font-size:14px;line-height:1;
-  transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms cubic-bezier(.16,1,.3,1);
+  background:transparent;color:var(--fg-muted);cursor:pointer;font-size:14px;line-height:1;
+  display:inline-grid;place-items:center;transition:background 160ms var(--ease),color 160ms var(--ease);
 }
 .icon:hover{background:var(--bg-inset);color:var(--fg-base)}
 .icon:active{transform:translateY(1px)}
 
+/* ----------------------------------------------------- replay notice (row 5) */
 .replaybar{
-  flex:0 0 auto;padding:9px 16px;font-size:12.5px;line-height:1.45;
-  background:color-mix(in srgb,var(--warn) 13%,var(--bg-panel));
-  border-bottom:1px solid var(--warn);color:var(--fg-base);
+  flex:0 0 28px;height:28px;display:flex;align-items:center;gap:8px;padding:0 16px;
+  font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:var(--fg-muted);background:color-mix(in srgb,var(--warn) 10%,var(--bg-base));
+  border-bottom:1px solid color-mix(in srgb,var(--warn) 22%,transparent);
 }
-.replaybar b{letter-spacing:.08em;color:var(--warn)}
-.replaybar code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--bg-inset);padding:1px 5px;border-radius:3px}
+.replaybar[hidden]{display:none}
+.replaybar b{font-weight:600;color:var(--warn)}
+.replaybar code{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-base)}
 
-/* ----------------------------------------------------------------- chips */
-.chips[hidden],.hstrip[hidden]{display:none}
-.chips{
-  flex:0 0 48px;display:flex;align-items:center;gap:6px;padding:0 16px;overflow-x:auto;
-  background:var(--bg-panel);border-bottom:1px solid var(--border);
-}
-.chip{
-  display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer;
-  font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:7px 13px;min-height:32px;
-  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:999px;
-  transition:transform 120ms cubic-bezier(.16,1,.3,1),background 120ms,color 120ms,border-color 120ms;
-}
-.chip:hover:not(:disabled){background:var(--bg-inset);color:var(--fg-base);transform:translateY(-1px)}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-.chip:disabled{opacity:.45;cursor:not-allowed}
-.chip i{width:5px;height:5px;border-radius:999px;background:var(--flat);flex:0 0 auto}
-.chip i.open{background:var(--up)}
-.chip[aria-pressed="true"] i{background:currentColor}
-.chip .kbd{font-size:9px;opacity:.55;font-family:"IBM Plex Mono",monospace}
-
-/* ---------------------------------------------------------- header strip */
+/* ------------------------------------------------- instrument bar (row 12) */
 .hstrip{
-  flex:0 0 auto;display:flex;align-items:flex-end;gap:22px;padding:12px 16px;
-  background:var(--bg-panel);border-bottom:1px solid var(--border);flex-wrap:wrap;
+  flex:0 0 auto;min-height:64px;display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;
+  padding:2px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border);
 }
-.hs-name{display:flex;flex-direction:column;gap:1px;min-width:210px}
-.hs-name .nm{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint)}
+.chips{display:flex;align-items:center;gap:2px}
+.chips[hidden]{display:none}
+.chip{
+  display:flex;align-items:center;gap:5px;height:30px;padding:0 8px;border:0;border-radius:6px;
+  background:transparent;color:var(--fg-muted);font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;
+  transition:background 160ms var(--ease),color 160ms var(--ease);
+}
+.chip:hover:not(:disabled){background:var(--bg-inset);color:var(--fg-base)}
+.chip[aria-pressed="true"]{background:var(--bg-inset);color:var(--fg-base);box-shadow:inset 0 -2px 0 var(--accent)}
+.chip:disabled{opacity:.45;cursor:not-allowed}
+.chip i{width:5px;height:5px;border-radius:999px;background:var(--fg-faint);flex:0 0 auto}
+.chip i.open{background:var(--up)}
+.chip .kbd{display:none}
+
+.hs-name{display:flex;flex-direction:column;gap:0;min-width:150px;margin:0 4px}
+/* Three tight lines: name, price, change. Stacked rather than inline because GOLD's 7-digit
+   price is 26px wider than an index's and the inline form wrapped the whole bar. */
+.hs-name .nm{display:flex;align-items:center;gap:6px;font-size:11px;line-height:14px;color:var(--fg-faint)}
 .pulse{width:6px;height:6px;border-radius:999px;background:var(--flat)}
 .pulse.on{background:var(--up);animation:pulse 2.4s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--up) 55%,transparent)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
-.hs-name .spot{font-size:26px;font-weight:600;line-height:1.08;letter-spacing:-.01em}
-.hs-name .chg{font-size:11.5px;color:var(--fg-muted)}
-.stats{display:flex;gap:20px;flex-wrap:wrap}
+.hs-name .spot{font-size:22px;font-weight:500;line-height:28px;letter-spacing:-.01em}
+.hs-name .chg{font-size:11px;line-height:14px}
+.stats{display:flex;gap:12px;flex-wrap:wrap}
 .stat{display:flex;flex-direction:column;gap:1px}
-.stat .k{font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
-.stat .v{font-size:15px;font-weight:600}
+.stat .k{font-size:11px;color:var(--fg-faint);white-space:nowrap}
+.stat .v{font-size:13px;font-weight:500}
+
 .statechip{
-  font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  padding:5px 11px;border-radius:999px;border:1px solid;
+  display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:0;
+  font:500 10px "Geist Mono",monospace;letter-spacing:.04em;white-space:nowrap;
 }
-.statechip.warn{color:var(--warn);border-color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,transparent)}
-.statechip.crit{color:var(--crit);border-color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
-.statechip.flat{color:var(--fg-muted);border-color:var(--border-strong);background:var(--bg-subtle)}
+.statechip.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.statechip.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 14%,transparent)}
+.statechip.flat{color:var(--fg-muted);background:var(--bg-inset)}
+.statechip[hidden]{display:none}
+
 .srch input,.expwrap select{
-  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--fg-base);
-  background:var(--bg-subtle);border:1px solid var(--border-strong);border-radius:4px;
-  padding:7px 9px;min-height:32px;
+  font-family:"Geist Mono",monospace;font-size:12px;color:var(--fg-base);
+  background:transparent;border:1px solid var(--border-strong);border-radius:6px;
+  height:30px;padding:0 8px;
 }
-.srch input{width:110px}
-.tog{
-  font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;
-  color:var(--fg-muted);background:var(--bg-subtle);border:1px solid var(--border-strong);
-  border-radius:4px;padding:7px 11px;min-height:32px;cursor:pointer;
-  transition:background 180ms cubic-bezier(.16,1,.3,1),color 180ms cubic-bezier(.16,1,.3,1);
-}
-.tog:hover{color:var(--fg-base);border-color:var(--fg-faint)}
-.tog[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:var(--accent-fg)}
-.tog:disabled{opacity:.45;cursor:default}
+.srch input{width:80px}
 .expwrap select{cursor:pointer}
+.tog{
+  display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;
+  font-size:12px;font-weight:500;color:var(--fg-muted);background:transparent;
+  border:1px solid var(--border-strong);border-radius:6px;cursor:pointer;white-space:nowrap;
+  transition:background 160ms var(--ease),color 160ms var(--ease),border-color 160ms var(--ease);
+}
+.tog:hover{color:var(--fg-base);background:var(--bg-inset)}
+.tog[aria-pressed="true"]{background:var(--fg-base);border-color:var(--fg-base);color:var(--bg-panel)}
+.tog:disabled{opacity:.45;cursor:default}
+a.tog{text-decoration:none}
+a.tog.off{opacity:.45;pointer-events:none}
+.tog.primary{
+  height:36px;padding:0 16px;border:0;background:var(--accent);color:var(--accent-fg);font-size:13px;font-weight:600;
+}
+.tog.primary:hover{background:var(--accent-hover);color:var(--accent-fg)}
+.tog.primary kbd{font:500 10px "Geist Mono",monospace;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.18)}
 
 /* ----------------------------------------------------------------- shell */
-/* P10a — docs/spec/terminal-redesign-v1.md rows 2 and 5. Panes stacked in one column, flush:
-   no gap, no margin, no radius on a pane edge, and a single 1px seam carried by the pane below.
-   That one line is the whole visual difference between "a page with sections" and "a terminal". */
+/* P10a rows 2 and 5 — panes stacked in one column, flush, one 1px seam. */
 .shell{flex:1;display:flex;flex-direction:column;min-height:0}
 .pane{min-height:0}
-/* Row 18 — the P8 trap. A pane with its own display: rule outranks the UA's [hidden]{display:none},
-   and the failure looks like broken JavaScript rather than like CSS. */
 .pane[hidden]{display:none}
 .shell > .pane + .pane{border-top:1px solid var(--border)}
 
-/* Splitter — row 3. 5px visible, 9px hit area via the pseudo-element, transparent until hovered,
-   dragged or focused. Generalises the P5 .chart-grip rather than inventing a second resize idiom. */
 .psplit{
   flex:0 0 5px;height:5px;position:relative;z-index:6;
-  cursor:ns-resize;background:transparent;touch-action:none;
-  transition:background 120ms cubic-bezier(.16,1,.3,1);
+  cursor:ns-resize;background:transparent;touch-action:none;transition:background 160ms var(--ease);
 }
 .psplit::before{content:"";position:absolute;left:0;right:0;top:-2px;bottom:-2px}
-/* Row 18 again: .psplit sets its own display via flex, so the UA's [hidden] does not reach it. */
 .psplit[hidden]{display:none}
-.psplit:hover,.psplit.dragging,.psplit:focus-visible{background:var(--border-strong)}
+.psplit:hover,.psplit.dragging,.psplit:focus-visible{background:var(--accent-wash)}
 .psplit:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
 
 /* ------------------------------------------------------------------ work */
 .work{flex:1;display:flex;min-height:0;gap:0}
-.gridwrap{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg-panel)}
+.gridwrap{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg-base)}
 .gridscroll{flex:1;overflow:auto;position:relative}
+.gridscroll::-webkit-scrollbar{width:8px;height:8px}
+.gridscroll::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:8px}
+.gridscroll::-webkit-scrollbar-track{background:transparent}
 
 /* --------------------------------------------------------------- the grid */
 table.oc{
-  /* 25 columns: 2 x 696px of side + the 92px spine. Grew from 1392px when P7 added Pk %. */
   border-collapse:separate;border-spacing:0;width:100%;min-width:1484px;table-layout:fixed;
-  font-family:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;
-  font-size:10.5px;font-variant-numeric:tabular-nums;
+  font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-variant-numeric:tabular-nums;
 }
 table.oc thead th{
-  position:sticky;background:var(--bg-subtle);z-index:3;
-  font-family:Archivo,sans-serif;font-weight:600;letter-spacing:.045em;text-transform:uppercase;
-  color:var(--fg-faint);white-space:nowrap;text-align:right;padding:0 6px;
+  position:sticky;background:var(--bg-panel);z-index:3;
+  font-family:Geist,sans-serif;font-weight:500;color:var(--fg-faint);white-space:nowrap;text-align:right;padding:0 8px;
 }
-thead tr.sides th{top:0;height:24px;font-size:9.5px;letter-spacing:.16em;text-align:center;color:var(--fg-base)}
-thead tr.cols th{top:24px;height:26px;font-size:9px;border-bottom:1px solid var(--border-strong)}
-thead th.side.ce{background:color-mix(in srgb,var(--net) 14%,var(--bg-subtle));border-bottom:1px solid var(--border)}
-thead th.side.pe{background:color-mix(in srgb,var(--render) 14%,var(--bg-subtle));border-bottom:1px solid var(--border)}
-thead th.ltp{color:var(--fg-base)}
+thead tr.sides th{top:0;height:24px;font-size:11px;color:var(--fg-muted);border-bottom:1px solid var(--border)}
+thead th.side.ce{text-align:left}
+thead th.side.pe{text-align:right}
+thead th.side.ce::before,thead th.side.pe::after{
+  content:"";display:inline-block;width:6px;height:6px;border-radius:999px;vertical-align:1px;
+}
+thead th.side.ce::before{background:var(--up);margin-right:6px}
+thead th.side.pe::after{background:var(--down);margin-left:6px}
+thead tr.cols th{top:24px;height:28px;font-size:11px;border-bottom:1px solid var(--border-strong)}
+thead th.ltp{color:var(--fg-muted)}
 
-/* The strike spine — the column everything is read against, so it is the loudest thing here.
-   P10a row 6 pins it: `left:0` AND `right:0`. The reflex `left:0` alone is inert on this table —
-   the spine sits at x≈696 of 1484 and the overflow at 1440px is 44px, so it would need ~700px of
-   horizontal scroll before it ever engaged. Symmetric offsets pin the cell in both directions and
-   only conflict when the scrollport is narrower than the 92px cell, far below the 1024px floor.
-   Sticky also needs a painted background and border-collapse:separate — both were already true.
-   td.flash would defeat it by animating background to transparent, but .flash is only ever added
-   to the two LTP cells (CELL.ce.ltp = 11, CELL.pe.ltp = 13); the spine is 12. */
+/* The strike spine. P10a row 6: sticky on `left:0` AND `right:0` — `left:0` alone is inert here. */
 thead th.spine{
-  position:sticky;left:0;right:0;top:0;z-index:4;
-  height:50px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.16em;
-  color:var(--fg-base);background:var(--bg-inset);
-  border-left:2px solid var(--border-strong);border-right:2px solid var(--border-strong);
-  border-bottom:1px solid var(--border-strong);
+  position:sticky;left:0;right:0;top:0;z-index:4;height:52px;text-align:center;
+  font-size:11px;color:var(--fg-muted);background:var(--bg-panel);
+  border-left:1px solid var(--border-strong);border-right:1px solid var(--border-strong);border-bottom:1px solid var(--border-strong);
 }
 td.spine{
-  position:sticky;left:0;right:0;z-index:2;
-  text-align:center;font-size:13.5px;font-weight:700;letter-spacing:.01em;color:var(--fg-base);
-  background:var(--bg-inset);
-  border-left:2px solid var(--border-strong);border-right:2px solid var(--border-strong);
+  position:sticky;left:0;right:0;z-index:2;text-align:center;font-size:13px;font-weight:600;
+  color:var(--fg-base);background:var(--bg-subtle);
+  border-left:1px solid var(--border-strong);border-right:1px solid var(--border-strong);
 }
 
 table.oc td{
-  height:28px;padding:0 6px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:clip;
+  height:28px;padding:0 8px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:clip;
   border-bottom:1px solid var(--grid-line);color:var(--fg-base);
 }
-tbody tr:hover td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
-tbody tr:hover td.spine{background:color-mix(in srgb,var(--accent) 16%,var(--bg-inset))}
+tbody tr:hover td{background:var(--bg-inset)}
+tbody tr:hover td.spine{background:color-mix(in srgb,var(--accent) 18%,var(--bg-subtle))}
 td.itm{background:var(--itm)}
-tbody tr:hover td.itm{background:color-mix(in srgb,var(--accent) 7%,var(--itm))}
-td.ltp{font-weight:600;font-size:11px}
+td.ltp{font-weight:500}
+/* Row 13 — the absolute value reads first; the bracketed % is small and faint. */
+.sub{font-size:10px;color:var(--fg-faint);margin-left:4px}
 
-.up{color:var(--up)}
-.down{color:var(--down)}
-.dim{color:var(--fg-faint)}
-.sub{font-size:8.5px;opacity:.72;margin-left:2px}
-
+/* Row 15 — the OI butterfly. CE bars grow from the spine side of the cell (right), PE bars from
+   the spine side too (left); the numbers sit at the OUTER edge so bar and text rarely meet
+   (amendment 22). */
 td.oi{position:relative;isolation:isolate}
-td.oi .bar{position:absolute;top:4px;bottom:4px;left:2px;background:var(--accent);opacity:.14;border-radius:2px;z-index:-1}
-td.oi.r .bar{left:auto;right:2px}
-/* Where yesterday's peak sits on the same scale as the bar. Grows out of the same edge. */
-td.oi .pkmark{position:absolute;top:3px;bottom:3px;width:1px;background:var(--fg-faint);opacity:.8;z-index:-1}
+td.oi .bar{position:absolute;top:5px;bottom:5px;left:0;border-radius:3px;z-index:-1;background:var(--down-bar)}
+td.oi.r .bar{left:auto;right:0;background:var(--up-bar)}
+td.oi.r{text-align:left}
+td.oi .pkmark{position:absolute;top:4px;bottom:4px;width:1px;background:var(--fg-faint);opacity:.7;z-index:-1}
 
-/* P7 — live OI against yesterday's peak. docs/spec/peak-oi-v1.md rows 11-13. */
+/* P7 — live OI against yesterday's peak */
 td.pk{color:var(--fg-muted)}
-td.pk.breach{color:var(--warn);font-weight:700;background:var(--accent-wash)}
-tbody tr:hover td.pk.breach{background:color-mix(in srgb,var(--warn) 16%,transparent)}
+td.pk.breach{color:var(--warn);font-weight:500}
+tbody tr:hover td.pk.breach{background:color-mix(in srgb,var(--warn) 12%,var(--bg-inset))}
 
+/* Row 14 — the ATM row is the screen's one focal point. */
 tr.atm td{background:var(--accent-wash)}
-tr.atm td.spine{
-  background:var(--accent);color:var(--accent-fg);
-  border-left-color:var(--accent);border-right-color:var(--accent);
-}
+tr.atm td.spine{background:var(--accent);color:var(--accent-fg);border-left-color:var(--accent);border-right-color:var(--accent)}
 tr.atm:hover td.spine{background:var(--accent-hover)}
-tr.spotline td{border-bottom:2px dashed var(--accent)}
+tr.spotline td{border-bottom:1px dashed var(--border-strong)}
 tr.hidden{display:none}
 
-/* Greeks off — row 7. 8 columns x 22px of them come off each side: 696 - 176 = 520 per side, so
-   520*2 + 92 = 1132px, the first column set that fits the 1440px floor with zero sideways scroll.
-   `display:none` on a cell removes it from the CSS table (17 generated columns, and app.js emits a
-   17-wide <colgroup> to match) but NOT from tr.children — so CELL's index constants in app.js keep
-   addressing the same <td>s, and the 10 Hz tick updater needs no branch for this. */
+/* Greeks off — P10a row 7: 17 columns / 1132px. */
 body.nogreeks table.oc{min-width:1132px}
 body.nogreeks table.oc .gk{display:none}
 
+/* Amendment 21 — 10px text, 12px tall: it overhangs each neighbouring row by 6px and clears the
+   strike glyphs. It lives in the scroll box above the table, so no sticky cell can paint over it. */
 .spotpill{
-  position:absolute;transform:translate(-50%,-50%);z-index:4;pointer-events:none;
-  background:var(--accent);color:var(--accent-fg);box-shadow:var(--shadow-sm);
-  font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;
+  position:absolute;transform:translate(-50%,-50%);z-index:5;pointer-events:none;
+  font-size:10px;line-height:10px;font-weight:500;padding:0 5px;border-radius:999px;white-space:nowrap;
+  background:var(--bg-subtle);color:var(--fg-base);border:1px solid var(--border-strong);
 }
+.spotpill[hidden]{display:none}
 
 @keyframes flash{from{background:var(--accent-wash)}to{background:transparent}}
-td.flash{animation:flash 400ms cubic-bezier(.16,1,.3,1)}
+td.flash{animation:flash 400ms var(--ease)}
+@keyframes tickup{from{background:color-mix(in srgb,var(--up) 30%,transparent)}to{background:transparent}}
+@keyframes tickdown{from{background:color-mix(in srgb,var(--down) 30%,transparent)}to{background:transparent}}
+td.tup{animation:tickup 480ms var(--ease)}
+td.tdn{animation:tickdown 480ms var(--ease)}
 
-/* skeleton */
 tr.skel td{color:transparent}
-tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;background:var(--bg-inset);animation:shimmer 1.4s infinite}
+tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;background:var(--bg-inset);animation:shimmer 1.4s infinite}
 @keyframes shimmer{0%,100%{opacity:.5}50%{opacity:1}}
 
 /* ------------------------------------------------------- expressive state */
 .exp[hidden]{display:none}
 .exp{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-  padding:40px 22px;text-align:center;color:var(--fg-faint);
+  padding:40px 24px;text-align:center;color:var(--fg-faint);
 }
-.exp h2{font-size:19px;font-weight:700;margin:0;color:var(--fg-base)}
-.exp p{font-size:14px;margin:0;max-width:46ch;color:var(--fg-muted);line-height:1.5}
+.exp h2{font-size:16px;font-weight:600;margin:0;color:var(--fg-base)}
+.exp p{font-size:13px;margin:0;max-width:46ch;color:var(--fg-muted);line-height:1.5}
 .needle{width:88px;height:88px}
 .needle .nd{transform-origin:50px 52px}
 .exp.idle .needle .nd{animation:sway 3s ease-in-out infinite}
@@ -306,196 +299,162 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:3px;back
 @keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
 @keyframes tremor{0%,100%{transform:rotate(62deg)}50%{transform:rotate(65deg)}}
 .btn{
-  font-family:Archivo,sans-serif;font-size:12.5px;font-weight:600;padding:9px 17px;min-height:36px;
-  border-radius:5px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);
-  transition:background 120ms cubic-bezier(.16,1,.3,1);
+  font-size:13px;font-weight:600;height:36px;padding:0 16px;border-radius:6px;cursor:pointer;
+  border:0;background:var(--accent);color:var(--accent-fg);transition:background 160ms var(--ease);
 }
-.btn:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
-.exp details{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);max-width:70ch;width:100%}
+.btn:hover{background:var(--accent-hover)}
+.exp details{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-faint);max-width:70ch;width:100%}
 .exp details summary{cursor:pointer}
 .exp details pre{
-  text-align:left;background:var(--bg-inset);color:var(--fg-muted);padding:10px 12px;border-radius:5px;
-  overflow-x:auto;margin:8px 0 0;font-size:10.5px;line-height:1.55;
+  text-align:left;background:var(--bg-inset);color:var(--fg-muted);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;margin:8px 0 0;font-size:11px;line-height:1.55;
 }
 
 /* ------------------------------------------------ status rail (P10b row 13) */
-/* 26px, full width, pinned under every pane, never closable. Zero chain width — which is the
-   whole reason the 380px right dock could be deleted. Values update in place. */
 .rail{
-  flex:0 0 26px;height:26px;display:flex;align-items:center;gap:14px;padding:0 12px;
-  background:var(--bg-subtle);border-top:1px solid var(--border-strong);
-  font-family:"IBM Plex Mono",monospace;font-size:10.5px;white-space:nowrap;overflow:hidden;
+  flex:0 0 26px;height:26px;display:flex;align-items:center;gap:14px;padding:0 16px;
+  background:var(--bg-panel);border-top:1px solid var(--border);
+  font-size:11px;color:var(--fg-faint);white-space:nowrap;overflow:hidden;
 }
 .rstat{display:flex;align-items:center;gap:5px}
-.rstat em{font-style:normal;color:var(--fg-faint);letter-spacing:.08em}
-.rv{color:var(--fg-base);font-weight:600}
-.rv small{color:var(--fg-faint);font-weight:400;margin-left:1px}
+.rstat em{font-style:normal;color:var(--fg-faint)}
+.rv{font-family:"Geist Mono",monospace;color:var(--fg-base);font-weight:500}
+.rv small{color:var(--fg-faint);font-weight:400;margin-left:1px;font-size:10px}
 .rv.warn{color:var(--warn)}
 .rv.crit{color:var(--crit)}
 .rail .ring{width:14px;height:14px;margin-left:1px}
-.rail .badge{font-size:9px;padding:1px 6px}
-.rail .conn{font-size:10px}
-.rail .clock{color:var(--fg-muted)}
-.rail .feedpill{font-size:9px;padding:1px 8px}
-.rail .tickrate{font-size:10px}
+.conn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg-muted)}
+.conn i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
+.conn.on i{background:var(--ok)}
+.conn.off i{background:var(--crit)}
+.badge{
+  font:500 10px "Geist Mono",monospace;letter-spacing:.06em;padding:1px 7px;border-radius:999px;
+  color:var(--fg-muted);background:var(--bg-inset);
+}
+.badge.replay{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.badge.live{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.clock{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-muted)}
 .railbtn{
-  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.05em;cursor:pointer;
-  background:var(--bg-panel);color:var(--fg-muted);border:1px solid var(--border-strong);
-  border-radius:4px;padding:1px 8px;transition:background 120ms cubic-bezier(.16,1,.3,1);
+  font:500 10px "Geist Mono",monospace;cursor:pointer;height:18px;padding:0 8px;
+  background:transparent;color:var(--fg-muted);border:1px solid var(--border-strong);border-radius:4px;
+  transition:background 160ms var(--ease),color 160ms var(--ease);
 }
 .railbtn:hover{background:var(--bg-inset);color:var(--fg-base)}
 .railbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-/* Row 20 — below 1180px the rail drops OK%, then the clock. */
 @media (max-width:1180px){ .rdrop1{display:none} }
 @media (max-width:1080px){ .rdrop2{display:none} }
 
 /* -------------------------------------------- telemetry drawer (P10b row 14) */
-/* The same four blocks the 380px stack held, side by side. It costs height, never width. */
-.drawer{
-  flex:0 0 auto;height:240px;min-height:88px;display:flex;gap:0;overflow:hidden;
-  background:var(--bg-panel);
-}
+.drawer{flex:0 0 auto;height:240px;min-height:88px;display:flex;gap:0;overflow:hidden;background:var(--bg-panel)}
 .drawer[hidden]{display:none}
-/* Each column scrolls on its own so a drawer compressed to its hard floor at 1024x800 still
-   shows all four blocks rather than clipping them. */
 .dcol{
-  flex:1 1 0;min-width:0;padding:11px 14px;border-right:1px solid var(--border);
+  flex:1 1 0;min-width:0;padding:12px 16px;border-right:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;
 }
 .dcol:last-child{border-right:0}
-.dcol .k{display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 9px}
-.dcol .foot{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint);line-height:1.45;margin:9px 0 0}
+.dcol .k{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:500;color:var(--fg-faint);margin:0 0 10px}
+.dcol .foot{font-size:11px;color:var(--fg-faint);line-height:1.45;margin:10px 0 0}
 .dcol.log{flex:1.3 1 0}
 .logscroll{flex:1;min-height:0;overflow-y:auto}
 .mini{
-  align-self:flex-start;
-  font-size:9.5px;font-weight:600;letter-spacing:.06em;color:var(--fg-muted);text-decoration:none;
-  border:1px solid var(--border-strong);border-radius:4px;padding:3px 8px;background:var(--bg-subtle);
+  align-self:flex-start;font-size:11px;font-weight:500;color:var(--fg-muted);text-decoration:none;
+  border:1px solid var(--border-strong);border-radius:6px;padding:4px 10px;background:transparent;
 }
 .mini:hover{background:var(--bg-inset);color:var(--fg-base)}
 .ring{width:22px;height:22px;flex:0 0 auto}
-.wf{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg-inset)}
-.wf i{display:block;transition:width 280ms cubic-bezier(.16,1,.3,1)}
+.wf{display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--bg-inset)}
+.wf i{display:block;transition:width 280ms var(--ease)}
 .wf i[data-stage="server"]{background:var(--net)}
 .wf i[data-stage="download"]{background:color-mix(in srgb,var(--net) 50%,var(--bg-inset))}
 .wf i[data-stage="compute"]{background:var(--compute)}
 .wf i[data-stage="transport"]{background:color-mix(in srgb,var(--render) 45%,var(--bg-inset))}
 .wf i[data-stage="render"]{background:var(--render)}
-.wfkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-muted)}
+.wfkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-family:"Geist Mono",monospace;font-size:10px;color:var(--fg-muted)}
 .wfkey span{display:flex;align-items:center;gap:5px}
 .wfkey b{width:7px;height:7px;border-radius:2px}
 .spark{width:100%;height:54px;display:block}
-.pcts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px}
-.pct{background:var(--bg-subtle);border:1px solid var(--border);border-radius:4px;padding:5px 7px}
-.pct .k2{font-size:8px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
-.pct .v2{font-size:13px;font-weight:600}
-.log table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:10px}
+.pcts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.pct{background:var(--bg-inset);border-radius:6px;padding:6px 8px}
+.pct .k2{font-size:10px;color:var(--fg-faint)}
+.pct .v2{font-size:13px;font-weight:500}
+.log table{width:100%;border-collapse:collapse;font-family:"Geist Mono",monospace;font-size:10px}
 .log th{
-  position:sticky;top:0;background:var(--bg-subtle);font-family:Archivo,sans-serif;font-size:8.5px;
-  font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint);
-  padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--bg-panel);font-family:Geist,sans-serif;font-size:10px;
+  font-weight:500;color:var(--fg-faint);padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);
 }
 .log td{padding:5px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .log td.ok{color:var(--ok)}
 .log td.bad{color:var(--crit)}
 
-/* ------------------------------------------------------------ tick chart */
-/* Sits above the chain. Height is user-draggable and remembered; C collapses it. */
-/* The seam moved to the pane below it when P10a stacked the panes (row 5): border-bottom here
-   plus border-top there would draw the 1px line twice. */
-.chart{
-  flex:0 0 auto;display:flex;flex-direction:column;
-  background:var(--bg-panel);
-}
-.chart-h{display:flex;align-items:center;gap:14px;padding:8px 16px;flex-wrap:wrap}
-.chart-h .ct{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)}
-.chart-h .cpx{font-size:19px;font-weight:600;letter-spacing:-.01em}
-.chart-h .cchg{font-size:11.5px}
-.legend{display:flex;gap:14px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--fg-faint)}
+/* ------------------------------------------------------------ chart strip */
+/* Row 12 — a 28px header over a 112px plot, 140px in all. `C` collapses the plot. */
+.chart{flex:0 0 auto;display:flex;flex-direction:column;background:var(--bg-base)}
+.chart-h{display:flex;align-items:center;gap:12px;min-height:28px;padding:2px 16px;flex-wrap:wrap;font-size:11px;color:var(--fg-faint)}
+.chart-h .ct{font-size:11px;color:var(--fg-faint)}
+.chart-h .cpx{font-size:12px;font-weight:500;color:var(--fg-base)}
+.chart-h .cchg{font-size:11px}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--fg-faint)}
 .legend span{display:flex;align-items:center;gap:5px}
 .dot{width:6px;height:6px;border-radius:999px;display:inline-block}
 .dot.tick{background:var(--up)}
 .dot.slow{background:var(--accent)}
 .feedpill{
-  display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.05em;
-  text-transform:uppercase;color:var(--fg-muted);background:var(--bg-subtle);
-  border:1px solid var(--border);border-radius:999px;padding:3px 10px;
+  display:flex;align-items:center;gap:6px;font:500 10px "Geist Mono",monospace;letter-spacing:.04em;
+  color:var(--fg-muted);background:var(--bg-inset);border-radius:999px;padding:1px 8px;
 }
 .feedpill i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
-.feedpill.live{color:var(--ok);border-color:var(--ok)}
+.feedpill.live{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
 .feedpill.live i{background:var(--ok);animation:pulse 2.4s infinite}
-.feedpill.bad{color:var(--crit);border-color:var(--crit)}
+.feedpill.bad{color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent)}
 .feedpill.bad i{background:var(--crit)}
-.tickrate{font-size:10.5px;color:var(--fg-faint)}
-.range,.tools{display:flex;gap:3px}
+.tickrate{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-faint)}
+.range,.tools{display:flex;gap:2px;padding:2px;border-radius:6px;background:var(--bg-inset)}
 .range button,.tools button{
-  font-family:"IBM Plex Mono",monospace;font-size:10px;padding:3px 8px;min-height:24px;cursor:pointer;
-  background:var(--bg-subtle);color:var(--fg-muted);border:1px solid var(--border);border-radius:4px;
-  transition:background 120ms cubic-bezier(.16,1,.3,1),color 120ms;
+  font:500 11px "Geist Mono",monospace;height:20px;padding:0 8px;cursor:pointer;
+  background:transparent;color:var(--fg-muted);border:0;border-radius:4px;
+  transition:background 160ms var(--ease),color 160ms var(--ease);
 }
-.range button:hover,.tools button:hover{background:var(--bg-inset);color:var(--fg-base)}
+.range button:hover,.tools button:hover{color:var(--fg-base)}
 .range button[aria-pressed="true"],.tools button[aria-pressed="true"]{
-  background:var(--accent);border-color:var(--accent);color:var(--accent-fg);
+  background:var(--bg-panel);color:var(--fg-base);box-shadow:0 0 0 1px var(--border-strong);
 }
-/* drawing tools — docs/spec/chart-tools-v1.md rows 10, 21, 25 */
-.tools button{min-width:26px;font-size:11px;line-height:1}
+.tools button{min-width:24px;padding:0 6px;font-size:12px;line-height:1}
 .tools button:disabled{opacity:.4;cursor:not-allowed}
-.tools button:disabled:hover{background:var(--bg-subtle);color:var(--fg-muted)}
-.tools button.confirm{border-color:var(--crit);color:var(--crit);font-size:9.5px}
+.tools button.confirm{color:var(--crit);font-size:10px}
+#chartBtn{width:24px;height:24px;font-size:12px}
 
-.chart-body{position:relative;height:190px;min-height:70px;padding:0 16px 8px}
+.chart-body{position:relative;height:112px;min-height:70px;padding:0 16px 8px}
 .chart-body svg{width:100%;height:100%;display:block;overflow:visible}
 .chart-empty{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--fg-faint);pointer-events:none;
+  font-size:11px;color:var(--fg-faint);pointer-events:none;
 }
-/* Pointer targets for the crosshair/drawings and the price axis. They line up with the svg's
-   content box: .chart-body pads 16px left/right and 8px bottom, and the axis gutter is 76px
-   (docs/spec/chart-tools-v1.md rows 1, 7). */
+/* Pointer targets line up with the svg's content box: 16px side padding, 8px bottom, 76px axis
+   gutter (chart-tools-v1.md rows 1, 7). */
 .chart-surface{position:absolute;left:16px;right:92px;top:0;bottom:8px;cursor:crosshair;touch-action:none}
 .chart-axis{position:absolute;right:16px;top:0;bottom:8px;width:76px;cursor:ns-resize;touch-action:none}
 .chart-axis:hover{background:var(--accent-wash)}
 body.nochart .chart-body,body.nochart .psplit{display:none}
 body.nochart #chartBtn{transform:rotate(-90deg)}
 
-/* a cell whose price came from a tick, not from the 3 s snapshot */
-@keyframes tickup{from{background:color-mix(in srgb,var(--up) 34%,transparent)}to{background:transparent}}
-@keyframes tickdown{from{background:color-mix(in srgb,var(--down) 34%,transparent)}to{background:transparent}}
-td.tup{animation:tickup 520ms cubic-bezier(.16,1,.3,1)}
-td.tdn{animation:tickdown 520ms cubic-bezier(.16,1,.3,1)}
-
 /* ------------------------------------------------- option candles (P9) */
-/* docs/spec/option-candles-v1.md rows 2, 9, 13. The chart strip switches MODE rather than
-   opening a second chart: one grip, one resize path, one paint budget.
-
-   Both display toggles carry !important on purpose. `.chart-empty` and `.chart-body svg` set
-   their own `display`, and a plain `.opt{display:none}` loses to them exactly the way the
-   scanner panel's `display:flex` beat the UA's `[hidden]{display:none}` in P8 — the failure
-   looks like broken JavaScript, not like CSS. */
+/* The !important pair is load-bearing: .chart-empty and .chart-body svg set their own display. */
 body:not(.optmode) .opt{display:none!important}
 body.optmode .tickonly{display:none!important}
 #candleMsg[hidden]{display:none!important}
-
-.chart-h .opt.ct{font-size:11.5px;letter-spacing:.02em;text-transform:none;color:var(--fg-base);font-weight:600}
-.chart-h #candleBack{font-size:10.5px;padding:3px 9px;min-height:24px}
-.candlecount{font-size:10px;color:var(--fg-faint)}
+.chart-h .opt.ct{font-size:12px;color:var(--fg-base);font-weight:500}
+.chart-h #candleBack{height:24px;font-size:11px;padding:0 8px}
+.candlecount{font-size:11px;color:var(--fg-faint)}
 .dot.bigin{background:var(--big-in)}
 .dot.bigout{background:var(--big-out)}
-
 #candleSvg{width:100%;height:100%;display:block;overflow:visible}
-
-/* Row 13 — the tooltip prints the exact inputs the colour was computed from, so the rule can be
-   redone by hand without trusting the code that ran it. */
 .candletip{
   position:absolute;z-index:6;pointer-events:none;
-  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:6px;
-  box-shadow:var(--shadow-md);padding:7px 9px;min-width:236px;
-  font-size:10.5px;color:var(--fg-muted);
+  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;
+  box-shadow:var(--shadow-md);padding:8px 10px;min-width:236px;font-size:11px;color:var(--fg-muted);
 }
-.candletip .tt-h{
-  font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--fg-base);
-  padding-bottom:5px;margin-bottom:5px;border-bottom:1px solid var(--border);
-}
+.candletip[hidden]{display:none}
+.candletip .tt-h{font-size:11px;font-weight:600;color:var(--fg-base);padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--border)}
 .candletip table{border-collapse:collapse;width:100%}
 .candletip th{text-align:left;font-weight:400;color:var(--fg-faint);padding:1px 10px 1px 0;white-space:nowrap}
 .candletip td{text-align:right;color:var(--fg-base);white-space:nowrap}
@@ -504,12 +463,9 @@ body.optmode .tickonly{display:none!important}
 .candletip td.blue{color:var(--big-in);font-weight:600}
 .candletip td.yellow{color:var(--big-out);font-weight:600}
 
-/* Row 2 — the charted half of the row is outlined, so the chart and the chain never disagree
-   about which contract is on screen. */
 #ocBody tr.selce td:nth-child(-n+12),
 #ocBody tr.selpe td:nth-child(n+14){
-  background:var(--accent-wash);
-  box-shadow:inset 0 1px 0 var(--ring),inset 0 -1px 0 var(--ring);
+  background:var(--accent-wash);box-shadow:inset 0 1px 0 var(--ring),inset 0 -1px 0 var(--ring);
 }
 #ocBody tr.selce td:nth-child(1){box-shadow:inset 1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
 #ocBody tr.selce td:nth-child(12){box-shadow:inset -1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
@@ -517,119 +473,133 @@ body.optmode .tickonly{display:none!important}
 #ocBody tr.selpe td:nth-child(25){box-shadow:inset -1px 1px 0 var(--ring),inset 0 -1px 0 var(--ring)}
 #ocBody tr[data-strike]{cursor:pointer}
 
-/* --------------------------------------------------------- scanner (P8) */
-/* Overlay, not a route: a route change would tear down the chain poll and the tick feed.
-   scanner-v1.md row 12. */
+/* ============================================================= SCANNER WORKSPACE (row 16) */
+/* Row 3: a workspace, not a modal. It is still position:fixed over the chain rather than a route,
+   because a route change would tear down the chain poll and the tick feed (scanner-v1 row 12) —
+   but it is opaque, full width, and sits between the nav and the status rail. */
 .scan{
-  position:fixed;inset:52px 0 0 0;z-index:40;display:flex;justify-content:center;
-  padding:20px 20px 24px;background:color-mix(in srgb,var(--bg-base) 78%,transparent);
-  backdrop-filter:blur(2px);
+  position:fixed;left:0;right:0;top:48px;bottom:26px;z-index:40;overflow:auto;
+  background:var(--bg-base);animation:wsfade 120ms var(--ease);
 }
-/* `display:flex` above outranks the UA's [hidden]{display:none}, so without this the panel is
-   on screen from page load and neither Esc nor the close button can put it away. */
+body.replay .scan{top:76px}
+@keyframes wsfade{from{opacity:0}to{opacity:1}}
 .scan[hidden]{display:none}
-.scan-box{
-  width:100%;max-width:1180px;display:flex;flex-direction:column;min-height:0;
-  background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;
-  box-shadow:var(--shadow-md);overflow:hidden;
-}
-.scan-h{
-  flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:11px 14px;
-  border-bottom:1px solid var(--border);background:var(--bg-subtle);
-}
-.scan-h h2{
-  margin:0;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--fg-base);
-}
-.scan-hint{font-size:10.5px;color:var(--fg-faint);letter-spacing:.03em}
-.scan-meta{font-size:10.5px;color:var(--fg-muted)}
-/* P14 source / top-N pickers - same control as the expiry select, labelled inline. */
-.scan-opt{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.07em;
-  text-transform:uppercase;color:var(--fg-faint)}
-.scan-opt select{
-  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--fg-base);cursor:pointer;
-  background:var(--bg-subtle);border:1px solid var(--border-strong);border-radius:4px;
-  padding:6px 8px;min-height:30px;
-}
-.scan-opt select:disabled{opacity:.45;cursor:default}
-/* With P14's two pickers the header no longer fits on one line at 1440px: fixed items keep their
-   own words on one line and the free-text meta is the one that wraps. */
-.scan-h{flex-wrap:wrap;row-gap:8px}
-.scan-h h2,.scan-h .scan-hint,.scan-h .statechip,.scan-h .tog,.scan-opt{white-space:nowrap;flex-shrink:0}
-.scan-h .scan-meta{flex:0 1 auto;min-width:0;text-align:right}
-table.scan-t.nse{table-layout:fixed}
-a.tog{text-decoration:none;display:inline-flex;align-items:center}
-a.tog.off{opacity:.45;pointer-events:none}
+.scan-box{max-width:1280px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:16px}
 
-/* The P8 trap once more: display:flex outranks the UA's [hidden]{display:none}, so scan.js's
-   two `hidden = true` sites left the PREVIOUS scan's funnel counts on screen through a Rescan
-   and through the error state — last run's numbers presented as this run's. */
+.scan-h{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px 12px}
+.scan-title{display:flex;flex-direction:column;gap:6px;min-width:0}
+.scan-h h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;color:var(--fg-base);white-space:nowrap}
+.scan-sub{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scan-meta{font-size:12px;color:var(--fg-muted)}
+.scan-h .statechip,.scan-h .tog{white-space:nowrap;flex-shrink:0}
+.scan-opt{display:inline-flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint)}
+.seg{display:inline-flex;padding:2px;gap:2px;border-radius:6px;background:var(--bg-inset)}
+.seg button{
+  height:28px;padding:0 10px;border:0;border-radius:5px;background:transparent;cursor:pointer;
+  font:500 12px Geist,sans-serif;color:var(--fg-muted);transition:background 160ms var(--ease),color 160ms var(--ease);
+}
+.seg button:hover{color:var(--fg-base)}
+.seg button[aria-pressed="true"]{background:var(--bg-panel);color:var(--fg-base);box-shadow:0 0 0 1px var(--border-strong)}
+.seg button:disabled{opacity:.45;cursor:default}
+
+/* Funnel tiles — the counts are the headline; the bar under each is count / list size. */
+.scan-funnel{display:grid;grid-template-columns:1fr 24px 1fr 24px 1fr 24px 1fr;align-items:stretch}
 .scan-funnel[hidden]{display:none}
-.scan-funnel{
-  flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;
+.fstep{
+  display:flex;flex-direction:column;gap:6px;padding:14px 16px 16px;border-radius:8px;
+  background:var(--bg-panel);border:1px solid var(--border);box-shadow:var(--shadow-sm);
 }
-.scan-funnel.bad{background:color-mix(in srgb,var(--crit) 12%,transparent)}
-.fstep{display:flex;align-items:baseline;gap:5px}
-.fstep b{font-size:15px;font-weight:700;color:var(--fg-base)}
+.fstep .fk{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint)}
+.fstep b{font:500 32px/1.1 "Geist Mono",monospace;letter-spacing:-.02em;color:var(--fg-base)}
+.fstep .fbar{height:4px;border-radius:999px;background:var(--bg-inset);overflow:hidden;margin-top:4px}
+.fstep .fbar i{display:block;height:100%;width:0;border-radius:999px;background:var(--fg-faint);transition:width 480ms ease-out}
+.fstep em{font-style:normal;font-size:11px;color:var(--fg-faint);margin-top:4px}
+.fstep.last{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-wash),transparent 70%),var(--bg-panel)}
 .fstep.last b{color:var(--accent)}
-.fstep em{font-style:normal;font-size:10px;color:var(--fg-faint);letter-spacing:.04em}
-.farrow{font-style:normal;color:var(--fg-faint)}
-.fnote{font-size:10.5px;color:var(--fg-faint)}
+.fstep.last .fbar i{background:var(--accent)}
+.farrow{display:grid;place-items:center;font-style:normal;font-size:14px;color:var(--fg-faint)}
+.fnote{grid-column:1 / -1;font-size:11px;color:var(--fg-faint);text-align:right;padding-top:8px}
+.scan-funnel.bad .fnote{color:var(--crit);font-weight:600}
 
-.scan-body{flex:1;min-height:0;overflow:auto;padding:14px}
-.scan-sec{margin:0 0 18px}
+.scan-body{display:flex;flex-direction:column;gap:16px}
+.scan-results{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.card{background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-sm);overflow:hidden}
+.scan-sec{margin:0}
 .scan-sec h3{
-  margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  display:flex;align-items:baseline;gap:6px;
+  margin:0;height:44px;display:flex;align-items:center;gap:8px;padding:0 16px;
+  border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--fg-base);
 }
-.scan-sec.long h3{color:var(--up)}
-.scan-sec.short h3{color:var(--down)}
-.scan-sec h3 span{color:var(--fg-faint);font-weight:600;letter-spacing:.04em}
-.scan-none{margin:0;font-size:11.5px;color:var(--fg-faint)}
+.scan-sec h3::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--fg-faint)}
+.scan-sec.long h3::before{background:var(--up)}
+.scan-sec.short h3::before{background:var(--down)}
+.scan-sec h3 span{font:500 12px "Geist Mono",monospace;color:var(--fg-faint)}
+.scan-none{margin:0;padding:16px;font-size:12px;color:var(--fg-faint)}
 
-table.scan-t{
-  border-collapse:separate;border-spacing:0;width:100%;font-size:11px;
-  font-variant-numeric:tabular-nums;
-}
+table.scan-t{border-collapse:separate;border-spacing:0;width:100%;font-size:12px;font-variant-numeric:tabular-nums;table-layout:fixed}
 table.scan-t th{
-  position:sticky;top:0;z-index:1;text-align:right;font-weight:600;font-size:9.5px;
-  letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint);
-  padding:6px 8px;background:var(--bg-panel);border-bottom:1px solid var(--border-strong);
+  text-align:right;font:500 11px Geist,sans-serif;color:var(--fg-faint);
+  padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;
 }
+table.scan-t th:first-child,table.scan-t td:first-child{padding-left:16px}
+table.scan-t th:last-child,table.scan-t td:last-child{padding-right:16px}
 table.scan-t td{
-  text-align:right;padding:7px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-base);
+  text-align:right;height:52px;padding:0 8px;border-bottom:1px solid var(--border);
+  color:var(--fg-base);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+table.scan-t tbody tr:last-child td{border-bottom:0}
 table.scan-t th.l,table.scan-t td.l{text-align:left}
-table.scan-t tbody tr:hover td{background:var(--bg-subtle)}
-table.scan-t td .nm{display:block;font-size:9.5px;color:var(--fg-faint);font-family:Archivo,sans-serif}
-table.scan-t td.up{color:var(--up)}
-table.scan-t td.down{color:var(--down)}
+table.scan-t tbody tr{transition:background 160ms var(--ease)}
+table.scan-t tbody tr:hover td{background:var(--bg-inset)}
+table.scan-t td b{font:600 14px Geist,sans-serif;color:var(--fg-base)}
+table.scan-t td .nm{display:block;font:400 11px Geist,sans-serif;color:var(--fg-faint);overflow:hidden;text-overflow:ellipsis}
+table.scan-t td.up{color:var(--up);font-size:13px;font-weight:500}
+table.scan-t td.down{color:var(--down);font-size:13px;font-weight:500}
 table.scan-t td.flat{color:var(--flat)}
 table.scan-t td.dim{color:var(--fg-faint)}
-
-.scan-skip{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
-.scan-skip summary{
-  cursor:pointer;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
-  font-weight:600;color:var(--fg-muted);
+table.scan-t td.oich span{
+  display:inline-block;font:500 11px "Geist Mono",monospace;padding:3px 6px;border-radius:999px;background:var(--bg-inset);color:var(--fg-base);
 }
-.skgroup{display:flex;gap:8px;align-items:baseline;padding:6px 0 0 14px;font-size:11px}
-.skreason{color:var(--warn);white-space:nowrap;font-size:10.5px}
-.skl{color:var(--fg-muted);font-size:10.5px}
 
-.scan-run,.scan-zero,.scan-err{
-  display:flex;flex-direction:column;align-items:center;gap:8px;
-  padding:52px 16px;text-align:center;
+.scan-skip{border-top:0}
+.scan-skip summary,.scan-trace summary{
+  list-style:none;cursor:pointer;height:44px;display:flex;align-items:center;gap:8px;padding:0 16px;
+  font-size:13px;font-weight:600;color:var(--fg-base);
 }
-.scan-run b,.scan-zero b{font-size:14px}
-.scan-run span,.scan-zero span{font-size:11.5px;color:var(--fg-muted);max-width:520px}
+.scan-skip summary::-webkit-details-marker,.scan-trace summary::-webkit-details-marker{display:none}
+.scan-skip summary::before,.scan-trace summary::before{content:"›";color:var(--fg-faint);transition:transform 160ms var(--ease)}
+.scan-skip[open] summary::before,.scan-trace[open] summary::before{transform:rotate(90deg)}
+.scan-trace summary .hint{margin-left:auto;font-size:11px;font-weight:400;color:var(--fg-faint)}
+.skgroup{display:flex;gap:8px;align-items:baseline;padding:0 16px 12px 32px;font-size:12px}
+.skreason{color:var(--warn);white-space:nowrap;font-size:11px}
+.skl{color:var(--fg-muted);font-size:11px}
+table.trace{width:100%;border-collapse:collapse;font-size:12px}
+table.trace th{font:500 11px Geist,sans-serif;color:var(--fg-faint);text-align:right;padding:8px 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+table.trace td{padding:6px 16px;text-align:right;border-bottom:1px solid var(--grid-line)}
+table.trace th.l,table.trace td.l{text-align:left}
+table.trace td.pass{color:var(--accent);font-weight:500}
+
+.scan-auto{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.scan-auto .beat{width:8px;height:8px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px var(--accent-wash);flex:0 0 auto}
+.scan-auto .t1{font-size:13px;font-weight:500}
+.scan-auto .t2{font-size:11px;color:var(--fg-faint)}
+.scan-auto a{margin-left:auto;color:var(--accent);text-decoration:none;font-size:12px;font-weight:500;white-space:nowrap}
+
+.scan-run,.scan-zero,.scan-err,.scan-idle{
+  display:flex;flex-direction:column;align-items:center;gap:8px;padding:48px 16px;text-align:center;
+}
+.scan-run b,.scan-zero b,.scan-idle b{font-size:14px;font-weight:600}
+.scan-run span,.scan-zero span,.scan-idle span{font-size:12px;color:var(--fg-muted);max-width:520px}
 .scan-run .dim,.zf{color:var(--fg-faint)}
-.zface{font-size:26px;color:var(--accent);letter-spacing:.08em}
-.spin{
-  width:20px;height:20px;border-radius:999px;border:2px solid var(--border-strong);
-  border-top-color:var(--accent);animation:spin 800ms linear infinite;
-}
+.zface{font-size:22px;color:var(--accent);letter-spacing:.08em}
+.spin{width:20px;height:20px;border-radius:999px;border:2px solid var(--border-strong);border-top-color:var(--accent);animation:spin 800ms linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .pbar{width:280px;height:4px;border-radius:999px;background:var(--bg-inset);overflow:hidden}
 .pbar i{display:block;height:100%;background:var(--accent);transition:width 200ms linear}
-.scan-err{color:var(--crit)}
+.scan-err b{font-size:14px;color:var(--crit)}
 .scan-err span{color:var(--fg-muted);font-size:11px;max-width:620px}
+
+@media (max-width:1100px){
+  .scan-results{grid-template-columns:1fr}
+}
+/* The chip is wider than a clipped number; let it show whole rather than end in an ellipsis. */
+table.scan-t td.oich{overflow:visible;text-overflow:clip}

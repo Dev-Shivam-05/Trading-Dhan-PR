@@ -3,56 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dhan Option Chain Terminal</title>
+<title>Dhan Terminal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<!-- P16 row 6: Geist for words, Geist Mono for every number. Exactly two families. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 
-<!-- P10b row 15: #latMini is gone, the rail carries it. Rows 13 and 15 also move the conn dot,
-     the mode badge and the clock down into the rail rather than duplicating them here — two
-     places showing the same number is how they come to disagree. -->
+<!-- P16 row 4: one 48px nav. The two workspace tabs replace the old topbar and chip rail. #scanBtn
+     is the Scanner tab now (scan.js wires it); the mode badge and clock stay in the status rail,
+     where P10b row 13 put them (amendment 23). -->
 <header class="topbar">
-  <span class="brand">DHAN <b>OPTION CHAIN</b></span>
-  <span class="grow"></span>
-  <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
+  <span class="brand">DHAN<b>terminal</b></span>
+  <nav class="wstabs" role="tablist" aria-label="Workspace">
+    <button class="wstab" id="scanBtn" type="button" role="tab" aria-selected="false"
+            title="Scanner - press S to run a scan">Scanner<kbd>S</kbd></button>
+    <button class="wstab" id="chainTab" type="button" role="tab" aria-selected="true"
+            title="Option chain - Esc from the scanner">Option chain<kbd>Esc</kbd></button>
+  </nav>
+  <span class="navr">
+    <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">&#9680;</button>
+  </span>
 </header>
 
-<div class="replaybar" id="replayBar" hidden>
-  <b>REPLAY MODE</b> — these numbers are synthetic, generated locally from a Black–Scholes shape.
-  Nothing on this screen came from Dhan. Put a valid token in <code>.env</code> and restart without
-  <code>REPLAY=1</code> for live data.
+<!-- P16 row 5: one 28px line, still on every replay load; the full sentence is in the title. -->
+<div class="replaybar" id="replayBar" hidden
+     title="REPLAY MODE: the option chain numbers are synthetic, generated locally from a Black-Scholes shape. Nothing in the chain came from Dhan. Put a valid token in .env and restart without REPLAY=1 for live data. The scanner always reads live NSE data.">
+  <b>Replay mode</b> &mdash; option chain numbers are synthetic, nothing in the chain came from Dhan. The scanner reads live NSE data.
 </div>
 
-<nav class="chips" id="chips" aria-label="Underlying"></nav>
-
-<section class="hstrip">
+<!-- P16 row 12: the instrument bar - underlying tabs, spot, the header stats and the chain's
+     controls in one 64px band. It wraps to two lines on narrower screens. -->
+<section class="hstrip" id="ibar">
+  <nav class="chips" id="chips" aria-label="Underlying"></nav>
   <div class="hs-name">
-    <span class="nm"><i class="pulse" id="pulse"></i><span id="uName">—</span></span>
-    <span class="spot mono" id="uSpot">—</span>
-    <span class="chg mono" id="uChg">—</span>
+    <span class="nm"><i class="pulse" id="pulse"></i><span id="uName">&mdash;</span></span>
+    <span class="spot mono" id="uSpot">&mdash;</span>
+    <span class="chg mono" id="uChg">&mdash;</span>
   </div>
   <div class="stats">
-    <div class="stat"><span class="k">ATM Strike</span><span class="v mono" id="sAtm">—</span></div>
-    <div class="stat"><span class="k">ATM IV</span><span class="v mono" id="sIv">—</span></div>
-    <div class="stat" id="ivcWrap"><span class="k">IV Change %</span><span class="v mono" id="sIvc">—</span></div>
-    <div class="stat"><span class="k">PCR</span><span class="v mono" id="sPcr">—</span></div>
-    <div class="stat"><span class="k">Market Lot</span><span class="v mono" id="sLot">—</span></div>
-    <div class="stat"><span class="k">Days for Expiry</span><span class="v mono" id="sDte">—</span></div>
-    <div class="stat"><span class="k">Strikes</span><span class="v mono" id="sStrikes">—</span></div>
+    <div class="stat"><span class="k">ATM</span><span class="v mono" id="sAtm">&mdash;</span></div>
+    <div class="stat"><span class="k">ATM IV</span><span class="v mono" id="sIv">&mdash;</span></div>
+    <div class="stat" id="ivcWrap"><span class="k">IV chg</span><span class="v mono" id="sIvc">&mdash;</span></div>
+    <div class="stat"><span class="k">PCR</span><span class="v mono" id="sPcr">&mdash;</span></div>
+    <div class="stat"><span class="k">Lot</span><span class="v mono" id="sLot">&mdash;</span></div>
+    <div class="stat"><span class="k">DTE</span><span class="v mono" id="sDte">&mdash;</span></div>
+    <div class="stat"><span class="k">Strikes</span><span class="v mono" id="sStrikes">&mdash;</span></div>
   </div>
   <span class="grow"></span>
-  <span class="statechip" id="stateChip" hidden></span>
-  <span class="statechip flat" id="peakChip" hidden></span>
-  <span class="statechip flat" id="filterChip" hidden></span>
   <button class="tog" id="greeksBtn" type="button" aria-pressed="false"
           title="Show the eight greek columns (G)">Greeks</button>
   <button class="tog" id="breachBtn" type="button" aria-pressed="false"
           title="Show only strikes whose OI is above yesterday's peak (P)">Breached</button>
-  <button class="tog" id="scanBtn" type="button"
-          title="Scan the 210-stock NSE F&amp;O universe (S)">Scan</button>
   <label class="srch">
     <span class="sr-only">Search strike</span>
     <input id="search" type="search" inputmode="numeric" placeholder="Strike  /" autocomplete="off">
@@ -63,38 +67,44 @@
   </label>
 </section>
 
-<!-- P8's scanner overlay. position:fixed, above the shell, untouched by P10 — spec row 17. It is
-     lifted out of the pane column only so that "above the shell" is true of the DOM as well. -->
-<section class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+<!-- P16 rows 3 and 16: the Scanner workspace. Opaque and full width between the nav and the rail,
+     but still position:fixed over the chain rather than a route: a route change would tear down
+     the chain poll and the tick feed (scanner-v1 row 12). Every P8/P14 id is kept. -->
+<section class="scan" id="scan" hidden role="region" aria-labelledby="scanTitle">
   <div class="scan-box">
     <header class="scan-h">
-      <h2 id="scanTitle">F&amp;O SCANNER</h2>
-      <span class="scan-hint">intended for 09:20 IST &middot; manual only</span>
-      <span class="statechip flat" id="scanMode" hidden></span>
-      <!-- P14: NSE is the default source; Dhan is P8 unchanged. Top N applies to NSE only
-           (scanner-nse-v1.md rows 1, 2, 12). -->
-      <label class="scan-opt">
+      <div class="scan-title">
+        <h2 id="scanTitle">9:20 F&amp;O Scanner</h2>
+        <div class="scan-sub">
+          <span class="statechip flat" id="scanMode" hidden></span>
+          <span class="scan-meta" id="scanMeta">Top gainers and losers of your F&amp;O list, filtered by price move and OI build-up.</span>
+        </div>
+      </div>
+      <span class="grow"></span>
+      <!-- The selects stay the source of truth (and the test seam); the segmented buttons mirror
+           them. P14 rows 1, 2, 12. -->
+      <div class="scan-opt">
         <span>Source</span>
-        <select id="scanSource" class="mono">
+        <span class="seg" data-for="scanSource"><button type="button" data-v="nse">NSE</button><button type="button" data-v="dhan">Dhan</button></span>
+        <select id="scanSource" class="sr-only" aria-label="Source">
           <option value="nse">NSE</option>
           <option value="dhan">Dhan</option>
         </select>
-      </label>
-      <label class="scan-opt">
+      </div>
+      <div class="scan-opt">
         <span>Top</span>
-        <select id="scanTopN" class="mono">
+        <span class="seg" data-for="scanTopN"><button type="button" data-v="20">20</button><button type="button" data-v="25">25</button><button type="button" data-v="30">30</button></span>
+        <select id="scanTopN" class="sr-only" aria-label="Top N">
           <option value="20">20</option>
           <option value="25">25</option>
           <option value="30">30</option>
         </select>
-      </label>
-      <span class="grow"></span>
-      <span class="scan-meta mono" id="scanMeta"></span>
-      <button class="tog" id="scanRerun" type="button" title="Run the scan again">Rescan</button>
+      </div>
       <a class="tog" id="scanCsv" href="/api/scan.csv" download>Export CSV</a>
-      <button class="icon" id="scanClose" type="button" title="Close (Esc)" aria-label="Close scanner">&#10005;</button>
+      <button class="tog primary" id="scanRerun" type="button" title="Run the scan (S)">Run scan <kbd>S</kbd></button>
+      <button class="icon" id="scanClose" type="button" title="Back to the option chain (Esc)" aria-label="Back to the option chain">&#10005;</button>
     </header>
-    <div class="scan-funnel mono" id="scanFunnel" hidden></div>
+    <div class="scan-funnel" id="scanFunnel" hidden></div>
     <div class="scan-body" id="scanBody"></div>
   </div>
 </section>
@@ -112,7 +122,7 @@
       <span><i class="dot bigin"></i>blue: big player entering</span>
       <span><i class="dot bigout"></i>yellow: exiting</span>
     </span>
-    <span class="ct tickonly">LIVE TICK CHART</span>
+    <span class="ct tickonly">Tick chart</span>
     <span class="cpx mono tickonly" id="chartPx">—</span>
     <span class="cchg mono tickonly" id="chartChg">—</span>
     <span class="legend tickonly">
@@ -170,9 +180,9 @@
         <colgroup id="cg"></colgroup>
         <thead>
           <tr class="sides">
-            <th class="side ce" colspan="12">CALLS · CE</th>
-            <th class="spine" rowspan="2">STRIKE</th>
-            <th class="side pe" colspan="12">PUTS · PE</th>
+            <th class="side ce" colspan="12">Calls</th>
+            <th class="spine" rowspan="2">Strike</th>
+            <th class="side pe" colspan="12">Puts</th>
           </tr>
           <!-- `gk` marks the eight greek columns. Off by default (spec row 7); app.js keeps the
                two side colspans and the <colgroup> in step with the toggle. -->
@@ -271,6 +281,11 @@
     </svg>
   </span>
   <span class="rstat rdrop1"><em>OK</em><b class="rv mono" id="okRate">—</b></span>
+  <!-- P16 amendment 23: the three state chips moved out of the instrument bar into the rail -
+       they are status, and the 64px bar has no room for "MARKET CLOSED - closed at 15:30 IST". -->
+  <span class="statechip" id="stateChip" hidden></span>
+  <span class="statechip flat" id="peakChip" hidden></span>
+  <span class="statechip flat" id="filterChip" hidden></span>
   <span class="grow"></span>
   <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
   <span class="tickrate mono" id="tickRate">0 t/s</span>

@@ -42,6 +42,9 @@ async function open(theme: 'light' | 'dark', panel: boolean) {
   await ctx.addInitScript(([t, p]) => {
     localStorage.setItem('theme', t as string);
     localStorage.setItem('panel', p ? '1' : '0');
+    // P16 row 3: the app opens on the Scanner workspace. Every shot below but the two scanner ones
+    // is a chain shot, and without this they all came back showing the scanner.
+    localStorage.setItem('ws', 'chain');
   }, [theme, panel] as [string, boolean]);
   const page = await ctx.newPage();
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
@@ -82,6 +85,7 @@ for (const theme of ['light', 'dark'] as const) {
 /* 5. first paint / skeleton */
 {
   const ctx = await browser.newContext({ viewport: WIDE, deviceScaleFactor: 2, colorScheme: 'dark' });
+  await ctx.addInitScript(() => localStorage.setItem('ws', 'chain'));
   const page = await ctx.newPage();
   // Hold the stream open with no data so the skeleton is what renders.
   await page.route('**/api/stream*', route => new Promise(() => { void route; }));
@@ -165,6 +169,24 @@ for (const theme of ['light', 'dark'] as const) {
   await page.keyboard.press('c');
   await page.waitForTimeout(500);
   await shot(page, '11-chart-collapsed-light');
+  await ctx.close();
+}
+
+/* 12-13. P16 row 16 - the Scanner workspace, before and after a scan. */
+for (const theme of ['dark', 'light'] as const) {
+  const ctx = await browser.newContext({ viewport: WIDE, deviceScaleFactor: 2, colorScheme: theme });
+  await ctx.addInitScript((t) => {
+    localStorage.setItem('theme', t as string);
+    localStorage.setItem('ws', 'scanner');
+  }, theme);
+  const page = await ctx.newPage();
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitForChain(page);
+  if (theme === 'dark') await shot(page, '12-scanner-idle-dark');
+  await page.keyboard.press('s');
+  await page.waitForFunction(`window.__scan && window.__scan.result() && !window.__scan.running()`, null, { timeout: 90_000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  await shot(page, `13-scanner-${theme}`);
   await ctx.close();
 }
 
