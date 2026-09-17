@@ -67,7 +67,7 @@
   has been told.
 - **A Chrome window is created at -32000,-32000 for ~3–9 s per scan** and may flash in the taskbar.
 - **P12 is still blocked** (expired token). Nothing in P14 depends on it.
-- **Nothing is pushed yet** at the time of writing; see the final commit.
+- **Pushed:** `origin/p14-nse-scanner`, stacked on `p12-live-verify`. No PR opened.
 
 ## Next session starts here
 - Phase: **P14's last criterion.** On a trading day at 09:20 IST, start the server and press Scan.
