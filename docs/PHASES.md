@@ -22,8 +22,12 @@ absorbing the work.
 
 ## Now
 **Every phase that could be built without live credentials is built.** P10a, P10b and P11 all
-landed on 2026-09-03. **P12 is boarded and blocked** — it is the first run of every path that has
-never touched Dhan, and it needs a fresh token *and* a paid Data API plan.
+landed on 2026-09-03. **P12 is still blocked** (re-checked 2026-09-17: same expired token,
+`DH-901` / `808`). It is the first run of every path that has never touched Dhan, and it needs a
+fresh token *and* a paid Data API plan. **Its credential-free half is done**: `npm run live:probe`
+now settles the intraday and quote questions in one command, and reading Dhan's docs turned up
+one likely live failure before any call. Intraday `fromDate`/`toDate` are documented as
+`YYYY-MM-DD HH:MM:SS`, while `peakoi.ts` sends date-only. Branch `p12-live-verify`.
 `docs/spec/terminal-redesign-v1.md` is **LOCKED** — approved with one `go`, all 22 rows as
 written, plus five amendment rows (23-27) added during the two builds and marked as such.
 
@@ -54,21 +58,25 @@ fixes to `feed.ts`, `peakoi.ts` and `poller.ts` are all on paths that **have nev
 against Dhan**. The token in `.env` expired 2026-08-28; `npm run check` reports `DH-901` / `808`,
 which is the token gate, not the data-plan gate.
 
-**Seven branches are pushed or open and none has a PR**: `p6-chart-tools`, `p8-p9-spec-lock`,
-`p7-peak-oi`, `p8-scanner`, `p9-option-candles`, `p10-spec-lock`, and now
-`p10a-terminal-shell` (which carries P10a, P10b and P11). Stacked in that order — merge them in it.
+**Eight branches are pushed and none has a PR**: `p6-chart-tools`, `p8-p9-spec-lock`,
+`p7-peak-oi`, `p8-scanner`, `p9-option-candles`, `p10-spec-lock`, `p10a-terminal-shell` (which
+carries P10a, P10b and P11), and now `p12-live-verify`. They are stacked in that order, so merge
+them in that order.
 
 ## Next 3
 1. **P12 — unblock live data.** It is now the only thing standing between this project and a real
    verification pass, and three phases plus eleven P11 fixes are queued behind it. Get a fresh
    token, then subscribe to Data APIs at web.dhan.co, then `npm run check` until it reports READY.
    The token and the plan are **separate gates** and fail differently — see the project CLAUDE.md.
-2. **Then re-run the live-path questions in one sitting**, because they are cheap once the plan is
-   active and each one settles a spec row: one `/v2/charts/intraday` call settles the response
-   shape, the epoch units and **whether `open_interest` is in units or contracts** (P9 row 7's
-   `5 * lotSize` floor becomes `5` if it is contracts); one `/v2/marketfeed/quote` with 420
-   instruments settles P8's body; `npm run feed:probe` settles the binary parser; and **P8's AC5
-   must be re-run with the market open** — it is still the one criterion never measured.
+2. **Then `npm run live:probe`, `npm run feed:probe`, and fix what they report, in one sitting.**
+   The live probe settles several questions at once. It checks whether Dhan accepts the date-only
+   `fromDate`/`toDate` (if not, `fetchIntraday()` must send `YYYY-MM-DD HH:MM:SS`, or P7, P8 and P9
+   all fail live). It checks whether `open_interest` is in units or contracts (P9 row 7's
+   `5 * lotSize` floor becomes `5` if it is contracts), and whether it is in the same unit as the
+   chain's `oi` (P7's `Pk %`). It also checks P8's 420-instrument body and what `net_change` and
+   `ohlc.close` actually mean. The raw bodies land in `.cache/live/`, so they can be read after the
+   token dies. **P8's AC5 must still be re-run with the market open**; it is the one criterion
+   never measured.
 3. **Open the PRs.** Seven stacked branches with no PR is the largest unmanaged risk on the
    project now that the board is clear.
 
@@ -98,6 +106,7 @@ which is the token gate, not the data-plan gate.
 | 2026-09-03 | P10a | Spec **locked with one `go`** — rows 7 and 11, the two the table itself flagged as readings rather than measurements, were put up for veto in isolation and both accepted. Built in `public/panes.js` (new) + four files, exactly the five row 21 costed. The strike spine is sticky on **both** axes: `left:0` alone is inert here, since the spine sits at x≈696 of 1484 and the overflow at 1440px is only 44px, so it would need ~700px of scroll before it engaged. Greeks off by default gives **17 columns / 1132px** and `table.oc scrollWidth === clientWidth === 1440` — the P2 deviation row's 44px debt, paid. The eight `<td>`s stay in the DOM (`display:none` removes a cell from the CSS table but not from `tr.children`), so app.js's `CELL` index constants needed no branch. **Verified in replay: 41/41**, at 1440x900 and 1024x800, zero console errors. **One real bug found by testing**: `skeleton()` built its 25 cells from `COLS` with no `gk` class, so with greeks off — the default, and therefore *every* instrument switch — the shimmer rows generated 25 columns against a 17-`<col>` colgroup (amendment row 24). Two of the first run's failures were the verify script's own: `addInitScript` re-runs on reload and wiped the key it was checking survived, and row 20's 108px belongs to the greeks-**off** case, not the greeks-on one. Branch `p10a-terminal-shell`. |
 | 2026-09-03 | P10b | The 380px dock deleted; `public/telemetry.js` (new) owns a 26px always-on rail and a closed-by-default four-column drawer, with **every element id carried over unchanged** so the move is not a rewrite. `#gridScroll.clientWidth` is 1440px with the drawer shut, open, and shut again — the rail costs zero chain width, which is the entire argument for deleting the dock. **Verified in replay: 30/30**, three consecutive runs, zero console errors over 60 s. **Three defects found by testing, all in the new code** (amendment rows 26, 27): the drawer squeezed the chain to **114px** at 1440x900 and **59px** at 1024x800, because row 4's three minimums are geometrically impossible at 1024x800 (~483px of shell for a 140px chart pane, a 140px drawer and a 200px chain, which needs 480 before the splitter) — so they are now ranked, the chart yields to its 70px floor via a `pane-need-room` event and the drawer compresses to 88 before the chain ever loses a pixel; the drawer sized itself once at module load against a layout that had not settled; and **a `ResizeObserver` on `#shell` alone misses the case entirely**, because the shell is `flex:1` of the body, so a chart header wrapping from one line to two grows the chart pane without changing the shell's height — that one failed on about half of runs until `#chartWrap` was observed too. Settled numbers at 1024x800: chart 70, drawer 118.7, chain **exactly 200.0**. `docs/shots/` re-baselined once, at the end, per row 22. |
 | 2026-09-03 | P11 | **A full read-only audit of both halves of the tree, at the user's request. 16 defects, every one reproduced with a runnable script before any fix and re-run after.** The two that put wrong numbers on a trading screen: the P9 colour rule was implemented as a **division** where locked rows 6 and 7 are **multiplications**, so a zero baseline inverted it and the two clearest "big player entering" cases the phase exists for — an illiquid strike waking up (`median20 = 0`) and a strike opening fresh (`oi[i-1] = 0`) — could never colour; and `derive.ts`'s `last_price ?? 0` made ATM the **lowest** strike, whose deep-ITM IV (42.5 against a correct 12.1) `BaselineStore` then wrote to `.cache/iv-baseline.json` as the session's IV baseline, wrong for the rest of the day and surviving a restart. The worst by blast radius: `expiry` was **unvalidated** on `/api/stream` and `/api/candles`, and every distinct value left a `ChainPoller` and a `PeakOiStore` listener alive forever — **144 -> 191 MB over 180 unauthenticated requests, linear, retained after every connection closed**; now 400 at the boundary and +1.5 MB. Also: `/api/feed` summed per-connection subscription lists without dedupe (166 and 249 reported for a real set of 83 — and that field is what P5's "zero orphans" criterion is measured through); `feed.ts` never unsubscribed and `REQ` has no unsubscribe code, so Dhan's side only grew toward the documented 5,000 cap, failing *backwards* (old contracts keep streaming, new ones refused) — fixed by reconnecting when the set shrinks, since inventing request codes absent from the contract doc is exactly the guess this project does not make; `scanner.ts`'s `reconciles` was algebraically **always true**, the one thing row 14 exists to catch; a store-wide `onProgress` meant one chip's peak backfill re-rendered every other tab's grid; and a transient failure was cached as a permanent fact in two places. Client: the spot pill was positioned off a `display:none` row and printed the live spot **over the sticky CALLS header**; bare-letter shortcuts fired on modifiers, so **Ctrl+C collapsed the chart and persisted it**; LTP/Volume/OI ticked at 10 Hz while LTP Chg, Vol Chg% and OI Chg stayed on the 3 s poll, so `LTP - LTP Chg` — the previous close, a constant — **drifted 0.81 in 2 s**; `chartPx`/`chartChg` survived an instrument switch, putting NIFTY 50's price under the "NIFTY BANK IDX" label with no tick coming to clear it; `.scan-funnel` hit the P8 `[hidden]` trap again; and one `Esc` closed the scanner **and** tore down the option chart behind it. **12 code files, over the ~8 rule and recorded as such** — it is one audit's findings across the whole tree, not a feature. P10a 41/41, P10b 30/30 and the P2-P9 re-proof 37/37 all re-run green afterwards. |
+| 2026-09-17 | P12 prep | **`go` on a blocked phase.** `npm run check` still fails with `DH-901` / `808` (the `.env` token has not changed since it expired on 2026-08-28), so no done-when criterion could be met and **P12 stays blocked**. The credential-free half was built instead. **`npm run live:probe`** (`scripts/live-probe.ts`) makes five serial calls: profile, expiry list, chain, then one `/v2/charts/intraday` on NIFTY's ATM CE and the scanner's real 420-instrument `/v2/marketfeed/quote`. It saves every raw body to `.cache/live/` and prints PASS / CHECK / FAIL per question. The verdicts live in a pure `scripts/live-shape.ts` and re-derive P7's peak, P8's closing OI and the previous session **without** the app's date code (Intl `Asia/Kolkata`, not the `+05:30` arithmetic). **36/36 branches pass** against replay payloads and deliberately broken variants: data-wrapped, millisecond timestamps, OI in contracts, OI in units with the chain in contracts, a missing array, no candles dated today, `net_change` as a percent, `ohlc.close` equal to `last_price`, an absent segment, unrequested ids. Live, only the expired-token gate has run (exit 1, nothing written), plus the no-credentials path (exit 2). **Found in Dhan's docs before any live call:** intraday `fromDate`/`toDate` are documented as `YYYY-MM-DD HH:MM:SS`, while `peakoi.ts` sends date-only. The code was **not** changed on documentation alone; the probe tries the app's form first and retries with the documented one only on `DH-905`. Also from the docs: the quote response carries `oi_day_high` / `oi_day_low` (today's range, not yesterday's peak), and `ohlc.close` is ambiguous. Both endpoints are now written up in `dhan-api-contract.md` §2.5 and §2.6. **One real bug found by running it:** `process.exit()` straight after a `fetch` tripped a libuv assertion on Windows and replaced exit code 1 with a crash code. **3 code files** plus two docs. Branch `p12-live-verify`, commit `bf6cf1b`. |
 
 ## Deviations from the locked spec, and why
 

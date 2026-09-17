@@ -389,3 +389,21 @@ true even if the scoring loop had double-counted or dropped a stock — the one 
 row 14 exists to catch. It had been green through P8's entire verification. The rule this leaves:
 a check whose inputs are derived from its own expected answer is decoration. Count at the point of
 rejection, then compare against something computed independently.
+
+## 2026-09-17 — A `go` on a blocked phase builds its credential-free half and leaves it blocked
+P12's every done-when needs a live plan, and the token was still the one that expired 2026-08-28.
+Stopping would have wasted the session; marking P12 done would have been false. The work that needs
+no credentials — a probe that turns the live questions into one command, and the endpoint write-ups
+the contract doc was missing — was built and verified offline, and the board still reads `blocked`.
+
+## 2026-09-17 — The intraday date format is settled by a live call, not by the docs
+Dhan's docs show `fromDate`/`toDate` as `YYYY-MM-DD HH:MM:SS`; `fetchIntraday()` sends date-only.
+The docs do not say date-only is rejected, and a guessed time-of-day bound (09:15? 15:30? MCX runs
+to 23:30) would be an invented value. So the code is unchanged, and `live:probe` sends the app's form
+first and the documented form only on `DH-905` — one call decides it, with the raw body kept.
+
+## 2026-09-17 — The probe's hand checks share no date code with the app
+P7's peak, P8's closing OI and the previous session are recomputed with `Intl` in `Asia/Kolkata` and
+a digit-count unit test, not `istParts()`'s `+05:30` arithmetic and `>1e11` threshold. A second
+implementation that imports the first cannot catch a bug in it — the same rule as the P8/P9
+independent re-implementations.

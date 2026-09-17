@@ -263,3 +263,16 @@ spine's obvious implementation is inert (above). And the real unmet need was nev
 requirements at all: 25 columns need 1484px against a 1440px floor, which the P2 deviation row had
 already priced and handed forward. **A spec row whose "why" cannot cite a value in the codebase or
 an existing spec row is a guess — mark it as one so it can be vetoed in one word.**
+
+## Never `process.exit()` right after a `fetch` in a script — set `process.exitCode`
+On this machine (Node 24, Windows) `process.exit(1)` straight after a `dhanPost` crashed with
+`Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\winsync.c` and exit code
+`-1073740791` instead of 1 — the verdict printed correctly and the exit code lied. `check.ts` already
+avoids it; `live-probe.ts` throws a `Stop` and sets `process.exitCode`. Any script whose exit code
+means something must end the same way.
+
+## `npm run live:probe` is the first command once `npm run check` says READY
+It answers P12's intraday and quote questions in five calls and keeps the raw bodies in
+`.cache/live/`. Dhan's docs show intraday `fromDate`/`toDate` as `YYYY-MM-DD HH:MM:SS` while
+`fetchIntraday()` sends date-only — if the probe prints `FAIL date format`, fix that before
+driving any P7/P8/P9 screen live, or every candle-backed column reads "request failed".
