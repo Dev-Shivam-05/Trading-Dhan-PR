@@ -209,7 +209,7 @@ function setConn(kind) {
 /* -------------------------------------------------------------- rendering */
 
 /* Vega Theta Gamma Delta OI Pk% OI-Chg Volume Vol-Chg% IV LTP-Chg LTP — mirrored for PE. */
-const CE_COLS = [40, 46, 52, 38, 56, 48, 106, 56, 56, 38, 100, 60];
+const CE_COLS = [40, 46, 52, 38, 50, 48, 103, 49, 76, 40, 100, 54];   // card-layout-v1.md row 19: sized from the widest text of all six replay underlyings at 1440px; same 520px
 const SPINE = 92;
 const COLS = CE_COLS.length * 2 + 1;
 

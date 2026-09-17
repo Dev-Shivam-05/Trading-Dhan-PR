@@ -46,9 +46,9 @@
 
 <div class="page">
 
-<!-- P13 rows 5 and 6 — the 248px left column. 248 is the widest sidebar that still leaves the
-     17-column chain (1132px) without horizontal scroll at 1440px. -->
-<aside class="lcol" aria-label="Underlying and connection">
+<!-- P13 amendment row 18 — one row of summary cards above the chart. It replaced a 248px left
+     column, which left the chain 1154px wide and clipped 2,005 cell values by up to 32px. -->
+<div class="toprow" aria-label="Underlying, chain summary and connection">
 
   <!-- `hstrip` is kept as a class because app.js hides `.hstrip` when /api/instruments fails. -->
   <section class="card ucard hstrip">
@@ -62,8 +62,8 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2 class="card-t">Chain summary</h2>
+  <section class="card scard">
+    <h2 class="sr-only">Chain summary</h2>
     <div class="stats">
       <div class="stat"><span class="k">ATM Strike</span><span class="v mono" id="sAtm">—</span></div>
       <div class="stat"><span class="k">ATM IV</span><span class="v mono" id="sIv">—</span></div>
@@ -78,7 +78,7 @@
   <!-- The P10b status rail, as a card (P13 row 6). Same ids, so telemetry.js writes into it as
        before. It still costs the chain zero width. -->
   <section class="card rail" id="rail">
-    <h2 class="card-t">Connection</h2>
+    <h2 class="sr-only">Connection</h2>
     <div class="rrow">
       <span class="conn" id="conn"><i></i><span>connecting</span></span>
       <span class="feedpill" id="feedPill"><i></i><span>feed off</span></span>
@@ -86,7 +86,7 @@
     <div class="rgrid">
       <span class="rstat"><em>RTT</em><b class="rv mono" id="mRtt">—</b></span>
       <span class="rstat"><em>Age</em><b class="rv mono" id="mAge">—</b></span>
-      <span class="rstat"><em>Next poll</em><span class="rnext"><b class="rv mono" id="mNext">—</b>
+      <span class="rstat"><em>Next</em><span class="rnext"><b class="rv mono" id="mNext">—</b>
         <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border-strong)" stroke-width="3"/>
           <circle id="ringArc" cx="12" cy="12" r="9" fill="none" stroke="var(--up)" stroke-width="3"
@@ -98,9 +98,9 @@
     </div>
   </section>
 
-</aside>
+</div>
 
-<!-- P13 rows 7 and 8 — the right column is the P10a shell, now a stack of cards. #shell keeps its
+<!-- P13 rows 7 and 8 — the P10a shell, now a stack of full-width cards. #shell keeps its
      id and its flex column, so panes.js and telemetry.js measure the same element they always did. -->
 <div class="shell" id="shell">
 

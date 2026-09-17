@@ -15,7 +15,9 @@ const $ = (id) => document.getElementById(id);
    key the height is migrated from, once, so a returning user keeps the size they dragged. */
 const CHART = { def: 190, min: 70, key: 'pane:chart', legacy: 'chartH' };
 const MAX_FRAC = 0.6;      // row 4 — no pane may take more than 60% of the shell
-const CHAIN_MIN = 200;     // row 4 — the chain keeps at least this much of the remainder
+/* Row 4 — the chain keeps at least this much of the remainder. P10 set 200px when #work was the bare
+   grid; P13 put the 44px card header inside #work, so the floor carries it to keep the same grid. */
+const CHAIN_MIN = 200 + 44;
 
 const shellH = () => $('shell').getBoundingClientRect().height;
 
@@ -100,6 +102,18 @@ function persist() {
     if (document.body.classList.contains('nochart')) return;
     setChartH($('chartBody').getBoundingClientRect().height);
   });
+
+  // P13: the summary row above the shell fills in after /api/instruments and wraps to two lines
+  // below ~1440px, so the shell shrinks with no window resize at all. At 1024x800 that left the
+  // chain at 182px against its floor. Re-clamping on the shell's own size catches it; changing the
+  // chart height cannot change the shell's height (it is flex:1 of .page), so this cannot loop.
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      if (document.body.classList.contains('nochart')) return;
+      const cur = $('chartBody').getBoundingClientRect().height;
+      if (Math.abs(clampChart(cur) - cur) >= 0.5) setChartH(cur);
+    }).observe($('shell'));
+  }
 }
 
 /* The drawer asks for room when the shell is too short for all three minimums at once (P10b).

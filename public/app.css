@@ -159,19 +159,22 @@ svg text{font-family:Inter,"Segoe UI",system-ui,sans-serif;font-variant-numeric:
 .tstrip .clock{display:flex;align-items:center;font-size:12px;font-weight:500;color:var(--fg-muted);white-space:nowrap}
 
 /* ------------------------------------------------------------------ page */
-.page{flex:1;min-height:0;display:flex;gap:12px;padding:12px}
+.page{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px}
 
 /* Row 9 */
 .card{background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-sm)}
 .card-t{margin:0;font-size:14px;font-weight:600;color:var(--fg-base)}
 .card-h{flex:0 0 44px;height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border)}
 
-/* Row 5/6 — the left column */
-.lcol{flex:0 0 248px;width:248px;min-height:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;scrollbar-width:thin}
-.lcol .card{padding:12px 16px;flex:0 0 auto}
-.lcol .card-t{margin:0 0 12px}
-
-.ucard{display:flex;flex-direction:column;gap:2px}
+/* Amendment row 18 — the summary row. The underlying and connection cards keep their natural width;
+   the summary card takes the rest and wraps its own stats before the row itself has to wrap. */
+.toprow{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.toprow .card{padding:12px 14px}
+.ucard{flex:0 0 auto;min-width:220px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+/* The summary card is never narrower than its seven stats on one line. When the row cannot hold that,
+   the ROW wraps (Connection drops to a second line and grows to full width) instead of the stats
+   wrapping inside the card, which left a divider at the start of each wrapped line at 1024px. */
+.scard{flex:1 1 auto;min-width:max-content;display:flex;align-items:center}
 .ucard .nm{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:500;color:var(--fg-muted)}
 .pulse{width:6px;height:6px;border-radius:999px;background:var(--flat);flex:0 0 auto}
 .pulse.on{background:var(--up);animation:pulse 2.4s infinite}
@@ -181,8 +184,10 @@ svg text{font-family:Inter,"Segoe UI",system-ui,sans-serif;font-variant-numeric:
 .uchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .uchips:not(:has(> :not([hidden]))){display:none}
 
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
-.stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+/* The reference's stat card: bullet label over value, columns split by 1px dividers. */
+.stats{display:flex}
+.stat{display:flex;flex-direction:column;gap:3px;padding:0 12px;border-left:1px solid var(--border)}
+.stat:first-child{padding-left:0;border-left:0}
 .stat .k{font-size:11px;font-weight:400;color:var(--fg-muted);white-space:nowrap}
 .stat .k::before{content:"•";margin-right:5px;color:var(--fg-faint)}
 .stat .v{font-size:13px;font-weight:600}
@@ -196,9 +201,17 @@ svg text{font-family:Inter,"Segoe UI",system-ui,sans-serif;font-variant-numeric:
 .statechip.flat{color:var(--fg-muted);border-color:var(--border-strong);background:var(--bg-subtle)}
 
 /* Connection card — the P10b rail's contents (row 6). */
-.rrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
-.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
-.rstat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rail{flex:1 0 auto;display:flex;align-items:center;gap:12px}
+/* app.js still writes `feedpill tickonly …` onto #feedPill (P9 hid it beside an option's candles, when it sat in the
+   chart header). In this card it describes the whole connection, and hiding it re-flowed the summary
+   row every time candle mode was entered. */
+body.optmode .rail #feedPill{display:flex!important}
+/* Floors on both blocks so a value ticking from "—" to "100%" or "9.8s" to "10.1s" cannot widen the
+   card, which would nudge the chain summary card beside it several times a second. */
+.rrow{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:176px}
+.rgrid{display:flex}
+.rstat{display:flex;flex-direction:column;gap:3px;padding:0 10px;border-left:1px solid var(--border);white-space:nowrap;min-width:56px}
+.rstat:last-child{padding-right:0}
 .rstat em{font-style:normal;font-size:11px;color:var(--fg-muted)}
 .rstat em::before{content:"•";margin-right:5px;color:var(--fg-faint)}
 .rv{font-size:13px;font-weight:600;color:var(--fg-base)}
@@ -213,7 +226,7 @@ svg text{font-family:Inter,"Segoe UI",system-ui,sans-serif;font-variant-numeric:
 .conn.on i{background:var(--ok)}
 .conn.off i{background:var(--crit)}
 .feedpill{
-  display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.04em;
+  display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:600;letter-spacing:.02em;
   text-transform:uppercase;color:var(--fg-muted);background:var(--bg-subtle);
   border:1px solid var(--border);border-radius:999px;padding:3px 9px;white-space:nowrap;
 }

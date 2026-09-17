@@ -47,6 +47,31 @@ few units off the original.
 | 16 | Scanner and tooltips | White modal, radius 8px, backdrop `rgba(13,13,13,.45)`; the candle tooltip a white card with a shadow | Same card language |
 | 17 | Files | `index.html`, `app.css`, `app.js` (theme default, nav date), `panes.js`, `telemetry.js`, this spec, one `PHASES.md` row — 7 | Under the 8-file rule. Every element id is kept, so JS wiring is unchanged |
 
+### Amendment rows (approved with one `go` on 2026-09-17, mid-build)
+
+The first build of rows 5 and 6 measured **2,005 clipped chain cells, up to 32px**, over 10 samples
+at 1440x900. The 248px sidebar left the chain 1154px wide, and the 1132px column set only reads
+cleanly when it is scaled up to about 1414px. P10's full-width layout clipped 4 cells, max 5px, on
+the same data. Both variants were screenshotted and put to the user, who chose B.
+
+| # | Amends | Locked value | Why |
+|---|---|---|---|
+| 18 | 5, 6 | **No left column.** Its three cards become one row of cards under the index strip: **Underlying** (min 220px, state chips under the change), **Chain summary** (the 7 stats side by side, 1px dividers), **Connection**. The row wraps when it does not fit. The chart and chain cards below it are full width | The reference's "Payoff Simulations" stat card, and the chain gets its ~1414px back |
+| 19 | P10 row 7's widths | Same 1132px total, redistributed: OI Chg 106 -> **100**, Vol Chg % 56 -> **70**, LTP Chg 100 -> **92**. Everything else unchanged | Vol Chg % is the column that overflows; OI Chg and LTP Chg have room to spare |
+| 20 | New AC 15 | At 1440x900, **zero** chain cells with `scrollWidth > clientWidth` over 10 samples | The check that would have caught this |
+
+Row 18 replaces AC 1's "left column width 248px" with "the three summary cards share one row".
+
+**As built (recorded, not re-approved):** row 19's first values still clipped IV on five of the six
+underlyings (by 1.4px) and LTP Chg on GOLD (5.7px). The approval message said the widths would be tuned
+to zero during the build, so the final set was sized from the widest text of all six replay
+underlyings at 1440px: OI 50, Pk % 48, OI Chg 103, Volume 49, Vol Chg % 76, IV 40, LTP Chg 100, LTP 54
+(520px per side, 1132px total, unchanged). AC 15 is measured on **text**: the OI cell's peak marker is
+absolutely positioned at `left:100%`, which raises `scrollWidth` without hiding a digit.
+The chain floor in `panes.js` / `telemetry.js` went from 200 to **244px** (200 + the 44px card header
+that now lives inside `#work`), and `panes.js` re-clamps the chart when `#shell` resizes. Without that,
+the summary row wrapping at 1024px left the chain at 182px.
+
 ## Superseded by this spec
 
 - P10 row 11 — dark as the default theme (row 12 here).
@@ -63,7 +88,7 @@ any server change or new endpoint; prices for non-active underlyings; re-baselin
 
 ## Acceptance criteria
 
-1. At 1440x900: nav height 44px with background `rgb(13, 13, 13)`; left column width 248px; every `.card` has `border-radius: 8px`.
+1. At 1440x900: nav height 44px with background `rgb(13, 13, 13)`; the three summary cards share one row (equal `top`); every `.card` has `border-radius: 8px`. *(Amended by row 18.)*
 2. At 1440x900 with greeks off: `#gridScroll` `scrollWidth === clientWidth`.
 3. At 1024x800 with greeks on: `td.spine` stays inside the viewport at every `scrollLeft`.
 4. Chain row count equals the response strike count; zero `tr.hidden` rows.
@@ -77,6 +102,7 @@ any server change or new endpoint; prices for non-active underlyings; re-baselin
 12. In replay, the header ATM strike and PCR recomputed from the payload equal what is displayed.
 13. Zero console errors over a 60 s replay run.
 14. Screenshots: light, dark, 1024px, drawer open, scanner open, candle mode, error state.
+15. At 1440x900 with greeks off: zero chain cells with `scrollWidth > clientWidth` over 10 samples 300 ms apart. *(Row 20.)*
 
 ## Risks
 

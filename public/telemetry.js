@@ -144,7 +144,7 @@ function drawLog() {
    which needs 480. One of them has to yield and on a trading screen it is not the chain — so the
    drawer compresses below its 140, down to 88, and each column scrolls. Amendment row 25. */
 const DRAWER = { def: 240, min: 140, hardMin: 88, key: 'pane:telemetry' };
-const CHAIN_MIN = 200;                             // row 4, the same floor panes.js enforces
+const CHAIN_MIN = 200 + 44;                        // row 4, the same floor panes.js enforces (+ P13's 44px card header)
 const shellH = () => $('shell').getBoundingClientRect().height;
 
 /**
