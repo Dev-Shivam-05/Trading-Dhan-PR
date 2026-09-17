@@ -1,7 +1,7 @@
 # SPEC LOCK — P16 total redesign ("redesign v2")
 
-Status: **PROPOSED, NOT LOCKED** (2026-09-17). Nothing is built from this file until the user
-replies `go` or `change <rows>`.
+Status: **LOCKED** 2026-09-17 — approved with one `go`, all 18 rows as written. Stage A (mock) first; the user
+approves the mock screenshots before any `public/` file changes (row 2).
 
 Source: the user's message of 2026-09-17 — the current screen (P10a/P10b) and the other session's
 card layout (P13, branch `p13-card-layout`) both rated **−5/10**; "total redesign", "very
@@ -39,6 +39,18 @@ extraordinary and aesthetic".
 | 16 | Scanner workspace | Max width 1280px, 24px padding. Header: `9:20 F&O Scanner` 22/600, NSE `as of` stamps 12px `--fg-2`; right: Source segmented `NSE | Dhan`, Top segmented `20 | 25 | 30`, primary **Run scan** (36px, `--accent`, `S` hint), Export CSV. **Funnel**: 4 tiles, count 32px mono, label 12px, a 4px bar whose width = count ÷ list size, chevrons between, last tile outlined in `--accent`. **Results**: Long and Short side by side, 52px rows (symbol 14/600 + name 11px, Chg % 13px mono, `OI +8.89%` chip, LTP 12px). Below: collapsible "Why each stock passed or failed" (P15's `trace`), skipped, not-in-list. Footer card: "Runs automatically at 09:20 and 09:25 IST on GitHub" + link to `scan-logs` | The funnel bars make 210 → 40 → 26 → 4 visible at a glance; the trace was already computed and never shown |
 | 17 | What does not change | Every element id, every keyboard shortcut, every API, every data rule, P9 candle colours, the rail's numbers, the drawer. Only markup placement and CSS move | Eight phases of verification are keyed to those ids |
 | 18 | Files | Stage A: `docs/mock/redesign-v2.html`. Stage B: `public/index.html`, `public/app.css` (rewritten), `public/app.js` (workspaces, default theme), `public/scan.js` (workspace instead of overlay), `public/panes.js` (140px chart default), `docs/shots/` re-baselined once at the end. 5 code files | Inside the ~8 rule |
+
+### Amendment rows (found while building the Stage A mock — approved or vetoed together with the mock)
+
+| # | Amends | Locked value | Why |
+|---|---|---|---|
+| 19 | 9 | Light `up #047857` · `down #C81E3A` · `warn #8A5A00` (was `#0E9F6E` / `#E23D52` / `#B7791F`). Acceptance row 5 extended to `--up`, `--down`, `--warn`, `--accent` | Computed before building: the locked light values were **3.39 / 4.18 / 3.64 : 1** on white — every coloured number on the light screen below 4.5:1. The new ones are 5.48 / 5.67 / 5.93 on white and ≥ 4.81 on `#EEF0F4`. Dark values all pass as locked (lowest: `--fg-3` on `--raised` 4.77) |
+| 20 | 12 | The ATM auto-centre **snaps to a whole 28px row** | Centring on a fractional offset cut one row at the top edge: 23 full rows with the chart collapsed against a space for 24.28 |
+| 21 | 14 | Spot pill 10px text, **12px tall**, centred on the dashed line; its spine cell `z-index:5` | A 16px pill clipped the 24,050 glyphs; and every sticky spine cell is `z-index:1`, so the next row's solid ATM cell painted over the pill's lower half. Zoomed at 2x in both themes after the fix |
+| 22 | 15 | OI text aligned to the **outer** edge (CE left, PE right) | With text at the inner edge the bars started exactly under the numbers and the butterfly read as blocks |
+
+## Stage A measurements (mock, 1440x900, both themes)
+`.cache/p16-mock-shots.js` **19/19**: scanner fits without scrolling; exactly Geist + Geist Mono; font sizes used 10/11/12/13/14/22/32 (all in the scale); chain **19** full rows with the chart, **24** collapsed; no horizontal scroll; zero console errors.
 
 ## Out of scope (will NOT build)
 - New data, new columns, new endpoints, a payoff chart, orders or anything that trades
