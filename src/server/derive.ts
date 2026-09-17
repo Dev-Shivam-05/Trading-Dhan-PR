@@ -85,7 +85,10 @@ function side(leg: OptionLeg | undefined): Side {
 }
 
 export function derive(res: OptionChainResponse): Derived {
-  const spot = n(res.data?.last_price) ?? 0;
+  // `?? 0` is kept for the reported spot so the payload shape does not change, but the ATM
+  // decision below reads the RAW value: "unknown" and "zero" are not the same question.
+  const rawSpot = n(res.data?.last_price);
+  const spot = rawSpot ?? 0;
   const oc = res.data?.oc ?? {};
 
   const rows: Row[] = Object.keys(oc)
@@ -103,11 +106,19 @@ export function derive(res: OptionChainResponse): Derived {
     peOi += r.pe.oi ?? 0;
   }
 
+  // An ATM is only meaningful against a real spot. With `last_price` absent, treating it as 0
+  // picks the LOWEST strike as "nearest the money" and hands its deep-ITM IV to atmIV - which
+  // `BaselineStore` then writes to .cache/iv-baseline.json as the session's IV baseline and never
+  // revisits, so every IV Change % for the rest of the day is measured against the wrong strike,
+  // and it survives a restart. Measured: spot 24,500 -> atm 24,500 / IV 12.1; last_price absent
+  // -> atm 21,000 / IV 42.5. A missing ATM is visibly missing; a wrong one is not.
   let atmStrike: number | null = null;
-  let best = Infinity;
-  for (const r of rows) {
-    const d = Math.abs(r.strike - spot);
-    if (d < best) { best = d; atmStrike = r.strike; }
+  if (rawSpot !== null) {
+    let best = Infinity;
+    for (const r of rows) {
+      const d = Math.abs(r.strike - rawSpot);
+      if (d < best) { best = d; atmStrike = r.strike; }
+    }
   }
 
   const atmRow = rows.find(r => r.strike === atmStrike);

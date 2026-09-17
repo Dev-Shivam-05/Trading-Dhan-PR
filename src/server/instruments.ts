@@ -228,6 +228,142 @@ export function daysToExpiry(expiry: string, at = new Date()): number {
 
 /* ------------------------------------------------------------- resolution */
 
+/**
+ * The feed subscribes per contract, so it needs each strike's Dhan security id. The option chain
+ * REST response does not carry them, but the instrument master does - so the parsed rows are kept
+ * after resolution rather than thrown away.
+ */
+let cachedRows: MasterRow[] = [];
+
+/** `lotSize` is per EXPIRY, never a constant - see the nearest-expiry note in resolveRegistry.
+ *  Carried on the contract so a caller charting a far month does not have to fall back to the
+ *  instrument's lot, which is only ever the nearest expiry's. */
+export type OptionContract = {
+  strike: number; optionType: 'CE' | 'PE'; securityId: number; seg: Seg; lotSize: number | null;
+};
+
+/**
+ * The master's own instrument type for this chip's option contracts - OPTIDX / OPTSTK / OPTFUT.
+ * Read from the registry rather than re-derived from the segment, so the two cannot drift.
+ * `/v2/charts/intraday` needs it alongside the exchange segment.
+ */
+export function optionInstrument(instrumentId: string): string | null {
+  return REGISTRY.find(e => e.id === instrumentId)?.options.instrument ?? null;
+}
+
+/**
+ * The instrument type of the UNDERLYING itself - INDEX or EQUITY, and FUTCOM for MCX, whose
+ * options hang off a futures contract rather than a spot index (SPIKE-01).
+ */
+export function underlyingInstrument(instrumentId: string): string | null {
+  const e = REGISTRY.find(x => x.id === instrumentId);
+  if (!e) return null;
+  return e.assert?.instrument ?? (e.underlyingSeg === 'MCX_COMM' ? 'FUTCOM' : null);
+}
+
+/** Every live option contract for one instrument and expiry, with the segment to subscribe on. */
+export function optionContracts(instrumentId: string, expiry: string): OptionContract[] {
+  const entry = REGISTRY.find(e => e.id === instrumentId);
+  if (!entry) return [];
+
+  // Options trade on the derivative segment, not the underlying's segment.
+  const seg: Seg =
+    entry.options.exchId === 'BSE' ? 'BSE_FNO'
+    : entry.options.exchId === 'MCX' ? 'MCX_COMM'
+    : 'NSE_FNO';
+
+  return cachedRows
+    .filter(r =>
+      r.exchId === entry.options.exchId &&
+      r.instrument === entry.options.instrument &&
+      r.underlyingSymbol === entry.options.underlyingSymbol &&
+      r.expiry === expiry &&
+      (r.optionType === 'CE' || r.optionType === 'PE') &&
+      r.strike !== null && r.securityId > 0)
+    .map(r => ({
+      strike: r.strike!, optionType: r.optionType as 'CE' | 'PE',
+      securityId: r.securityId, seg, lotSize: r.lotSize ?? null,
+    }));
+}
+
+/* ------------------------------------------------------- F&O stock universe (P8) */
+
+/**
+ * One scannable NSE F&O stock: the cash leg the % change is measured on, and the near-month
+ * futures leg the open interest is measured on. Equities carry no OI, which is the whole
+ * reason the futures leg exists.
+ */
+export type FnoStock = {
+  symbol: string;
+  name: string;
+  /** NSE_EQ security id of the share itself. */
+  equityId: number;
+  /** NSE_FNO security id of the near-month FUTSTK contract. */
+  futureId: number | null;
+  futureExpiry: string | null;
+  lot: number | null;
+  /** Non-null means this stock cannot be scored. Never silently dropped - scanner-v1 row 14. */
+  problem: string | null;
+};
+
+const fnoUniverseCache = new Map<string, FnoStock[]>();
+
+/**
+ * The NSE F&O stock universe, from the master rather than a hardcoded list.
+ *
+ * Verified 2026-08-28 and again 2026-09-01 against the real master: the OPTSTK and FUTSTK
+ * underlying lists are identical once the 18 dummy NSETEST scrips are dropped, and the count is
+ * exactly 210. `scanner-v1.md` row 2 locks OPTSTK as the source of truth.
+ */
+export function fnoUniverse(today = todayIso()): FnoStock[] {
+  const hit = fnoUniverseCache.get(today);
+  if (hit) return hit;
+
+  const live = (r: MasterRow) => r.expiry !== null && r.expiry >= today;
+  const real = (r: MasterRow) => r.exchId === 'NSE' && !r.underlyingSymbol.includes('NSETEST');
+
+  const symbols = [...new Set(
+    cachedRows.filter(r => r.instrument === 'OPTSTK' && real(r) && live(r)).map(r => r.underlyingSymbol),
+  )].sort();
+
+  // The cash row must be the SHARE. CHOLAFIN and MOTHERSON each also list an NCD under the same
+  // symbol as instrument EQUITY, and quoting a debenture's price as the stock's would be exactly
+  // the kind of silently-wrong number this project refuses.
+  const equity = new Map<string, MasterRow>();
+  for (const r of cachedRows) {
+    if (r.instrument === 'EQUITY' && r.exchId === 'NSE' && r.series === 'EQ') equity.set(r.underlyingSymbol, r);
+  }
+
+  // Near month = the earliest FUTSTK expiry that has not passed. Stock futures roll monthly, so
+  // this is re-read every day rather than frozen.
+  const future = new Map<string, MasterRow>();
+  for (const r of cachedRows) {
+    if (r.instrument !== 'FUTSTK' || !real(r) || !live(r)) continue;
+    const prev = future.get(r.underlyingSymbol);
+    if (!prev || r.expiry! < prev.expiry!) future.set(r.underlyingSymbol, r);
+  }
+
+  const out = symbols.map<FnoStock>(symbol => {
+    const eq = equity.get(symbol);
+    const fut = future.get(symbol);
+    const problems: string[] = [];
+    if (!eq) problems.push('no NSE EQ-series cash row');
+    if (!fut) problems.push('no near-month future');
+    return {
+      symbol,
+      name: eq?.displayName || fut?.displayName || symbol,
+      equityId: eq?.securityId ?? 0,
+      futureId: fut?.securityId ?? null,
+      futureExpiry: fut?.expiry ?? null,
+      lot: fut?.lotSize ?? null,
+      problem: problems.length ? problems.join('; ') : null,
+    };
+  });
+
+  fnoUniverseCache.set(today, out);
+  return out;
+}
+
 export type Registry = {
   instruments: ResolvedInstrument[];
   meta: MasterMeta;
@@ -238,6 +374,7 @@ export async function resolveRegistry(
   opts: { force?: boolean; creds?: Credentials | null } = {},
 ): Promise<Registry> {
   const { rows, meta } = await loadMaster(opts);
+  cachedRows = rows;
   const today = todayIso();
 
   let gold = await readGoldResolution();

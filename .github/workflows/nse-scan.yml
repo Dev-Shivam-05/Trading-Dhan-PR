@@ -1,0 +1,105 @@
+# P15 - the 9:20 NSE F&O scan, every weekday, with its logs committed to the `scan-logs` branch.
+#
+# Why two runners: NSE's bot wall rejects curl and every headless browser (CLAUDE.md), and it may
+# also reject some cloud IP ranges. Ubuntu and Windows runners are tried independently so one being
+# blocked does not lose the morning. The repo is public, so neither costs Actions minutes.
+#
+# Why two cron lines: GitHub starts scheduled workflows late - often by several minutes, sometimes
+# by much more - and never early. 09:20 and 09:25 IST both land inside the user's 9:20-9:30 window.
+# Every run records NSE's own timestamps, so a late start is visible in the log, not hidden.
+#
+# Schedules only fire from the DEFAULT branch (main). Until this file is on main, only the manual
+# "Run workflow" button and the push trigger below can start it.
+
+name: NSE 9:20 scan
+
+on:
+  schedule:
+    - cron: '50 3 * * 1-5'   # 09:20 IST, Mon-Fri
+    - cron: '55 3 * * 1-5'   # 09:25 IST, Mon-Fri
+  workflow_dispatch:
+  push:
+    branches: [p15-daily-scan]
+    paths:
+      - '.github/workflows/nse-scan.yml'
+      - 'scripts/scan-nse.ts'
+      - 'src/server/nse.ts'
+      - 'src/server/scanner-nse.ts'
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            runner: github-ubuntu
+          - os: windows-latest
+            runner: github-windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          ref: scan-logs
+          path: scan-logs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      # Headed Chrome needs a display on Linux. Windows runners already have a desktop session.
+      - name: Scan NSE
+        id: scan
+        continue-on-error: true
+        run: |
+          google-chrome --version 2>/dev/null || true
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq xvfb; }
+            xvfb-run -a npm run -s scan:nse -- --runner ${{ matrix.runner }} --out scan-logs
+          else
+            npm run -s scan:nse -- --runner ${{ matrix.runner }} --out scan-logs
+          fi
+
+      - name: Keep NSE's raw responses (30 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-raw-${{ matrix.runner }}-${{ github.run_id }}
+          path: .cache/nse/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # Logs are committed even when the scan failed - a failed morning is exactly the one to read.
+      - name: Commit the log to scan-logs
+        if: always()
+        working-directory: scan-logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -q -m "scan: ${{ matrix.runner }} $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S') IST (${{ steps.scan.outcome }})"
+          # Two runners push to the same branch; each writes only its own file names, so a rebase
+          # never conflicts. Retry covers the race.
+          for i in 1 2 3 4 5; do
+            git pull -q --rebase origin scan-logs && git push -q origin HEAD:scan-logs && exit 0
+            sleep $((i * 3))
+          done
+          echo "could not push the log after 5 attempts" && exit 1
+
+      - name: Fail the job if the scan failed
+        if: steps.scan.outcome != 'success'
+        run: exit 1
