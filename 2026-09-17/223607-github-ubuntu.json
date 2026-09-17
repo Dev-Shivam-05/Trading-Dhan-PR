@@ -1,0 +1,494 @@
+{
+  "meta": {
+    "date": "2026-09-17",
+    "time": "22:36:07",
+    "weekday": "Thu",
+    "runner": "github-ubuntu",
+    "host": "runnervmlun5p",
+    "status": "ok",
+    "note": "NSE data for 2026-09-17"
+  },
+  "result": {
+    "source": "nse",
+    "mode": "live",
+    "at": "2026-09-17T17:06:21.714Z",
+    "n": 20,
+    "reused": false,
+    "market": {
+      "status": "Closed",
+      "priceAsOf": "17-Sep-2026 16:00:28",
+      "oiAsOf": "17-Sep-2026 15:41:59",
+      "tradeDate": "2026-09-17",
+      "prevTradingDate": "2026-09-16"
+    },
+    "evidence": [
+      ".cache/nse/2026-09-17-223620-fno-securities.json",
+      ".cache/nse/2026-09-17-223620-oi-spurts.json"
+    ],
+    "funnel": {
+      "list": 210,
+      "scored": 210,
+      "ranked": 40,
+      "chg": 26,
+      "oi": 4
+    },
+    "long": [
+      {
+        "symbol": "MFSL",
+        "name": "Max Financial Services Limited",
+        "ltp": 1554,
+        "prevClose": 1487.6,
+        "chgPct": 4.46,
+        "volume": 958344,
+        "latestOi": 25110,
+        "prevOi": 23061,
+        "oiPct": 8.89
+      }
+    ],
+    "short": [
+      {
+        "symbol": "POLICYBZR",
+        "name": "PB Fintech Limited",
+        "ltp": 1765,
+        "prevClose": 1827.1,
+        "chgPct": -3.4,
+        "volume": 6641203,
+        "latestOi": 43833,
+        "prevOi": 32174,
+        "oiPct": 36.24
+      },
+      {
+        "symbol": "PNBHOUSING",
+        "name": "PNB Housing Finance Limited",
+        "ltp": 1103.5,
+        "prevClose": 1134,
+        "chgPct": -2.69,
+        "volume": 3985061,
+        "latestOi": 25370,
+        "prevOi": 22133,
+        "oiPct": 14.63
+      },
+      {
+        "symbol": "FEDERALBNK",
+        "name": "The Federal Bank Limited",
+        "ltp": 332.75,
+        "prevClose": 341.8,
+        "chgPct": -2.65,
+        "volume": 5321222,
+        "latestOi": 58667,
+        "prevOi": 54229,
+        "oiPct": 8.18
+      }
+    ],
+    "skipped": [],
+    "excluded": [],
+    "rejected": {
+      "rank": 170,
+      "chg": 14,
+      "oi": 22
+    },
+    "trace": [
+      {
+        "symbol": "HDFCLIFE",
+        "side": "gainer",
+        "chgPct": 5.05,
+        "oiPct": -1.35,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BHEL",
+        "side": "gainer",
+        "chgPct": 4.53,
+        "oiPct": -0.43,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "TMPV",
+        "side": "gainer",
+        "chgPct": 4.49,
+        "oiPct": 1.76,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "MFSL",
+        "side": "gainer",
+        "chgPct": 4.46,
+        "oiPct": 8.89,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "ICICIPRULI",
+        "side": "gainer",
+        "chgPct": 4.36,
+        "oiPct": -5.08,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "SBILIFE",
+        "side": "gainer",
+        "chgPct": 4.06,
+        "oiPct": -0.43,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "KAYNES",
+        "side": "gainer",
+        "chgPct": 3.99,
+        "oiPct": -1.5,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "CDSL",
+        "side": "gainer",
+        "chgPct": 3.88,
+        "oiPct": -1.7,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "POWERINDIA",
+        "side": "gainer",
+        "chgPct": 3.41,
+        "oiPct": -1.86,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ALKEM",
+        "side": "gainer",
+        "chgPct": 3.35,
+        "oiPct": 3.21,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "CGPOWER",
+        "side": "gainer",
+        "chgPct": 3.34,
+        "oiPct": -1.23,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BLUESTARCO",
+        "side": "gainer",
+        "chgPct": 3.26,
+        "oiPct": 3.55,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ICICIGI",
+        "side": "gainer",
+        "chgPct": 3.24,
+        "oiPct": -3.58,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "DRREDDY",
+        "side": "gainer",
+        "chgPct": 3.07,
+        "oiPct": 3.33,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "SBICARD",
+        "side": "gainer",
+        "chgPct": 3.05,
+        "oiPct": -0.51,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "AUROPHARMA",
+        "side": "gainer",
+        "chgPct": 2.86,
+        "oiPct": -0.78,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ADANIENSOL",
+        "side": "gainer",
+        "chgPct": 2.79,
+        "oiPct": -0.27,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "GMRAIRPORT",
+        "side": "gainer",
+        "chgPct": 2.79,
+        "oiPct": -2.34,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "DLF",
+        "side": "gainer",
+        "chgPct": 2.76,
+        "oiPct": -0.92,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "LUPIN",
+        "side": "gainer",
+        "chgPct": 2.6,
+        "oiPct": -0.71,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "POLICYBZR",
+        "side": "loser",
+        "chgPct": -3.4,
+        "oiPct": 36.24,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PATANJALI",
+        "side": "loser",
+        "chgPct": -2.89,
+        "oiPct": -5.05,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PNBHOUSING",
+        "side": "loser",
+        "chgPct": -2.69,
+        "oiPct": 14.63,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "FEDERALBNK",
+        "side": "loser",
+        "chgPct": -2.65,
+        "oiPct": 8.18,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PREMIERENE",
+        "side": "loser",
+        "chgPct": -2.11,
+        "oiPct": 5.45,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "OIL",
+        "side": "loser",
+        "chgPct": -2.09,
+        "oiPct": 1.41,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "RADICO",
+        "side": "loser",
+        "chgPct": -1.93,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ONGC",
+        "side": "loser",
+        "chgPct": -1.85,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "PAYTM",
+        "side": "loser",
+        "chgPct": -1.51,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "TITAN",
+        "side": "loser",
+        "chgPct": -1.38,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "MANAPPURAM",
+        "side": "loser",
+        "chgPct": -1.2,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "HDFCBANK",
+        "side": "loser",
+        "chgPct": -1.18,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "YESBANK",
+        "side": "loser",
+        "chgPct": -1.15,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BANKBARODA",
+        "side": "loser",
+        "chgPct": -1.14,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ATHERENERG",
+        "side": "loser",
+        "chgPct": -1.12,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "WAAREEENER",
+        "side": "loser",
+        "chgPct": -1.12,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "COLPAL",
+        "side": "loser",
+        "chgPct": -1.06,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "SAGILITY",
+        "side": "loser",
+        "chgPct": -1.02,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "COALINDIA",
+        "side": "loser",
+        "chgPct": -1.01,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "HINDUNILVR",
+        "side": "loser",
+        "chgPct": -1.01,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      }
+    ],
+    "reconciles": true,
+    "elapsedMs": 13768,
+    "error": null
+  },
+  "wider": [
+    {
+      "n": 25,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 50,
+        "chg": 31,
+        "oi": 4
+      },
+      "long": [
+        {
+          "symbol": "MFSL",
+          "name": "Max Financial Services Limited",
+          "ltp": 1554,
+          "prevClose": 1487.6,
+          "chgPct": 4.46,
+          "volume": 958344,
+          "latestOi": 25110,
+          "prevOi": 23061,
+          "oiPct": 8.89
+        }
+      ],
+      "short": [
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1765,
+          "prevClose": 1827.1,
+          "chgPct": -3.4,
+          "volume": 6641203,
+          "latestOi": 43833,
+          "prevOi": 32174,
+          "oiPct": 36.24
+        },
+        {
+          "symbol": "PNBHOUSING",
+          "name": "PNB Housing Finance Limited",
+          "ltp": 1103.5,
+          "prevClose": 1134,
+          "chgPct": -2.69,
+          "volume": 3985061,
+          "latestOi": 25370,
+          "prevOi": 22133,
+          "oiPct": 14.63
+        },
+        {
+          "symbol": "FEDERALBNK",
+          "name": "The Federal Bank Limited",
+          "ltp": 332.75,
+          "prevClose": 341.8,
+          "chgPct": -2.65,
+          "volume": 5321222,
+          "latestOi": 58667,
+          "prevOi": 54229,
+          "oiPct": 8.18
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 60,
+        "chg": 36,
+        "oi": 4
+      },
+      "long": [
+        {
+          "symbol": "MFSL",
+          "name": "Max Financial Services Limited",
+          "ltp": 1554,
+          "prevClose": 1487.6,
+          "chgPct": 4.46,
+          "volume": 958344,
+          "latestOi": 25110,
+          "prevOi": 23061,
+          "oiPct": 8.89
+        }
+      ],
+      "short": [
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1765,
+          "prevClose": 1827.1,
+          "chgPct": -3.4,
+          "volume": 6641203,
+          "latestOi": 43833,
+          "prevOi": 32174,
+          "oiPct": 36.24
+        },
+        {
+          "symbol": "PNBHOUSING",
+          "name": "PNB Housing Finance Limited",
+          "ltp": 1103.5,
+          "prevClose": 1134,
+          "chgPct": -2.69,
+          "volume": 3985061,
+          "latestOi": 25370,
+          "prevOi": 22133,
+          "oiPct": 14.63
+        },
+        {
+          "symbol": "FEDERALBNK",
+          "name": "The Federal Bank Limited",
+          "ltp": 332.75,
+          "prevClose": 341.8,
+          "chgPct": -2.65,
+          "volume": 5321222,
+          "latestOi": 58667,
+          "prevOi": 54229,
+          "oiPct": 8.18
+        }
+      ]
+    }
+  ]
+}
