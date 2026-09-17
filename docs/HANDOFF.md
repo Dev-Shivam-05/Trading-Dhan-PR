@@ -1,4 +1,8 @@
-# HANDOFF — Dhan Option Chain Terminal — Phase 14 (9:20 scanner on NSE data) — 2026-09-17
+# HANDOFF — Dhan Option Chain Terminal — P14 + P15 (NSE scanner, daily 9:20 run) — 2026-09-17
+
+## P15 in one paragraph (read this first)
+PR #2 merged P6–P15 into `main` (the user approved it explicitly, because GitHub schedules only run from `main`). `.github/workflows/nse-scan.yml` runs `npm run scan:nse` at **09:20 and 09:25 IST Mon–Fri** on GitHub Ubuntu **and** Windows runners; both reached NSE in two test runs and pushed logs to the **`scan-logs`** branch (`LATEST-github-*.md`, `index-github-*.csv`, per-run `.md`/`.json` with a per-stock trace). A GitHub ZIP of the branch was run from an empty folder: `npm ci`, `npm run scan:nse` and the app all worked. **Not done:** the Windows task on this PC (`scripts/schedule-windows.ps1`) — running it with `-ExecutionPolicy Bypass` was denied, so nothing is installed. **Open:** the first scheduled morning, Fri 18 Sep. **Pending approval:** `docs/spec/redesign-v2.md` (P16, proposed, not locked). A follow-up fix (Windows runner commit message printed UTC as IST) is on `p15-daily-scan` in PR #3, not yet on `main`.
+
 
 ## Done
 - **The scanner now works without Dhan.** Press `Scan` (or `S`). Source `NSE`, the default, reads
@@ -70,6 +74,7 @@
 - **Pushed:** `origin/p14-nse-scanner`, stacked on `p12-live-verify`. No PR opened.
 
 ## Next session starts here
+- **First, read the morning:** `git fetch origin scan-logs && git show origin/scan-logs:index-github-windows.csv` (and `-ubuntu`). Check `prices_as_of` is today after 09:15 and the run did not fail.
 - Phase: **P14's last criterion.** On a trading day at 09:20 IST, start the server and press Scan.
   Record `prices as of` / `OI as of` from the header, and check `.cache/nse/` got two new files.
 - First command: `git worktree list` and `netstat -ano | grep LISTEN | grep ':878'`. Another

@@ -103,6 +103,18 @@ with NSE's own `pChange`: `/api/NextApi/apiClient/marketWatchApi?functionName=ge
 use restrict automated access — the scanner makes 3 page loads per button press, and that is the
 user's call, recorded in `scanner-nse-v1.md`.
 
+## The daily scan: where it runs, where its logs are, what to read first
+`.github/workflows/nse-scan.yml` runs `npm run scan:nse` at 09:20 and 09:25 IST Mon–Fri on
+`ubuntu-latest` (under `xvfb-run`) **and** `windows-latest`. Both reached NSE on 2026-09-17. Logs go
+to the orphan branch **`scan-logs`**: `LATEST-<runner>.md`, `index-<runner>.csv`, and
+`<date>/<HHmmss>-<runner>.{md,json}` whose `result.trace` says why each ranked stock passed or
+failed. Read them with `git fetch origin scan-logs && git show origin/scan-logs:index-github-windows.csv`
+— no checkout needed. NSE's raw bodies are workflow artifacts for 30 days (`gh run download`).
+**`schedule:` only fires from the default branch** — a workflow sitting on a feature branch never
+runs on its own, which is why P15 had to be merged to `main`. GitHub starts schedules late; judge
+freshness by NSE's `prices_as_of` column, not by the run's start time. In a workflow on a Windows
+runner, `TZ=Asia/Kolkata date` prints UTC — format times with Node's `Intl`.
+
 ## Look at the screenshot; a passing check can still be wrong on screen
 P14's browser suite was 32/32 green while the error state printed "nothing skipped" under a failed
 scan and the header wrapped every button onto two lines. Both were only visible in the PNGs. Read

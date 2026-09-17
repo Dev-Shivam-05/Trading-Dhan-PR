@@ -91,7 +91,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
-          git commit -q -m "scan: ${{ matrix.runner }} $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S') IST (${{ steps.scan.outcome }})"
+          # IST from Node's Intl, not `TZ=Asia/Kolkata date`: Git Bash on the Windows runner ignores TZ
+          # names and printed UTC labelled as IST on the first run.
+          STAMP=$(node -e "console.log(new Date().toLocaleString('sv-SE',{timeZone:'Asia/Kolkata'}))")
+          git commit -q -m "scan: ${{ matrix.runner }} ${STAMP} IST (${{ steps.scan.outcome }})"
           # Two runners push to the same branch; each writes only its own file names, so a rebase
           # never conflicts. Retry covers the race.
           for i in 1 2 3 4 5; do
