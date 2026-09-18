@@ -209,7 +209,7 @@ const PAINT = {
   yellow: { fill: 'var(--big-out)', line: 'var(--big-out-line)' },
 };
 const GROUPS = ['up', 'down', 'blue', 'yellow'];
-const MONO = 'IBM Plex Mono, monospace';
+const MONO = 'Geist Mono, monospace';
 
 function groupOf(k) {
   if (k.fired === 'blue') return 'blue';
@@ -280,7 +280,7 @@ function drawCandles() {
     guides += `<line x1="0" y1="${y.toFixed(1)}" x2="${plotW.toFixed(1)}" y2="${y.toFixed(1)}" `
       + `stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"/>`
       + `<text x="${(plotW + 6).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" fill="var(--fg-faint)" `
-      + `font-family="${MONO}" font-size="9.5">${inr(p)}</text>`;
+      + `font-family="${MONO}" font-size="10">${inr(p)}</text>`;
   }
 
   const series = GROUPS.map(g =>
@@ -295,7 +295,7 @@ function drawCandles() {
     const idx = Math.round((i * (ks.length - 1)) / Math.max(1, steps));
     const x = Math.min(plotW, Math.max(0, xc(idx)));
     times += `<text x="${x.toFixed(1)}" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" `
-      + `font-size="9" text-anchor="${i === 0 ? 'start' : i === steps ? 'end' : 'middle'}">`
+      + `font-size="10" text-anchor="${i === 0 ? 'start' : i === steps ? 'end' : 'middle'}">`
       + `${esc(ks[idx].at)}</text>`;
   }
 
@@ -306,7 +306,7 @@ function drawCandles() {
   const pill = `<rect x="${(plotW + 2).toFixed(1)}" y="${(pillY - 9).toFixed(1)}" width="${PAD_R - 6}" `
     + `height="18" rx="3" fill="${PAINT[lastG].fill}"/>`
     + `<text x="${(plotW + 7).toFixed(1)}" y="${(pillY + 3.5).toFixed(1)}" fill="var(--bg-panel)" `
-    + `font-family="${MONO}" font-size="10.5" font-weight="600">${inr(last.c)}</text>`;
+    + `font-family="${MONO}" font-size="11" font-weight="600">${inr(last.c)}</text>`;
 
   /* hover guide */
   let cross = '';

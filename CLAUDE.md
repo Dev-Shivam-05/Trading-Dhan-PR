@@ -103,6 +103,36 @@ with NSE's own `pChange`: `/api/NextApi/apiClient/marketWatchApi?functionName=ge
 use restrict automated access — the scanner makes 3 page loads per button press, and that is the
 user's call, recorded in `scanner-nse-v1.md`.
 
+## The daily scan: where it runs, where its logs are, what to read first
+`.github/workflows/nse-scan.yml` runs `npm run scan:nse` at 09:20 and 09:25 IST Mon–Fri on
+`ubuntu-latest` (under `xvfb-run`) **and** `windows-latest`. Both reached NSE on 2026-09-17. Logs go
+to the orphan branch **`scan-logs`**: `LATEST-<runner>.md`, `index-<runner>.csv`, and
+`<date>/<HHmmss>-<runner>.{md,json}` whose `result.trace` says why each ranked stock passed or
+failed. Read them with `git fetch origin scan-logs && git show origin/scan-logs:index-github-windows.csv`
+— no checkout needed. NSE's raw bodies are workflow artifacts for 30 days (`gh run download`).
+**`schedule:` only fires from the default branch** — a workflow sitting on a feature branch never
+runs on its own, which is why P15 had to be merged to `main`. GitHub starts schedules late; judge
+freshness by NSE's `prices_as_of` column, not by the run's start time. In a workflow on a Windows
+runner, `TZ=Asia/Kolkata date` prints UTC — format times with Node's `Intl`.
+
+## A re-baseline of `docs/shots/` is itself a measurement — open one image
+P16's first `npm run shots` wrote all 18 "chain" images showing the **Scanner** workspace, because
+`scripts/shots.ts` seeds localStorage but knew nothing about `ws`. Every image was green, committed
+and wrong. After any re-baseline, read at least one image before trusting the set. `shots.ts` now
+seeds `ws=chain` and takes two deliberate scanner shots (`12-…`, `13-…`).
+
+## The UI's two-font / eight-size rule reaches into the JavaScript
+`app.js`, `candles.js`, `chart-tools.js` and `telemetry.js` each write `font-family` and
+`font-size` **attributes** into SVG they generate; `app.css` cannot reach them. They all read a
+`MONO` constant — change it there too, or a chart axis keeps the old family while the page changes.
+P16's type check walks `<text>`/`<tspan>` for exactly this reason.
+
+## A default that shrinks a pane can make an older criterion unmeasurable
+P16 cut the chart plot from 190px to 112px. P10a's "drag −60px moves the chart by 60±2px" then
+clamped at the 70px floor and reported 42 — the splitter was fine, the starting height was not. The
+check now seeds `pane:chart=200` first. Same shape as P6's max-vs-p95 and P9's injected clock:
+**when a criterion stops being measurable, fix the measurement, do not loosen the claim.**
+
 ## Look at the screenshot; a passing check can still be wrong on screen
 P14's browser suite was 32/32 green while the error state printed "nothing skipped" under a failed
 scan and the header wrapped every button onto two lines. Both were only visible in the PNGs. Read

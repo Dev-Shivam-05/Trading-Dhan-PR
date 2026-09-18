@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dhan Terminal — redesign v2 mock</title>
+<!-- P16 Stage A. A static mock for approval: real 17-Sep NSE scan numbers and a real replay chain
+     snapshot, rendered with the locked docs/spec/redesign-v2.md values. Nothing here is wired to the
+     app. Query: ?ws=scanner|chain  &theme=dark|light  &trace=1  &chart=0 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+/* ---------------------------------------------------------------- tokens (rows 8, 9, amendment 19) */
+:root{
+  --page:#07090D; --surface:#0C1016; --raised:#121822; --inset:#19202B;
+  --line:rgba(148,163,184,.10); --line-strong:rgba(148,163,184,.20);
+  --fg-1:#E6EAF2; --fg-2:#A3ADBD; --fg-3:#7A8597;
+  --accent:#8B7CFF; --accent-wash:rgba(139,124,255,.14); --on-accent:#0B0B12;
+  --up:#2FD08A; --down:#FF5C6C; --warn:#F5B83D;
+  --up-bar:rgba(47,208,138,.22); --down-bar:rgba(255,92,108,.22);
+  --shadow:none;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --page:#F4F5F8; --surface:#FFFFFF; --raised:#FFFFFF; --inset:#EEF0F4;
+  --line:rgba(15,23,42,.08); --line-strong:rgba(15,23,42,.16);
+  --fg-1:#0B1220; --fg-2:#4B5565; --fg-3:#6B7385;
+  --accent:#5B4BF5; --accent-wash:rgba(91,75,245,.10); --on-accent:#FFFFFF;
+  --up:#047857; --down:#C81E3A; --warn:#8A5A00;
+  --up-bar:rgba(4,120,87,.14); --down-bar:rgba(200,30,58,.13);
+  --shadow:0 1px 2px rgba(15,23,42,.06);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--page);color:var(--fg-1);font:400 13px/1.4 Geist,system-ui,sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+.m{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .f2{color:var(--fg-2)} .f3{color:var(--fg-3)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ------------------------------------------------------------------ nav (row 4) */
+.nav{height:48px;flex:0 0 48px;display:flex;align-items:center;padding:0 16px;gap:24px;
+  background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-size:14px;font-weight:600;letter-spacing:.02em;display:flex;align-items:baseline;gap:6px;min-width:180px}
+.brand span{color:var(--fg-3);font-weight:400}
+.tabs{flex:1;display:flex;justify-content:center;gap:4px;height:100%}
+.tab{background:none;border:0;padding:0 14px;height:100%;font-size:13px;font-weight:500;color:var(--fg-2);
+  cursor:pointer;position:relative;transition:color 160ms var(--ease)}
+.tab:hover{color:var(--fg-1)}
+.tab[aria-selected="true"]{color:var(--fg-1)}
+.tab[aria-selected="true"]::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:var(--accent);border-radius:2px}
+.tab kbd{font:500 10px "Geist Mono",monospace;color:var(--fg-3);margin-left:6px}
+.navr{display:flex;align-items:center;gap:12px;min-width:180px;justify-content:flex-end}
+.badge{font:500 10px "Geist Mono",monospace;letter-spacing:.06em;padding:3px 8px;border-radius:999px;
+  color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+.clock{font-size:12px;color:var(--fg-2)}
+.ibtn{width:30px;height:30px;border-radius:6px;border:1px solid var(--line-strong);background:transparent;
+  color:var(--fg-2);cursor:pointer;display:grid;place-items:center;transition:all 160ms var(--ease)}
+.ibtn:hover{color:var(--fg-1);background:var(--inset)}
+
+/* ------------------------------------------------------------------ replay notice (row 5) */
+.replay{height:28px;flex:0 0 28px;display:flex;align-items:center;gap:8px;padding:0 16px;font-size:12px;
+  color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--page));border-bottom:1px solid color-mix(in srgb,var(--warn) 22%,transparent);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.replay b{font-weight:600}
+.replay .f{color:var(--fg-2)}
+
+/* ------------------------------------------------------------------ shared controls */
+.seg{display:inline-flex;padding:2px;border-radius:6px;background:var(--inset);gap:2px}
+.seg button{border:0;background:transparent;padding:0 10px;height:28px;border-radius:5px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;transition:all 160ms var(--ease)}
+.seg button[aria-pressed="true"]{background:var(--raised);color:var(--fg-1);box-shadow:0 0 0 1px var(--line-strong)}
+.btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--line-strong);background:transparent;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 160ms var(--ease)}
+.btn:hover{color:var(--fg-1);background:var(--inset)}
+.btn.primary{height:36px;padding:0 16px;border:0;background:var(--accent);color:var(--on-accent);font-size:13px;font-weight:600}
+.btn.primary:hover{background:color-mix(in srgb,var(--accent) 88%,#fff)}
+.btn.primary kbd{font:500 10px "Geist Mono",monospace;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.18)}
+.field{height:32px;border-radius:6px;border:1px solid var(--line-strong);background:transparent;color:var(--fg-1);padding:0 10px;font:400 12px "Geist Mono",monospace;display:inline-flex;align-items:center;gap:8px}
+.field .f3{font-size:11px}
+.lbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+
+/* ------------------------------------------------------------------ workspaces */
+.ws{flex:1;min-height:0;display:none;flex-direction:column}
+.ws.on{display:flex;animation:fade 120ms var(--ease)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* ------------------------------------------------------------------ status rail */
+.rail{height:28px;flex:0 0 28px;display:flex;align-items:center;gap:16px;padding:0 16px;font-size:11px;color:var(--fg-3);
+  background:var(--surface);border-top:1px solid var(--line)}
+.rail b{font:500 11px "Geist Mono",monospace;color:var(--fg-1)}
+.dot{width:6px;height:6px;border-radius:999px;background:var(--up);display:inline-block}
+.rail .grow{flex:1}
+
+/* ================================================================== SCANNER (row 16) */
+.scan{flex:1;min-height:0;overflow:auto}
+.scanin{max-width:1280px;margin:0 auto;padding:24px}
+.sh{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px}
+.sh h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.sh .meta{font-size:12px;color:var(--fg-2);margin-top:4px;display:flex;gap:10px;align-items:center}
+.sh .meta .live{display:inline-flex;align-items:center;gap:6px;color:var(--fg-1)}
+.sh .grow{flex:1}
+.sh .ctl{display:flex;align-items:center;gap:10px}
+
+.funnel{display:grid;grid-template-columns:1fr 24px 1fr 24px 1fr 24px 1fr;align-items:stretch;margin-bottom:16px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px 16px;box-shadow:var(--shadow)}
+.tile.last{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-wash),transparent 70%),var(--surface)}
+.tile .n{font:500 32px/1.1 "Geist Mono",monospace;letter-spacing:-.02em;margin:6px 0 10px}
+.tile.last .n{color:var(--accent)}
+.tile .bar{height:4px;border-radius:999px;background:var(--inset);overflow:hidden}
+.tile .bar i{display:block;height:100%;border-radius:999px;background:var(--fg-3);width:0;transition:width 480ms ease-out}
+.tile.last .bar i{background:var(--accent)}
+.tile .cap{font-size:11px;color:var(--fg-3);margin-top:8px}
+.chev{display:grid;place-items:center;color:var(--fg-3);font-size:14px}
+
+.results{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+.ch{height:44px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+.ch .cnt{font:500 11px "Geist Mono",monospace;color:var(--fg-2);padding:2px 8px;border-radius:999px;background:var(--inset)}
+.ch .grow{flex:1}
+.ch .hint{font-size:11px;font-weight:400;color:var(--fg-3)}
+.row{height:52px;display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);transition:background 160ms var(--ease)}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--inset)}
+.row .sym{flex:1;min-width:0}
+.row .sym b{font-size:14px;font-weight:600;display:block}
+.row .sym span{font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.row .ltp{font-size:12px;color:var(--fg-2);width:84px;text-align:right}
+.row .chg{font-size:13px;font-weight:500;width:72px;text-align:right}
+.chip{font:500 11px "Geist Mono",monospace;padding:3px 8px;border-radius:999px;background:var(--inset);color:var(--fg-2);white-space:nowrap}
+.chip b{font-weight:500;color:var(--fg-1)}
+.empty{height:52px;display:flex;align-items:center;padding:0 16px;font-size:12px;color:var(--fg-3)}
+
+details.card{margin-bottom:16px}
+details.card summary{list-style:none;cursor:pointer}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary .caret{color:var(--fg-3);transition:transform 160ms var(--ease)}
+details[open].card summary .caret{transform:rotate(90deg)}
+table.trace{width:100%;border-collapse:collapse;font-size:12px}
+table.trace th{font-size:11px;font-weight:500;color:var(--fg-3);text-align:right;padding:8px 16px;border-bottom:1px solid var(--line)}
+table.trace td{padding:6px 16px;text-align:right;border-bottom:1px solid var(--line)}
+table.trace th:first-child,table.trace td:first-child,table.trace th:nth-child(2),table.trace td:nth-child(2),table.trace th:last-child,table.trace td:last-child{text-align:left}
+.pass{color:var(--accent);font-weight:500}
+
+.foot{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.foot .pulse{width:8px;height:8px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px var(--accent-wash)}
+.foot a{color:var(--accent);text-decoration:none;font-weight:500;font-size:12px}
+.foot .grow{flex:1}
+
+/* ================================================================== CHAIN (rows 12-15) */
+.ibar{height:64px;flex:0 0 64px;display:flex;align-items:center;gap:20px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.utabs{display:flex;gap:2px}
+.utab{border:0;background:transparent;height:30px;padding:0 10px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;transition:all 160ms var(--ease)}
+.utab:hover{background:var(--inset);color:var(--fg-1)}
+.utab[aria-pressed="true"]{background:var(--inset);color:var(--fg-1);box-shadow:inset 0 -2px 0 var(--accent)}
+.vsep{width:1px;height:32px;background:var(--line)}
+.spot b{font:500 22px/1.1 "Geist Mono",monospace;letter-spacing:-.01em;display:block}
+.spot span{font:400 11px "Geist Mono",monospace}
+.stats{display:flex;gap:18px}
+.stat span{display:block;font-size:11px;color:var(--fg-3)}
+.stat b{font:500 13px "Geist Mono",monospace}
+.ibar .grow{flex:1}
+.ibar .ctl{display:flex;gap:8px;align-items:center}
+.btn.sm{height:30px}
+
+.chart{height:140px;flex:0 0 140px;display:flex;flex-direction:column;border-bottom:1px solid var(--line);background:var(--page)}
+.chart.off{display:none}
+.chh{height:28px;display:flex;align-items:center;gap:12px;padding:0 16px;font-size:11px;color:var(--fg-3)}
+.chh .grow{flex:1}
+.chh .seg button{height:22px;padding:0 8px;font-size:11px}
+.chh .tools{display:flex;gap:2px}
+.chh .tools button{width:24px;height:22px;border:0;border-radius:4px;background:transparent;color:var(--fg-3);cursor:pointer;font-size:12px}
+.chh .tools button[aria-pressed="true"]{background:var(--inset);color:var(--fg-1)}
+.chart svg{flex:1;width:100%;display:block}
+
+.chain{flex:1;min-height:0;overflow:auto;background:var(--page)}
+table.oc{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font:400 12px "Geist Mono",monospace;font-variant-numeric:tabular-nums}
+table.oc thead th{position:sticky;background:var(--surface);z-index:2;font:500 11px Geist,sans-serif;color:var(--fg-3);text-align:right;padding:0 8px;border-bottom:1px solid var(--line)}
+table.oc thead tr.g th{top:0;height:24px;font-size:11px;text-align:left;color:var(--fg-2)}
+table.oc thead tr.g th.pe{text-align:right}
+table.oc thead tr.c th{top:24px;height:28px}
+table.oc thead th.spine{text-align:center;color:var(--fg-2)}
+.gdot{display:inline-block;width:6px;height:6px;border-radius:999px;margin:0 6px 1px 0;vertical-align:middle}
+table.oc td{height:28px;padding:0 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:clip;position:relative;color:var(--fg-1)}
+table.oc tbody tr:hover td{background:var(--inset)}
+table.oc td.pct small{font-size:10px;color:var(--fg-3);margin-left:4px}
+table.oc td.itm{background:color-mix(in srgb,var(--raised) 55%,transparent)}
+table.oc td.spine,table.oc th.spine{width:96px;position:sticky;left:0;right:0;z-index:1;text-align:center;background:var(--raised);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+table.oc thead th.spine{z-index:3;background:var(--surface)}
+table.oc td.spine{font-size:13px;font-weight:600}
+table.oc tr.atm td{background:var(--accent-wash)}
+table.oc tr.atm td.spine{background:var(--accent);color:var(--on-accent)}
+table.oc td.oi .ob{position:absolute;top:5px;bottom:5px;border-radius:3px;z-index:0}
+table.oc td.oi.ce .ob{right:0;background:var(--up-bar)}
+table.oc td.oi.pe .ob{left:0;background:var(--down-bar)}
+table.oc td.oi span{position:relative;z-index:1}
+/* Text sits at the OUTER edge, bars grow from the inner edge: they only meet on the largest OI. */
+table.oc td.oi.ce{text-align:left}
+table.oc td.oi.pe{text-align:right}
+table.oc td.pk{color:var(--fg-2)}
+table.oc td.pk.br{color:var(--warn);font-weight:500}
+table.oc tr.spotline td{height:0;padding:0;border-bottom:1px dashed var(--line-strong);overflow:visible}
+/* Every spine cell is sticky at z-index 1, so the next row paints over a pill hanging below the line. */
+table.oc td.spine.spotcell{z-index:5}
+/* 10px pill, 12px tall, centred on the line: it overhangs each neighbouring row by 6px, and a 13px
+   strike glyph in a 28px row ends ~9px from the edge. 16px tall (8px) visibly clipped 24,050. */
+.spotpill{position:absolute;left:50%;top:-6px;transform:translateX(-50%);font:500 10px/10px "Geist Mono",monospace;
+  padding:0 5px;border-radius:999px;background:var(--raised);border:1px solid var(--line-strong);color:var(--fg-1);z-index:4;white-space:nowrap}
+.chain::-webkit-scrollbar{width:8px;height:8px}
+.chain::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="brand">DHAN <span>terminal</span></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-ws="scanner">Scanner<kbd>S</kbd></button>
+    <button class="tab" role="tab" data-ws="chain">Option chain<kbd>O</kbd></button>
+  </nav>
+  <div class="navr">
+    <span class="badge">REPLAY</span>
+    <span class="clock m" id="clock">22:36:41 IST</span>
+    <button class="ibtn" id="theme" title="Toggle theme (T)" aria-label="Toggle theme">◐</button>
+  </div>
+</header>
+
+<div class="replay" title="REPLAY MODE — the option chain numbers are synthetic, generated locally from a Black–Scholes shape. Nothing in the chain came from Dhan. The scanner always reads live NSE data.">
+  <b>Replay mode</b><span class="f">— option chain numbers are synthetic. The scanner reads live NSE data.</span>
+</div>
+
+<!-- ============================================================ SCANNER -->
+<main class="ws" id="ws-scanner">
+  <div class="scan"><div class="scanin">
+    <div class="sh">
+      <div>
+        <h1>9:20 F&amp;O Scanner</h1>
+        <div class="meta" id="smeta"></div>
+      </div>
+      <div class="grow"></div>
+      <div class="ctl">
+        <span class="lbl">Source</span>
+        <div class="seg"><button aria-pressed="true">NSE</button><button aria-pressed="false">Dhan</button></div>
+        <span class="lbl">Top</span>
+        <div class="seg" id="topn"><button aria-pressed="true">20</button><button aria-pressed="false">25</button><button aria-pressed="false">30</button></div>
+        <button class="btn">Export CSV</button>
+        <button class="btn primary">Run scan <kbd>S</kbd></button>
+      </div>
+    </div>
+
+    <section class="funnel" id="funnel"></section>
+
+    <section class="results">
+      <div class="card"><div class="ch"><span class="dot" style="background:var(--up)"></span>Long candidates<span class="cnt" id="lc"></span><span class="grow"></span><span class="hint">top gainers · OI rising</span></div><div id="long"></div></div>
+      <div class="card"><div class="ch"><span class="dot" style="background:var(--down)"></span>Short candidates<span class="cnt" id="sc"></span><span class="grow"></span><span class="hint">top losers · OI rising</span></div><div id="short"></div></div>
+    </section>
+
+    <details class="card" id="tracebox">
+      <summary class="ch"><span class="caret">›</span><span id="tracetitle"></span><span class="grow"></span><span class="hint">nothing skipped · every stock in your F&amp;O list was carried through</span></summary>
+      <table class="trace m" id="trace"></table>
+    </details>
+
+    <div class="card foot">
+      <span class="pulse"></span>
+      <div><div style="font-size:13px;font-weight:500">Runs automatically at 09:20 and 09:25 IST, Monday to Friday</div>
+      <div style="font-size:11px" class="f3">GitHub Actions · Ubuntu + Windows · last run 17 Sep 22:36 IST · 4 stocks</div></div>
+      <span class="grow"></span>
+      <a href="https://github.com/Dev-Shivam-05/Trading-Dhan-PR/tree/scan-logs">View every run →</a>
+    </div>
+  </div></div>
+</main>
+
+<!-- ============================================================ OPTION CHAIN -->
+<main class="ws" id="ws-chain">
+  <section class="ibar">
+    <div class="utabs" id="utabs"></div>
+    <div class="vsep"></div>
+    <div class="spot" id="spot"></div>
+    <div class="vsep"></div>
+    <div class="stats" id="stats"></div>
+    <div class="grow"></div>
+    <div class="ctl">
+      <span class="field">2026-09-22 <span class="f3">▾</span></span>
+      <span class="field f3" style="width:96px">Strike /</span>
+      <button class="btn sm">Greeks</button>
+      <button class="btn sm">Breached</button>
+    </div>
+  </section>
+  <section class="chart" id="chart">
+    <div class="chh">
+      <span>NIFTY 50 · tick</span><span class="m" style="color:var(--fg-1)" id="cpx"></span>
+      <span>LTP · Volume · OI tick-by-tick</span><span>· IV · Greeks every 3 s</span>
+      <span class="grow"></span>
+      <div class="tools"><button aria-pressed="true">↖</button><button>╱</button><button>—</button><button>→</button><button>▭</button></div>
+      <div class="seg"><button>1m</button><button aria-pressed="true">5m</button><button>15m</button><button>All</button></div>
+    </div>
+    <svg id="svg" preserveAspectRatio="none"></svg>
+  </section>
+  <section class="chain" id="chainbox">
+    <table class="oc" id="oc"></table>
+  </section>
+</main>
+
+<footer class="rail">
+  <span><span class="dot"></span> streaming</span>
+  <span>RTT <b>147</b> ms</span><span>Age <b>2.0</b> s</span><span>Next <b>1.0</b> s</span><span>OK <b>100%</b></span>
+  <span class="grow"></span>
+  <span>Feed <b>83</b> instruments</span><span><b>56</b> t/s</span><span>Latency <b>L</b></span>
+</footer>
+
+<script>
+const CHAIN = {"spot":24079.37,"spotChange":-83.28000000000247,"spotChangePct":-0.34466418211579636,"atm":24100,"atmIV":9.37,"ivChg":0,"pcr":1.0077302384529112,"dte":5,"expiry":"2026-09-22","lot":65,"rows":[{"k":23100,"ce":{"ltp":1000.14,"ltpChg":-272.2099999999999,"ltpChgPct":-21.394270444453173,"iv":9.3,"volume":666551,"volChgPct":680.3858897357545,"oi":40321,"oiChg":6443,"oiChgPct":19.01824192691422},"pe":{"ltp":0.05,"ltpChg":-0.009999999999999995,"ltpChgPct":-16.66666666666666,"iv":9.3,"volume":1025085,"volChgPct":135.13550710509114,"oi":104684,"oiChg":-12222,"oiChgPct":-10.454553230800814}},{"k":23150,"ce":{"ltp":957.06,"ltpChg":-280.9100000000001,"ltpChgPct":-22.691179915506844,"iv":9.31,"volume":289031,"volChgPct":48.54019662762551,"oi":31695,"oiChg":-2386,"oiChgPct":-7.0009682814471415},"pe":{"ltp":0.05,"ltpChg":-0.009999999999999995,"ltpChgPct":-16.66666666666666,"iv":9.31,"volume":462683,"volChgPct":37.94097566938265,"oi":28706,"oiChg":12900,"oiChgPct":81.61457674300898}},{"k":23200,"ce":{"ltp":896.01,"ltpChg":179.51,"ltpChgPct":25.053733426378226,"iv":9.43,"volume":961294,"volChgPct":85.92615515540685,"oi":100130,"oiChg":8695,"oiChgPct":9.50948761415213},"pe":{"ltp":0.05,"ltpChg":0.010000000000000002,"ltpChgPct":25.000000000000007,"iv":9.43,"volume":921639,"volChgPct":186.6818047498328,"oi":63343,"oiChg":5974,"oiChgPct":10.413289407171119}},{"k":23250,"ce":{"ltp":856.07,"ltpChg":-118.51999999999998,"ltpChgPct":-12.161011297058248,"iv":9.48,"volume":1537264,"volChgPct":238.36888861497286,"oi":98338,"oiChg":34964,"oiChgPct":55.17089027045792},"pe":{"ltp":0.05,"ltpChg":0,"ltpChgPct":0,"iv":9.48,"volume":115383,"volChgPct":435.81777653942606,"oi":41957,"oiChg":-9035,"oiChgPct":-17.718465641669283}},{"k":23300,"ce":{"ltp":794.92,"ltpChg":226.95999999999992,"ltpChgPct":39.96056060285934,"iv":9.39,"volume":499205,"volChgPct":57.83441464000708,"oi":60228,"oiChg":29359,"oiChgPct":95.10836113900677},"pe":{"ltp":0.08,"ltpChg":0,"ltpChgPct":0,"iv":9.39,"volume":240757,"volChgPct":35.51711715768499,"oi":32241,"oiChg":10069,"oiChgPct":45.41313368212159}},{"k":23350,"ce":{"ltp":753.24,"ltpChg":-8.419999999999959,"ltpChgPct":-1.105480135493522,"iv":9.32,"volume":933161,"volChgPct":93.97210443169534,"oi":133796,"oiChg":37592,"oiChgPct":39.075298324394},"pe":{"ltp":0.14,"ltpChg":0.020000000000000018,"ltpChgPct":16.666666666666682,"iv":9.32,"volume":184187,"volChgPct":153.74653863639494,"oi":73387,"oiChg":17680,"oiChgPct":31.737483619652828}},{"k":23400,"ce":{"ltp":693.72,"ltpChg":-208.29999999999995,"ltpChgPct":-23.092614354448898,"iv":9.4,"volume":232570,"volChgPct":90.74058886246206,"oi":70528,"oiChg":34315,"oiChgPct":94.75878828045177},"pe":{"ltp":0.29,"ltpChg":-0.050000000000000044,"ltpChgPct":-14.705882352941188,"iv":9.4,"volume":1959878,"volChgPct":58.01173390780087,"oi":131942,"oiChg":58913,"oiChgPct":80.67069246463734}},{"k":23450,"ce":{"ltp":650.66,"ltpChg":11.389999999999986,"ltpChgPct":1.7817197741173505,"iv":9.36,"volume":755585,"volChgPct":56.34582993639272,"oi":162806,"oiChg":-33675,"oiChgPct":-17.139061792234365},"pe":{"ltp":0.52,"ltpChg":-0.18999999999999995,"ltpChgPct":-26.76056338028168,"iv":9.36,"volume":1009475,"volChgPct":32.079063608863585,"oi":113088,"oiChg":58566,"oiChgPct":107.41718939143831}},{"k":23500,"ce":{"ltp":598.57,"ltpChg":148.73000000000008,"ltpChgPct":33.06286679708342,"iv":9.44,"volume":1178966,"volChgPct":48.426993593157306,"oi":109809,"oiChg":-6746,"oiChgPct":-5.787825490111964},"pe":{"ltp":1,"ltpChg":-0.010000000000000009,"ltpChgPct":-0.990099009900991,"iv":9.44,"volume":580351,"volChgPct":215.9559235849108,"oi":103195,"oiChg":-24774,"oiChgPct":-19.359376098898952}},{"k":23550,"ce":{"ltp":549.1,"ltpChg":16.25,"ltpChgPct":3.0496387351036875,"iv":9.23,"volume":2977124,"volChgPct":192.1177606480682,"oi":394387,"oiChg":-79948,"oiChgPct":-16.854754551108396},"pe":{"ltp":1.48,"ltpChg":-0.47,"ltpChgPct":-24.102564102564102,"iv":9.23,"volume":3360568,"volChgPct":213.8453377563104,"oi":306746,"oiChg":-22033,"oiChgPct":-6.701462076349158}},{"k":23600,"ce":{"ltp":500.3,"ltpChg":102.99000000000001,"ltpChgPct":25.921824268203668,"iv":9.41,"volume":1666712,"volChgPct":85.7269731746971,"oi":557430,"oiChg":139662,"oiChgPct":33.430516458895845},"pe":{"ltp":2.88,"ltpChg":-0.010000000000000231,"ltpChgPct":-0.3460207612456827,"iv":9.41,"volume":3755491,"volChgPct":87.64929409619079,"oi":392744,"oiChg":34879,"oiChgPct":9.7464127534126}},{"k":23650,"ce":{"ltp":456.93,"ltpChg":117.67000000000002,"ltpChgPct":34.68431291634735,"iv":9.21,"volume":2849610,"volChgPct":477.24609849773935,"oi":444525,"oiChg":81759,"oiChgPct":22.53766891053737},"pe":{"ltp":4.18,"ltpChg":-1.5500000000000007,"ltpChgPct":-27.050610820244337,"iv":9.21,"volume":3491419,"volChgPct":251.16072299650693,"oi":438075,"oiChg":-78008,"oiChgPct":-15.11539810456845}},{"k":23700,"ce":{"ltp":409.61,"ltpChg":-210.05999999999995,"ltpChgPct":-33.898688011360875,"iv":9.36,"volume":3913793,"volChgPct":427.9741260109135,"oi":374162,"oiChg":-77569,"oiChgPct":-17.171502509236692},"pe":{"ltp":7.12,"ltpChg":1.4699999999999998,"ltpChgPct":26.01769911504424,"iv":9.36,"volume":13186773,"volChgPct":28.242843436006527,"oi":883420,"oiChg":-147998,"oiChgPct":-14.348983632242215}},{"k":23750,"ce":{"ltp":364.7,"ltpChg":-188.95,"ltpChgPct":-34.12805924320419,"iv":9.47,"volume":11724046,"volChgPct":46.70650567722168,"oi":828599,"oiChg":-69103,"oiChgPct":-7.697766073819596},"pe":{"ltp":11.44,"ltpChg":-2.290000000000001,"ltpChgPct":-16.678805535324116,"iv":9.47,"volume":5035057,"volChgPct":32.182869714057695,"oi":561245,"oiChg":-80583,"oiChgPct":-12.555232866126126}},{"k":23800,"ce":{"ltp":315.69,"ltpChg":-70.51999999999998,"ltpChgPct":-18.259496129048962,"iv":9.31,"volume":4545168,"volChgPct":28.20805889736683,"oi":773654,"oiChg":408118,"oiChgPct":111.64919460737109},"pe":{"ltp":16.03,"ltpChg":-4.27,"ltpChgPct":-21.034482758620687,"iv":9.31,"volume":21065166,"volChgPct":32.1654720001827,"oi":2087874,"oiChg":546607,"oiChgPct":35.464783194605474}},{"k":23850,"ce":{"ltp":273.89,"ltpChg":-88.99000000000001,"ltpChgPct":-24.523258377425048,"iv":9.41,"volume":4802514,"volChgPct":83.30101163542956,"oi":1102724,"oiChg":471362,"oiChgPct":74.65796167650255},"pe":{"ltp":24.35,"ltpChg":-8.979999999999997,"ltpChgPct":-26.942694269426937,"iv":9.41,"volume":5012901,"volChgPct":227.48412359846375,"oi":1734933,"oiChg":141013,"oiChgPct":8.846930837181288}},{"k":23900,"ce":{"ltp":233.16,"ltpChg":54,"ltpChgPct":30.14065639651708,"iv":9.17,"volume":12593489,"volChgPct":759.5416820235608,"oi":2220191,"oiChg":643036,"oiChgPct":40.77189623087141},"pe":{"ltp":32.01,"ltpChg":-10.380000000000003,"ltpChgPct":-24.486907289455065,"iv":9.17,"volume":9056771,"volChgPct":79.14657060248533,"oi":2995431,"oiChg":776024,"oiChgPct":34.96537588644174}},{"k":23950,"ce":{"ltp":197.73,"ltpChg":-26.450000000000017,"ltpChgPct":-11.798554732804003,"iv":9.43,"volume":6573154,"volChgPct":297.815304969458,"oi":911764,"oiChg":21737,"oiChgPct":2.4422854587557454},"pe":{"ltp":47.19,"ltpChg":6.759999999999998,"ltpChgPct":16.72025723472668,"iv":9.43,"volume":28288537,"volChgPct":96.28852561028141,"oi":2870564,"oiChg":156184,"oiChgPct":5.753947494455456}},{"k":24000,"ce":{"ltp":161.12,"ltpChg":13.480000000000018,"ltpChgPct":9.130316987266337,"iv":9.24,"volume":12372086,"volChgPct":63.032214715044155,"oi":2801867,"oiChg":909374,"oiChgPct":48.051644048353154},"pe":{"ltp":61.19,"ltpChg":-26.320000000000007,"ltpChgPct":-30.076562678551028,"iv":9.24,"volume":15505113,"volChgPct":119.90173492056648,"oi":2244357,"oiChg":458277,"oiChgPct":25.658257188927706}},{"k":24050,"ce":{"ltp":131.49,"ltpChg":-59.849999999999994,"ltpChgPct":-31.2793979303857,"iv":9.32,"volume":31514975,"volChgPct":93.71181387915668,"oi":3281131,"oiChg":-399446,"oiChgPct":-10.852809219858734},"pe":{"ltp":81.57,"ltpChg":12.689999999999998,"ltpChgPct":18.423344947735192,"iv":9.32,"volume":51990177,"volChgPct":269.2451118690273,"oi":3116517,"oiChg":-230727,"oiChgPct":-6.893043948992067}},{"k":24100,"ce":{"ltp":106.24,"ltpChg":-49.69000000000001,"ltpChgPct":-31.866863336112367,"iv":9.37,"volume":18723234,"volChgPct":237.48052657335285,"oi":3352651,"oiChg":1147945,"oiChgPct":52.06794012444289},"pe":{"ltp":105.74,"ltpChg":-53.07000000000001,"ltpChgPct":-33.417291102575405,"iv":9.37,"volume":63366462,"volChgPct":48.258415018056624,"oi":4004984,"oiChg":-871821,"oiChgPct":-17.876888659686003}},{"k":24150,"ce":{"ltp":82.46,"ltpChg":-39.83000000000001,"ltpChgPct":-32.57012020606756,"iv":9.28,"volume":8323399,"volChgPct":95.6538622919529,"oi":2698650,"oiChg":505181,"oiChgPct":23.031143818307896},"pe":{"ltp":131.02,"ltpChg":-33.76999999999998,"ltpChgPct":-20.492748346380232,"iv":9.28,"volume":9453343,"volChgPct":129.35204151817635,"oi":1143923,"oiChg":282973,"oiChgPct":32.86753005401011}},{"k":24200,"ce":{"ltp":62.31,"ltpChg":16.810000000000002,"ltpChgPct":36.94505494505495,"iv":9.3,"volume":29776017,"volChgPct":47.429139014022645,"oi":3920918,"oiChg":961372,"oiChgPct":32.48376609115047},"pe":{"ltp":160.8,"ltpChg":-55.869999999999976,"ltpChgPct":-25.785757142197802,"iv":9.3,"volume":10745286,"volChgPct":47.61642566470958,"oi":2582187,"oiChg":1164447,"oiChgPct":82.1340302171061}},{"k":24250,"ce":{"ltp":48.06,"ltpChg":6.030000000000001,"ltpChgPct":14.34689507494647,"iv":9.39,"volume":57015682,"volChgPct":70.76360744146044,"oi":3211631,"oiChg":-606530,"oiChgPct":-15.885396137040841},"pe":{"ltp":198.05,"ltpChg":58.93000000000001,"ltpChgPct":42.359114433582526,"iv":9.39,"volume":22790397,"volChgPct":139.8164946468398,"oi":1837213,"oiChg":678115,"oiChgPct":58.503681310812375}},{"k":24300,"ce":{"ltp":34.14,"ltpChg":-11.200000000000003,"ltpChgPct":-24.702249669166303,"iv":9.31,"volume":24989789,"volChgPct":82.27559471106011,"oi":1469908,"oiChg":-231278,"oiChgPct":-13.595103651217444},"pe":{"ltp":234.75,"ltpChg":54.83000000000001,"ltpChgPct":30.474655402401073,"iv":9.31,"volume":11817590,"volChgPct":79.63409493758722,"oi":764028,"oiChg":460617,"oiChgPct":151.81288746947212}},{"k":24350,"ce":{"ltp":25.09,"ltpChg":-3.0199999999999996,"ltpChgPct":-10.743507648523657,"iv":9.41,"volume":8179841,"volChgPct":356.5033175265522,"oi":1838175,"oiChg":1128638,"oiChgPct":159.06682808648455},"pe":{"ltp":274.31,"ltpChg":-137.99,"ltpChgPct":-33.468348290080044,"iv":9.41,"volume":11871171,"volChgPct":266.8739335977326,"oi":2025404,"oiChg":712786,"oiChgPct":54.302622697540336}},{"k":24400,"ce":{"ltp":16.51,"ltpChg":-2.629999999999999,"ltpChgPct":-13.740856844305114,"iv":9.23,"volume":5235132,"volChgPct":188.8281761195051,"oi":1827807,"oiChg":934971,"oiChgPct":104.71923175140788},"pe":{"ltp":314.74,"ltpChg":74.74000000000001,"ltpChgPct":31.141666666666673,"iv":9.23,"volume":6693125,"volChgPct":299.9101966531972,"oi":1575734,"oiChg":-153130,"oiChgPct":-8.857261184222704}},{"k":24450,"ce":{"ltp":12.19,"ltpChg":1.8200000000000003,"ltpChgPct":17.550626808100294,"iv":9.45,"volume":11345761,"volChgPct":55.44657442432109,"oi":1346146,"oiChg":763672,"oiChgPct":131.10834131652229},"pe":{"ltp":362.12,"ltpChg":-89.39999999999998,"ltpChgPct":-19.799787384833447,"iv":9.45,"volume":10856480,"volChgPct":272.8478740780528,"oi":1540067,"oiChg":425280,"oiChgPct":38.148991690789366}},{"k":24500,"ce":{"ltp":7.76,"ltpChg":1.9699999999999998,"ltpChgPct":34.02417962003454,"iv":9.36,"volume":7018229,"volChgPct":75.82755632473774,"oi":655410,"oiChg":90838,"oiChgPct":16.08971043551575},"pe":{"ltp":405.95,"ltpChg":88.40999999999997,"ltpChgPct":27.842161617434012,"iv":9.36,"volume":10276261,"volChgPct":531.5073998668927,"oi":868968,"oiChg":517489,"oiChgPct":147.23184030909385}},{"k":24550,"ce":{"ltp":4.97,"ltpChg":0.7399999999999993,"ltpChgPct":17.49408983451535,"iv":9.34,"volume":5597400,"volChgPct":709.4307781519921,"oi":410625,"oiChg":-49161,"oiChgPct":-10.69214808628362},"pe":{"ltp":456.24,"ltpChg":102.72000000000003,"ltpChgPct":29.056347589952487,"iv":9.34,"volume":3168187,"volChgPct":32.953199710944574,"oi":648255,"oiChg":239068,"oiChgPct":58.42512103268188}},{"k":24600,"ce":{"ltp":2.96,"ltpChg":-0.6499999999999999,"ltpChgPct":-18.005540166204984,"iv":9.24,"volume":1550930,"volChgPct":98.9272068000005,"oi":229524,"oiChg":63334,"oiChgPct":38.10939286358987},"pe":{"ltp":499.01,"ltpChg":4.099999999999966,"ltpChgPct":0.8284334525469207,"iv":9.24,"volume":5812412,"volChgPct":400.0281310407539,"oi":487633,"oiChg":163893,"oiChgPct":50.624884166306295}},{"k":24650,"ce":{"ltp":2.05,"ltpChg":-0.4200000000000004,"ltpChgPct":-17.004048582995964,"iv":9.44,"volume":2027378,"volChgPct":31.680329119958746,"oi":219184,"oiChg":29992,"oiChgPct":15.852678760201277},"pe":{"ltp":551.61,"ltpChg":-132.06999999999994,"ltpChgPct":-19.3175169670021,"iv":9.44,"volume":986773,"volChgPct":50.37045051415057,"oi":282781,"oiChg":134791,"oiChgPct":91.08115413203595}},{"k":24700,"ce":{"ltp":1.06,"ltpChg":-0.010000000000000009,"ltpChgPct":-0.9345794392523372,"iv":9.26,"volume":2944887,"volChgPct":275.6880330158892,"oi":198575,"oiChg":-33053,"oiChgPct":-14.269863747042672},"pe":{"ltp":596.32,"ltpChg":-182.31999999999994,"ltpChgPct":-23.415185451556553,"iv":9.26,"volume":2034057,"volChgPct":99.26146015176363,"oi":116358,"oiChg":-19129,"oiChgPct":-14.11869773483803}},{"k":24750,"ce":{"ltp":0.64,"ltpChg":-0.25,"ltpChgPct":-28.08988764044944,"iv":9.31,"volume":1455373,"volChgPct":47.60375253549696,"oi":104148,"oiChg":34097,"oiChgPct":48.674537122953275},"pe":{"ltp":644.52,"ltpChg":-65.08000000000004,"ltpChgPct":-9.17136414881624,"iv":9.31,"volume":1000724,"volChgPct":126.43632126169547,"oi":164345,"oiChg":53489,"oiChgPct":48.25088402973227}},{"k":24800,"ce":{"ltp":0.39,"ltpChg":0.08000000000000002,"ltpChgPct":25.80645161290323,"iv":9.39,"volume":607951,"volChgPct":33.00931577818909,"oi":74279,"oiChg":-9424,"oiChgPct":-11.25885571604363},"pe":{"ltp":705.11,"ltpChg":-281.51,"ltpChgPct":-28.532768441750623,"iv":9.39,"volume":2122744,"volChgPct":31.615042505687164,"oi":120567,"oiChg":39691,"oiChgPct":49.07636381621248}},{"k":24850,"ce":{"ltp":0.24,"ltpChg":-0.10000000000000003,"ltpChgPct":-29.41176470588236,"iv":9.5,"volume":1108364,"volChgPct":444.84070609401806,"oi":94930,"oiChg":30434,"oiChgPct":47.187422475812454},"pe":{"ltp":745.08,"ltpChg":-6.7299999999999045,"ltpChgPct":-0.8951729825354684,"iv":9.5,"volume":427478,"volChgPct":672.1366255441359,"oi":84777,"oiChg":49392,"oiChgPct":139.5845697329377}},{"k":24900,"ce":{"ltp":0.12,"ltpChg":0.03,"ltpChgPct":33.33333333333333,"iv":9.42,"volume":567984,"volChgPct":54.83997601003217,"oi":104763,"oiChg":15638,"oiChgPct":17.546143057503507},"pe":{"ltp":799.07,"ltpChg":-157.14999999999998,"ltpChgPct":-16.434502520340505,"iv":9.42,"volume":432382,"volChgPct":83.16924797505678,"oi":35340,"oiChg":-1387,"oiChgPct":-3.7765131919296433}},{"k":24950,"ce":{"ltp":0.05,"ltpChg":-0.03,"ltpChgPct":-37.5,"iv":9.28,"volume":518670,"volChgPct":216.36829424502116,"oi":69311,"oiChg":14505,"oiChgPct":26.466080356165385},"pe":{"ltp":844.01,"ltpChg":236.11,"ltpChgPct":38.84026978121402,"iv":9.28,"volume":382556,"volChgPct":371.4241703533007,"oi":59222,"oiChg":513,"oiChgPct":0.8738012911137986}},{"k":25000,"ce":{"ltp":0.05,"ltpChg":0,"ltpChgPct":0,"iv":9.34,"volume":1589610,"volChgPct":347.0747388611704,"oi":95951,"oiChg":38568,"oiChgPct":67.21154348848962},"pe":{"ltp":902,"ltpChg":-386.0799999999999,"ltpChgPct":-29.973293584249422,"iv":9.34,"volume":419834,"volChgPct":59.70435404478055,"oi":58121,"oiChg":-12882,"oiChgPct":-18.14289537061814}},{"k":25050,"ce":{"ltp":0.05,"ltpChg":0.010000000000000002,"ltpChgPct":25.000000000000007,"iv":9.45,"volume":929497,"volChgPct":505.4368995277642,"oi":73624,"oiChg":27618,"oiChgPct":60.03130026518281},"pe":{"ltp":942.88,"ltpChg":-307.40999999999997,"ltpChgPct":-24.58709579377584,"iv":9.45,"volume":426300,"volChgPct":388.65759580004357,"oi":33228,"oiChg":21411,"oiChgPct":181.1881188118812}},{"k":25100,"ce":{"ltp":0.05,"ltpChg":0,"ltpChgPct":0,"iv":9.41,"volume":878972,"volChgPct":70.54767143594461,"oi":82067,"oiChg":16440,"oiChgPct":25.05066512258674},"pe":{"ltp":1002.64,"ltpChg":43.68999999999994,"ltpChgPct":4.5560248188122365,"iv":9.41,"volume":1034688,"volChgPct":218.3018780859213,"oi":101522,"oiChg":58817,"oiChgPct":137.72860320805526}}],"peaks":{"23100":{"ce":{"peak":52884,"at":"11:24","why":null},"pe":{"peak":141737,"at":"13:31","why":null}},"23150":{"ce":{"peak":40956,"at":"11:09","why":null},"pe":{"peak":38437,"at":"11:17","why":null}},"23200":{"ce":{"peak":147726,"at":"13:19","why":null},"pe":{"peak":78976,"at":"11:45","why":null}},"23250":{"ce":{"peak":135537,"at":"13:55","why":null},"pe":{"peak":62046,"at":"12:34","why":null}},"23300":{"ce":{"peak":83030,"at":"13:52","why":null},"pe":{"peak":42946,"at":"12:50","why":null}},"23350":{"ce":{"peak":163271,"at":"12:54","why":null},"pe":{"peak":112719,"at":"12:45","why":null}},"23400":{"ce":{"peak":109030,"at":"10:53","why":null},"pe":{"peak":166835,"at":"14:04","why":null}},"23450":{"ce":{"peak":204204,"at":"12:56","why":null},"pe":{"peak":136575,"at":"11:54","why":null}},"23500":{"ce":{"peak":171022,"at":"11:15","why":null},"pe":{"peak":154956,"at":"13:54","why":null}},"23550":{"ce":{"peak":639165,"at":"13:31","why":null},"pe":{"peak":474484,"at":"13:27","why":null}},"23600":{"ce":{"peak":865662,"at":"12:01","why":null},"pe":{"peak":557094,"at":"13:09","why":null}},"23650":{"ce":{"peak":560340,"at":"12:56","why":null},"pe":{"peak":540986,"at":"13:53","why":null}},"23700":{"ce":{"peak":566059,"at":"12:35","why":null},"pe":{"peak":1057939,"at":"12:44","why":null}},"23750":{"ce":{"peak":1278551,"at":"13:07","why":null},"pe":{"peak":733699,"at":"13:52","why":null}},"23800":{"ce":{"peak":983917,"at":"11:32","why":null},"pe":{"peak":3224624,"at":"11:12","why":null}},"23850":{"ce":{"peak":1612737,"at":"12:51","why":null},"pe":{"peak":2589841,"at":"11:45","why":null}},"23900":{"ce":{"peak":3310087,"at":"12:18","why":null},"pe":{"peak":3918080,"at":"13:40","why":null}},"23950":{"ce":{"peak":1379606,"at":"10:46","why":null},"pe":{"peak":2525803,"at":"12:44","why":null}},"24000":{"ce":{"peak":2465085,"at":"10:48","why":null},"pe":{"peak":3163133,"at":"11:50","why":null}},"24050":{"ce":{"peak":4076708,"at":"11:08","why":null},"pe":{"peak":4479659,"at":"13:18","why":null}},"24100":{"ce":{"peak":5159557,"at":"11:23","why":null},"pe":{"peak":5340930,"at":"14:03","why":null}},"24150":{"ce":{"peak":2374588,"at":"13:30","why":null},"pe":{"peak":1362075,"at":"12:45","why":null}},"24200":{"ce":{"peak":5279557,"at":"12:14","why":null},"pe":{"peak":3697313,"at":"13:56","why":null}},"24250":{"ce":{"peak":4305638,"at":"12:13","why":null},"pe":{"peak":2795500,"at":"11:29","why":null}},"24300":{"ce":{"peak":1293345,"at":"12:07","why":null},"pe":{"peak":1218558,"at":"11:21","why":null}},"24350":{"ce":{"peak":2479866,"at":"11:07","why":null},"pe":{"peak":1782297,"at":"13:16","why":null}},"24400":{"ce":{"peak":2751574,"at":"10:49","why":null},"pe":{"peak":2222487,"at":"11:32","why":null}},"24450":{"ce":{"peak":2175239,"at":"13:03","why":null},"pe":{"peak":1941838,"at":"11:15","why":null}},"24500":{"ce":{"peak":883748,"at":"11:41","why":null},"pe":{"peak":1105361,"at":"11:35","why":null}},"24550":{"ce":{"peak":623083,"at":"13:39","why":null},"pe":{"peak":949271,"at":"11:16","why":null}},"24600":{"ce":{"peak":350984,"at":"11:05","why":null},"pe":{"peak":641252,"at":"11:26","why":null}},"24650":{"ce":{"peak":298193,"at":"12:18","why":null},"pe":{"peak":412265,"at":"11:38","why":null}},"24700":{"ce":{"peak":315777,"at":"11:14","why":null},"pe":{"peak":153960,"at":"13:18","why":null}},"24750":{"ce":{"peak":160711,"at":"11:36","why":null},"pe":{"peak":223504,"at":"12:51","why":null}},"24800":{"ce":{"peak":94467,"at":"12:04","why":null},"pe":{"peak":169536,"at":"12:02","why":null}},"24850":{"ce":{"peak":132185,"at":"12:12","why":null},"pe":{"peak":127872,"at":"13:23","why":null}},"24900":{"ce":{"peak":133452,"at":"11:33","why":null},"pe":{"peak":52666,"at":"10:49","why":null}},"24950":{"ce":{"peak":96482,"at":"11:27","why":null},"pe":{"peak":84840,"at":"12:50","why":null}},"25000":{"ce":{"peak":129748,"at":"11:16","why":null},"pe":{"peak":76149,"at":"11:23","why":null}},"25050":{"ce":{"peak":103036,"at":"12:49","why":null},"pe":{"peak":52504,"at":"12:38","why":null}},"25100":{"ce":{"peak":109258,"at":"13:04","why":null},"pe":{"peak":140586,"at":"11:30","why":null}}},"history":[{"p":23994.5},{"p":24002.05},{"p":23997.38},{"p":24006.01},{"p":24007.86},{"p":24007.06},{"p":24031.39},{"p":24034.45},{"p":24053.45},{"p":24050.5},{"p":24059.84},{"p":24052.68},{"p":24046.46},{"p":24041.86},{"p":24050.92},{"p":24053.55},{"p":24039.26},{"p":24031.21},{"p":24025.44},{"p":24015.74},{"p":24006.28},{"p":23996.21},{"p":23972.43},{"p":23955.64},{"p":23960.84},{"p":23944.17},{"p":23927.45},{"p":23940.33},{"p":23932.41},{"p":23925.57},{"p":23912.63},{"p":23909.35},{"p":23917.57},{"p":23919.61},{"p":23929.24},{"p":23919.6},{"p":23902.17},{"p":23899.57},{"p":23867.56},{"p":23866.94},{"p":23857.68},{"p":23864.99},{"p":23845.76},{"p":23843.89},{"p":23842.44},{"p":23841.72},{"p":23833.42},{"p":23842.98},{"p":23829.91},{"p":23838.07},{"p":23848.92},{"p":23867.1},{"p":23840.38},{"p":23838.91},{"p":23829.94},{"p":23812.45},{"p":23803.32},{"p":23797.36},{"p":23803.85},{"p":23792.3},{"p":23769.51},{"p":23758.15},{"p":23767.23},{"p":23779.94},{"p":23771.63},{"p":23778.79},{"p":23783.3},{"p":23792.33},{"p":23792.46},{"p":23794.3},{"p":23802.34},{"p":23798.49},{"p":23812.21},{"p":23808.44},{"p":23813.95},{"p":23802.53},{"p":23783.21},{"p":23774.54},{"p":23770.48},{"p":23763.53},{"p":23760.77},{"p":23750.8},{"p":23747.35},{"p":23732.89},{"p":23736.91},{"p":23747.71},{"p":23748.01},{"p":23768.18},{"p":23782.61},{"p":23773.59},{"p":23760.64},{"p":23773.71},{"p":23775.75},{"p":23776.58},{"p":23793.67},{"p":23784.69},{"p":23793.29},{"p":23795.98},{"p":23778.52},{"p":23790.38},{"p":23796.23},{"p":23786},{"p":23781.96},{"p":23769.08},{"p":23781.82},{"p":23779.8},{"p":23771.03},{"p":23761.64},{"p":23765.58},{"p":23762.34},{"p":23751.02},{"p":23729.94},{"p":23718.59},{"p":23724.22},{"p":23729.04},{"p":23717.73},{"p":23728.06},{"p":23736.83},{"p":23721.59},{"p":23719.29},{"p":23715.72},{"p":23709.91},{"p":23706.5},{"p":23696.72},{"p":23684.53},{"p":23692.17},{"p":23701.86},{"p":23704.02},{"p":23698.56},{"p":23688.45},{"p":23713.83},{"p":24085.99},{"p":24086.54},{"p":24090.08},{"p":24095.52},{"p":24067.94},{"p":24096.54},{"p":24111.42},{"p":24064.61},{"p":24074.32},{"p":24061.26},{"p":24070.14},{"p":24047.13},{"p":24040.73},{"p":24056.73},{"p":24067.94},{"p":24060.31},{"p":24065.9},{"p":24053.57},{"p":24033.72},{"p":24040.2},{"p":24039.77},{"p":24046.99},{"p":24054.77},{"p":24050.07},{"p":24060.24},{"p":24073.75},{"p":24089.82},{"p":24081.64},{"p":24068.03},{"p":24067.42},{"p":24064.3},{"p":24064.04},{"p":24059.36},{"p":24052.08},{"p":24075.13},{"p":24085.8},{"p":24113.52},{"p":24086.98},{"p":24088.25},{"p":24087.52},{"p":24089.93},{"p":24066.76},{"p":24064.61},{"p":24072.39},{"p":24077.06},{"p":24079.68},{"p":24120.74},{"p":24117.57},{"p":24131.74},{"p":24133.01},{"p":24128.03},{"p":24113.39},{"p":24127.95},{"p":24112.14},{"p":24102.69},{"p":24102.45},{"p":24104.26},{"p":24093.97},{"p":24118.37},{"p":24142.23},{"p":24113.59},{"p":24131.32},{"p":24121.23},{"p":24109.72},{"p":24101.29},{"p":24110.45},{"p":24097.65},{"p":24090.71},{"p":24103.2},{"p":24099.38},{"p":24100.52},{"p":24118.35},{"p":24129.22},{"p":24134.04},{"p":24121.82},{"p":24139.62},{"p":24145.34},{"p":24145.07},{"p":24138.55},{"p":24125.2},{"p":24115.52},{"p":24102.27},{"p":24109.83},{"p":24122.18},{"p":24104.8},{"p":24087.08},{"p":24064.7},{"p":24065.22},{"p":24058.79},{"p":24069.3},{"p":24061.46},{"p":24078.08},{"p":24111.32},{"p":24082.45},{"p":24070.69},{"p":24100.36},{"p":24120.58},{"p":24114.73},{"p":24138.07},{"p":24150.65},{"p":24149.17},{"p":24151.83},{"p":24159.51},{"p":24141.92},{"p":24141.27},{"p":24137.64},{"p":24123.53},{"p":24103.67},{"p":24104.28},{"p":24116.7},{"p":24115.79},{"p":24112.82},{"p":24108.82},{"p":24126.83},{"p":24120.63},{"p":24139.51},{"p":24140.22},{"p":24132.68},{"p":24106.09},{"p":24083.71},{"p":24071.86},{"p":24081.18},{"p":24070.11},{"p":24051.44},{"p":24080.85},{"p":24095.73},{"p":24066.12},{"p":24046.16},{"p":24034.81},{"p":24052.69},{"p":24061.25},{"p":24038.57},{"p":24047.03},{"p":24030.85},{"p":24049.87},{"p":24054.01},{"p":24041.82},{"p":24030.34},{"p":24053.29},{"p":24054.88},{"p":24025},{"p":24035.94},{"p":24041.21},{"p":24046.83},{"p":24049.35},{"p":24038.83},{"p":24065.66},{"p":24061.51},{"p":24054.11},{"p":24060.26},{"p":24056.95},{"p":24084.11},{"p":24093.32},{"p":24103.65},{"p":24097.14},{"p":24088.77},{"p":24103.82},{"p":24104.43},{"p":24130.97},{"p":24109.99},{"p":24107.11},{"p":24126.26},{"p":24138.22},{"p":24115.85},{"p":24120.3},{"p":24106},{"p":24110.46},{"p":24112.39},{"p":24124.43},{"p":24139.53},{"p":24130.47},{"p":24130.85},{"p":24135.51},{"p":24141.98},{"p":24154.75},{"p":24165.48},{"p":24130.41},{"p":24143.77},{"p":24174.92},{"p":24196.86},{"p":24177.83},{"p":24185.47},{"p":24182.45},{"p":24203.75},{"p":24220.39},{"p":24211.58},{"p":24201.18},{"p":24208.67},{"p":24200.83},{"p":24200.75},{"p":24199.74},{"p":24213.86},{"p":24190.08},{"p":24211.34},{"p":24192.42},{"p":24182.05},{"p":24187.54},{"p":24207.71},{"p":24184.78},{"p":24193.64},{"p":24202.89},{"p":24210.44},{"p":24241.86},{"p":24247.59},{"p":24271.56},{"p":24287.3},{"p":24285.75},{"p":24281.63},{"p":24299.91},{"p":24277.35},{"p":24255.77},{"p":24270.43},{"p":24253.68},{"p":24234.36},{"p":24211.32},{"p":24250.32},{"p":24229.04},{"p":24220.77},{"p":24220.99},{"p":24218.06},{"p":24211.78},{"p":24207.47},{"p":24219.34},{"p":24222.08},{"p":24208.28},{"p":24210.74},{"p":24233.51},{"p":24231.68},{"p":24240.48},{"p":24216.93},{"p":24214.95},{"p":24214.41},{"p":24196.65},{"p":24201.44},{"p":24196.36},{"p":24210.35},{"p":24221.22},{"p":24235.16},{"p":24259.14},{"p":24271.58},{"p":24256.14},{"p":24241.11},{"p":24261.27},{"p":24252.02},{"p":24250.04},{"p":24250.59},{"p":24267.6},{"p":24255.82},{"p":24279.6},{"p":24268},{"p":24261.68},{"p":24279.45},{"p":24247.97},{"p":24236.4},{"p":24244.61},{"p":24247.24},{"p":24237.77},{"p":24229.31},{"p":24229.39},{"p":24240.86},{"p":24262.2},{"p":24259.89},{"p":24246.92},{"p":24265.68},{"p":24259.15},{"p":24265.88},{"p":24268.88},{"p":24245.04},{"p":24254.06},{"p":24241.1},{"p":24257.36},{"p":24259.27},{"p":24255},{"p":24258.3},{"p":24277.08},{"p":24285.95},{"p":24303.79},{"p":24312.45},{"p":24311.27},{"p":24296.36},{"p":24294.89},{"p":24296.68},{"p":24315.43},{"p":24334.38},{"p":24353.95},{"p":24354.08},{"p":24353.66},{"p":24356.63},{"p":24368.87},{"p":24357.56},{"p":24349.41},{"p":24334.8},{"p":24343.86},{"p":24359.43},{"p":24379.94},{"p":24392.71},{"p":24398.66},{"p":24400.15},{"p":24411},{"p":24409.18},{"p":24406.11},{"p":24418.46},{"p":24416.7},{"p":24419.21},{"p":24453.65},{"p":24436.5},{"p":24445.11},{"p":24446.8},{"p":24454.22},{"p":24430.45},{"p":24445.64},{"p":24459.68},{"p":24488.3},{"p":24483.22},{"p":24495.01},{"p":24502.9},{"p":24501.42},{"p":24504.06},{"p":24534.89},{"p":24535.36},{"p":24528.53},{"p":24501.71},{"p":24480.36},{"p":24500.41},{"p":24472.03},{"p":24500.76},{"p":24514.74},{"p":24506.49},{"p":24515.45},{"p":24539.42},{"p":24517.28},{"p":24506.95},{"p":24523.13},{"p":24532.6},{"p":24520.94},{"p":24523.82},{"p":24519.67},{"p":24520.6},{"p":24516.21},{"p":24548.16},{"p":24539.63},{"p":24548.86},{"p":24537.48},{"p":24540.22},{"p":24520.06},{"p":24518.61},{"p":24523.58},{"p":24517.29},{"p":24523.49},{"p":24511.36},{"p":24504.18},{"p":24512.81},{"p":24509.76},{"p":24510.76},{"p":24513.37},{"p":24507.56},{"p":24502.36},{"p":24502.05},{"p":24491.72},{"p":24491.99},{"p":24488.27},{"p":24465.53},{"p":24470.91},{"p":24473.67},{"p":24483.29},{"p":24488.54},{"p":24472.69},{"p":24446.16},{"p":24443.48},{"p":24466.07},{"p":24463.89},{"p":24462.81},{"p":24459.32},{"p":24452.79},{"p":24448.83},{"p":24468.86},{"p":24457.91},{"p":24446.09},{"p":24440.37},{"p":24451.14},{"p":24438.35},{"p":24421.58},{"p":24454.68},{"p":24412.8},{"p":24418.99},{"p":24393.78},{"p":24386.44},{"p":24363.72},{"p":24372.56},{"p":24355.01},{"p":24372.73},{"p":24353.34},{"p":24366.83},{"p":24368.54},{"p":24367.02},{"p":24354.67},{"p":24367.78},{"p":24388.08},{"p":24396.13},{"p":24384.55},{"p":24384},{"p":24377.51},{"p":24379.13},{"p":24391.1},{"p":24405.47},{"p":24398.26},{"p":24394.02},{"p":24395.31},{"p":24414.36},{"p":24419.17},{"p":24414.47},{"p":24435.68},{"p":24463.32},{"p":24443.18},{"p":24454.48},{"p":24455},{"p":24437.75},{"p":24432.29},{"p":24433.05},{"p":24424.57},{"p":24407.12},{"p":24392.81},{"p":24398.51},{"p":24424.37},{"p":24422.44},{"p":24406.57},{"p":24394.28},{"p":24387.18},{"p":24388.63},{"p":24374.42},{"p":24394.44},{"p":24396.78},{"p":24392.31},{"p":24385.09},{"p":24398.79},{"p":24381.73},{"p":24390.36},{"p":24381.1},{"p":24371.8},{"p":24379.94},{"p":24390.44},{"p":24400.24},{"p":24385.64},{"p":24384.9},{"p":24391.59},{"p":24376.9},{"p":24358.94},{"p":24357.87},{"p":24346.88},{"p":24355.62},{"p":24355.35},{"p":24355.49},{"p":24344.76},{"p":24360.79},{"p":24355.4},{"p":24359.7},{"p":24352.42},{"p":24357.52},{"p":24363.22},{"p":24352.21},{"p":24353.41},{"p":24335.81},{"p":24346.18},{"p":24360.05},{"p":24394.68},{"p":24375.29},{"p":24385.84},{"p":24368.1},{"p":24361.83},{"p":24353.01},{"p":24351},{"p":24363.01},{"p":24328.49},{"p":24326.06},{"p":24333},{"p":24327.11},{"p":24331.01},{"p":24315.96},{"p":24332.96},{"p":24345.25},{"p":24356.13},{"p":24377.44},{"p":24391.17},{"p":24396.29},{"p":24408.86},{"p":24416.31},{"p":24420.32},{"p":24396.37},{"p":24382.73},{"p":24389.33},{"p":24390.33},{"p":24399.51},{"p":24402.4},{"p":24412.36},{"p":24423.43},{"p":24446.12},{"p":24452.7},{"p":24427.43},{"p":24416.6},{"p":24403.61},{"p":24419.85},{"p":24442.44},{"p":24446.6},{"p":24449.88},{"p":24449.07},{"p":24443.37},{"p":24429.3},{"p":24452.18},{"p":24443.88},{"p":24446.52},{"p":24452.35},{"p":24455.29},{"p":24437.42},{"p":24414.37},{"p":24413.63},{"p":24395.38},{"p":24397.02},{"p":24379.05},{"p":24389.82},{"p":24361.42},{"p":24329.06},{"p":24348.3},{"p":24336.27},{"p":24328.43},{"p":24337.8},{"p":24320.5},{"p":24327.05},{"p":24321.08},{"p":24332.12},{"p":24344.34},{"p":24335.67},{"p":24356.46},{"p":24361.09},{"p":24355.54},{"p":24341.5},{"p":24342.87}]};
+const SCAN = {"result":{"source":"nse","mode":"live","at":"2026-09-17T16:54:05.778Z","n":20,"reused":false,"market":{"status":"Closed","priceAsOf":"17-Sep-2026 16:00:28","oiAsOf":"17-Sep-2026 15:41:59","tradeDate":"2026-09-17","prevTradingDate":"2026-09-16"},"funnel":{"list":210,"scored":210,"ranked":40,"chg":26,"oi":4},"long":[{"symbol":"MFSL","name":"Max Financial Services Limited","ltp":1554,"prevClose":1487.6,"chgPct":4.46,"volume":958344,"latestOi":25110,"prevOi":23061,"oiPct":8.89}],"short":[{"symbol":"POLICYBZR","name":"PB Fintech Limited","ltp":1765,"prevClose":1827.1,"chgPct":-3.4,"volume":6641203,"latestOi":43833,"prevOi":32174,"oiPct":36.24},{"symbol":"PNBHOUSING","name":"PNB Housing Finance Limited","ltp":1103.5,"prevClose":1134,"chgPct":-2.69,"volume":3985061,"latestOi":25370,"prevOi":22133,"oiPct":14.63},{"symbol":"FEDERALBNK","name":"The Federal Bank Limited","ltp":332.75,"prevClose":341.8,"chgPct":-2.65,"volume":5321222,"latestOi":58667,"prevOi":54229,"oiPct":8.18}],"skipped":[],"rejected":{"rank":170,"chg":14,"oi":22},"trace":[{"symbol":"HDFCLIFE","side":"gainer","chgPct":5.05,"oiPct":-1.35,"outcome":"OI chg below 7%"},{"symbol":"BHEL","side":"gainer","chgPct":4.53,"oiPct":-0.43,"outcome":"OI chg below 7%"},{"symbol":"TMPV","side":"gainer","chgPct":4.49,"oiPct":1.76,"outcome":"OI chg below 7%"},{"symbol":"MFSL","side":"gainer","chgPct":4.46,"oiPct":8.89,"outcome":"pass"},{"symbol":"ICICIPRULI","side":"gainer","chgPct":4.36,"oiPct":-5.08,"outcome":"OI chg below 7%"},{"symbol":"SBILIFE","side":"gainer","chgPct":4.06,"oiPct":-0.43,"outcome":"OI chg below 7%"},{"symbol":"KAYNES","side":"gainer","chgPct":3.99,"oiPct":-1.5,"outcome":"OI chg below 7%"},{"symbol":"CDSL","side":"gainer","chgPct":3.88,"oiPct":-1.7,"outcome":"OI chg below 7%"},{"symbol":"POWERINDIA","side":"gainer","chgPct":3.41,"oiPct":-1.86,"outcome":"OI chg below 7%"},{"symbol":"ALKEM","side":"gainer","chgPct":3.35,"oiPct":3.21,"outcome":"OI chg below 7%"},{"symbol":"CGPOWER","side":"gainer","chgPct":3.34,"oiPct":-1.23,"outcome":"OI chg below 7%"},{"symbol":"BLUESTARCO","side":"gainer","chgPct":3.26,"oiPct":3.55,"outcome":"OI chg below 7%"},{"symbol":"ICICIGI","side":"gainer","chgPct":3.24,"oiPct":-3.58,"outcome":"OI chg below 7%"},{"symbol":"DRREDDY","side":"gainer","chgPct":3.07,"oiPct":3.33,"outcome":"OI chg below 7%"},{"symbol":"SBICARD","side":"gainer","chgPct":3.05,"oiPct":-0.51,"outcome":"OI chg below 7%"},{"symbol":"AUROPHARMA","side":"gainer","chgPct":2.86,"oiPct":-0.78,"outcome":"OI chg below 7%"},{"symbol":"ADANIENSOL","side":"gainer","chgPct":2.79,"oiPct":-0.27,"outcome":"OI chg below 7%"},{"symbol":"GMRAIRPORT","side":"gainer","chgPct":2.79,"oiPct":-2.34,"outcome":"OI chg below 7%"},{"symbol":"DLF","side":"gainer","chgPct":2.76,"oiPct":-0.92,"outcome":"OI chg below 7%"},{"symbol":"LUPIN","side":"gainer","chgPct":2.6,"oiPct":-0.71,"outcome":"OI chg below 7%"},{"symbol":"POLICYBZR","side":"loser","chgPct":-3.4,"oiPct":36.24,"outcome":"pass"},{"symbol":"PATANJALI","side":"loser","chgPct":-2.89,"oiPct":-5.05,"outcome":"OI chg below 7%"},{"symbol":"PNBHOUSING","side":"loser","chgPct":-2.69,"oiPct":14.63,"outcome":"pass"},{"symbol":"FEDERALBNK","side":"loser","chgPct":-2.65,"oiPct":8.18,"outcome":"pass"},{"symbol":"PREMIERENE","side":"loser","chgPct":-2.11,"oiPct":5.45,"outcome":"OI chg below 7%"},{"symbol":"OIL","side":"loser","chgPct":-2.09,"oiPct":1.41,"outcome":"OI chg below 7%"},{"symbol":"RADICO","side":"loser","chgPct":-1.93,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"ONGC","side":"loser","chgPct":-1.85,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"PAYTM","side":"loser","chgPct":-1.51,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"TITAN","side":"loser","chgPct":-1.38,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"MANAPPURAM","side":"loser","chgPct":-1.2,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"HDFCBANK","side":"loser","chgPct":-1.18,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"YESBANK","side":"loser","chgPct":-1.15,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"BANKBARODA","side":"loser","chgPct":-1.14,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"ATHERENERG","side":"loser","chgPct":-1.12,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"WAAREEENER","side":"loser","chgPct":-1.12,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"COLPAL","side":"loser","chgPct":-1.06,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"SAGILITY","side":"loser","chgPct":-1.02,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"COALINDIA","side":"loser","chgPct":-1.01,"oiPct":null,"outcome":"chg below 2%"},{"symbol":"HINDUNILVR","side":"loser","chgPct":-1.01,"oiPct":null,"outcome":"chg below 2%"}],"reconciles":true,"elapsedMs":5202,"error":null}};
+const q = new URLSearchParams(location.search);
+document.documentElement.dataset.theme = q.get('theme') === 'light' ? 'light' : 'dark';
+const $ = id => document.getElementById(id);
+
+/* Indian-unit abbreviation, same rule as the app's abbr(). */
+function abbr(v){ if(v==null||!isFinite(v)) return '—'; const a=Math.abs(v), s=v<0?'-':'';
+  if(a>=1e7) return s+(a/1e7).toFixed(2)+' Cr'; if(a>=1e5) return s+(a/1e5).toFixed(2)+' L'; if(a>=1e3) return s+(a/1e3).toFixed(2)+' K'; return s+a.toFixed(0); }
+const sgn = v => (v>0?'+':'')+v.toFixed(2);
+const pct = v => v==null ? '—' : sgn(v)+'%';
+const cls = v => v>0?'up':v<0?'down':'f3';
+const inr = v => v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ---------------------------------------------------------------- scanner */
+const r = SCAN.result, f = r.funnel;
+$('smeta').innerHTML = `<span class="live"><span class="dot"></span>NSE live</span><span>market ${r.market.status}</span><span>·</span><span>prices <span class="m">${r.market.priceAsOf}</span></span><span>·</span><span>OI Spurts <span class="m">${r.market.oiAsOf}</span></span>`;
+const steps = [['F&O list', f.list, `${f.list} stocks in your list`], [`Top ${r.n} + ${r.n}`, f.ranked, `top ${r.n} gainers and ${r.n} losers`], ['Moved ≥ 2%', f.chg, 'up or down, vs previous close'], ['OI rose ≥ 7%', f.oi, 'NSE OI Spurts']];
+$('funnel').innerHTML = steps.map((s,i)=>`<div class="tile${i===3?' last':''}"><div class="lbl">Step ${i+1}</div><div class="n">${s[1]}</div><div class="bar"><i data-w="${Math.max(2, s[1]/f.list*100)}"></i></div><div class="cap">${s[0]} · ${s[2]}</div></div>`).join('<div class="chev">›</div>');
+requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelectorAll('.tile .bar i').forEach(i=>i.style.width=i.dataset.w+'%')));
+const rowHtml = x => `<div class="row"><div class="sym"><b>${x.symbol}</b><span>${x.name}</span></div><span class="chip">OI <b>${pct(x.oiPct)}</b></span><span class="ltp m">₹${inr(x.ltp)}</span><span class="chg m ${cls(x.chgPct)}">${pct(x.chgPct)}</span></div>`;
+$('long').innerHTML = r.long.length ? r.long.map(rowHtml).join('') : '<div class="empty">No long candidates this morning.</div>';
+$('short').innerHTML = r.short.length ? r.short.map(rowHtml).join('') : '<div class="empty">No short candidates this morning.</div>';
+$('lc').textContent = r.long.length; $('sc').textContent = r.short.length;
+$('tracetitle').textContent = `Why each of the ${r.trace.length} ranked stocks passed or failed`;
+$('trace').innerHTML = '<thead><tr><th>Symbol</th><th>Side</th><th>Chg %</th><th>OI chg %</th><th>Outcome</th></tr></thead><tbody>' +
+  [...r.trace].sort((a,b)=>(a.outcome==='pass'?-1:0)-(b.outcome==='pass'?-1:0)||Math.abs(b.chgPct)-Math.abs(a.chgPct)).map(t=>`<tr><td>${t.symbol}</td><td class="f2" style="font-family:Geist">${t.side}</td><td class="${cls(t.chgPct)}">${pct(t.chgPct)}</td><td class="f2">${pct(t.oiPct)}</td><td class="${t.outcome==='pass'?'pass':'f3'}" style="font-family:Geist">${t.outcome}</td></tr>`).join('') + '</tbody>';
+if (q.get('trace') === '1') $('tracebox').open = true;
+
+/* ---------------------------------------------------------------- chain */
+const U = ['NIFTY','BANKNIFTY','SENSEX','RELIANCE','HDFCBANK','GOLD'];
+$('utabs').innerHTML = U.map((u,i)=>`<button class="utab" aria-pressed="${i===0}">${u}</button>`).join('');
+$('spot').innerHTML = `<b>${inr(CHAIN.spot)}</b><span class="${cls(CHAIN.spotChange)}">${sgn(CHAIN.spotChange)} (${pct(CHAIN.spotChangePct)})</span>`;
+const st = [['ATM', CHAIN.atm.toLocaleString('en-IN')], ['ATM IV', CHAIN.atmIV.toFixed(2)], ['IV chg', pct(CHAIN.ivChg)], ['PCR', CHAIN.pcr.toFixed(2)], ['Lot', CHAIN.lot], ['DTE', CHAIN.dte]];
+$('stats').innerHTML = st.map(s=>`<div class="stat"><span>${s[0]}</span><b>${s[1]}</b></div>`).join('');
+$('cpx').textContent = inr(CHAIN.spot);
+if (q.get('chart') === '0') $('chart').classList.add('off');
+
+// P10a's 17 default columns, widths chosen to sum to 1424px inside 1440.
+const CE = [['OI','oi',84],['Pk %','pk',56],['OI chg','oichg',124],['Volume','vol',76],['Vol chg %','volchg',76],['IV','iv',56],['LTP chg','ltpchg',116],['LTP','ltp',76]];
+const maxOi = Math.max(...CHAIN.rows.flatMap(x=>[x.ce.oi,x.pe.oi]));
+const col = w => `<col style="width:${w}px">`;
+function cell(side, key, d, k){
+  const pk = CHAIN.peaks?.[k]?.[side]?.peak;
+  switch(key){
+    case 'oi': return `<td class="oi ${side}"><i class="ob" style="width:${(d.oi/maxOi*100).toFixed(1)}%"></i><span>${abbr(d.oi)}</span></td>`;
+    case 'pk': { if(!pk) return '<td class="pk">—</td>'; const p = d.oi/pk*100; return `<td class="pk${p>100?' br':''}">${p>100?'▲':''}${p.toFixed(0)}%</td>`; }
+    case 'oichg': return `<td class="pct ${cls(d.oiChg)}">${abbr(d.oiChg).replace(/^(?=\d)/,'+')}<small>${pct(d.oiChgPct)}</small></td>`;
+    case 'vol': return `<td>${abbr(d.volume)}</td>`;
+    case 'volchg': return `<td class="${cls(d.volChgPct)}">${pct(d.volChgPct)}</td>`;
+    case 'iv': return `<td class="f2">${d.iv.toFixed(2)}</td>`;
+    case 'ltpchg': return `<td class="pct ${cls(d.ltpChg)}">${sgn(d.ltpChg)}<small>${pct(d.ltpChgPct)}</small></td>`;
+    case 'ltp': return `<td>${inr(d.ltp)}</td>`;
+  }
+}
+let html = '<colgroup>' + CE.map(c=>col(c[2])).join('') + col(96) + [...CE].reverse().map(c=>col(c[2])).join('') + '</colgroup>';
+html += `<thead><tr class="g"><th colspan="8"><span class="gdot" style="background:var(--up)"></span>Calls</th><th class="spine"></th><th colspan="8" class="pe">Puts<span class="gdot" style="background:var(--down);margin:0 0 1px 6px"></span></th></tr>`;
+html += '<tr class="c">' + CE.map(c=>`<th>${c[0]}</th>`).join('') + '<th class="spine">Strike</th>' + [...CE].reverse().map(c=>`<th>${c[0]}</th>`).join('') + '</tr></thead><tbody>';
+let spotDone = false;
+for (const row of CHAIN.rows) {
+  if (!spotDone && row.k > CHAIN.spot) {
+    html += `<tr class="spotline"><td colspan="8"></td><td class="spine spotcell" style="background:transparent;border:0;overflow:visible"><span class="spotpill">${inr(CHAIN.spot)}</span></td><td colspan="8"></td></tr>`;
+    spotDone = true;
+  }
+  const atm = row.k === CHAIN.atm;
+  const ceItm = row.k < CHAIN.spot, peItm = row.k > CHAIN.spot;
+  const ce = CE.map(c=>cell('ce', c[1], row.ce, row.k)).join('').replace(/<td class="/g, ceItm&&!atm ? '<td class="itm ' : '<td class="');
+  const pe = [...CE].reverse().map(c=>cell('pe', c[1], row.pe, row.k)).join('').replace(/<td class="/g, peItm&&!atm ? '<td class="itm ' : '<td class="');
+  html += `<tr class="${atm?'atm':''}" data-k="${row.k}">${ce.replace(/<td>/g, ceItm&&!atm?'<td class="itm">':'<td>')}<td class="spine">${row.k.toLocaleString('en-IN')}</td>${pe.replace(/<td>/g, peItm&&!atm?'<td class="itm">':'<td>')}</tr>`;
+}
+$('oc').innerHTML = html + '</tbody>';
+
+/* chart strip: line in --fg-1, soft fill, dashed previous close, last-price pill */
+function drawChart(){
+  const svg = $('svg'); const w = svg.clientWidth, h = svg.clientHeight; if(!w||!h) return;
+  const pts = CHAIN.history; const ps = pts.map(p=>p.p); const prev = CHAIN.spot - CHAIN.spotChange;
+  const lo = Math.min(...ps, prev), hi = Math.max(...ps, prev), pad = (hi-lo)*.12;
+  const X = i => 16 + i/(pts.length-1)*(w-110), Y = v => 8 + (1-(v-(lo-pad))/((hi+pad)-(lo-pad)))*(h-16);
+  const d = ps.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  const lx = X(ps.length-1), ly = Y(ps.at(-1));
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = `<defs><linearGradient id="gf" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <line x1="16" x2="${w-94}" y1="${Y(prev)}" y2="${Y(prev)}" stroke="var(--line-strong)" stroke-dasharray="3 4"/>
+    <text x="${w-90}" y="${Y(prev)+4}" font-size="10" fill="var(--fg-3)" font-family="Geist Mono">prev ${inr(prev)}</text>
+    <path d="${d}L${lx},${h}L16,${h}Z" fill="url(#gf)"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="${lx}" cy="${ly}" r="3" fill="var(--accent)"/><circle cx="${lx}" cy="${ly}" r="7" fill="var(--accent)" opacity=".18"/>`;
+}
+
+/* ---------------------------------------------------------------- workspace + theme */
+function show(ws){
+  document.querySelectorAll('.ws').forEach(e=>e.classList.toggle('on', e.id==='ws-'+ws));
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', t.dataset.ws===ws));
+  if (ws==='chain') { drawChart(); const atmRow = document.querySelector('tr.atm'); const box=$('chainbox'); // Centre the ATM row, snapped to a whole 28px row so no row is cut at the top edge.
+    box.scrollTop = Math.round((atmRow.offsetTop - 52 - (box.clientHeight - 52)/2 + 14) / 28) * 28; }
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>show(t.dataset.ws));
+$('theme').onclick = () => { const d=document.documentElement; d.dataset.theme = d.dataset.theme==='light'?'dark':'light'; drawChart(); };
+addEventListener('keydown', e => { if(e.key==='s') show('scanner'); if(e.key==='o') show('chain'); if(e.key==='t') $('theme').click(); if(e.key==='c'){ $('chart').classList.toggle('off'); drawChart(); } });
+addEventListener('resize', drawChart);
+show(q.get('ws') === 'chain' ? 'chain' : 'scanner');
+</script>
+</body>
+</html>

@@ -18,7 +18,7 @@ const HANDLE_R = 3.5;             // row 18
 const SAVE_MS = 250;              // row 22
 const CAP = 200;                  // row 24 — shapes per (instrument, expiry)
 const CLEAR_CONFIRM_MS = 3000;    // row 21
-const MONO = 'IBM Plex Mono, monospace';
+const MONO = 'Geist Mono, monospace';
 const KEY_PREFIX = 'draw:v1:';    // row 22
 
 const TOOLS = ['cursor', 'trend', 'hline', 'ray', 'rect'];
@@ -239,7 +239,7 @@ function hlinePill(s, y) {
   return `<rect x="${n(w + 2)}" y="${n(y - 9)}" width="${PAD_R - 6}" height="18" rx="3" `
     + `fill="var(--accent)"/>`
     + `<text x="${n(w + 7)}" y="${n(y + 3.5)}" fill="var(--accent-fg)" font-family="${MONO}" `
-    + `font-size="10.5" font-weight="600">${deps.inr(s.a.p)}</text>`;
+    + `font-size="11" font-weight="600">${deps.inr(s.a.p)}</text>`;
 }
 
 /** Cheap reject for a shape that cannot touch the plot — a shape drawn on `All` is usually
@@ -352,10 +352,10 @@ export function renderCrosshair() {
     + `<rect x="${n(w + 2)}" y="${n(y - 9)}" width="${PAD_R - 6}" height="18" rx="3" `
     + `fill="var(--fg-muted)"/>`
     + `<text x="${n(w + 7)}" y="${n(y + 3.5)}" fill="var(--bg-panel)" font-family="${MONO}" `
-    + `font-size="10.5" font-weight="600">${deps.inr(invY(y))}</text>`
+    + `font-size="11" font-weight="600">${deps.inr(invY(y))}</text>`
     + `<rect x="${n(labX - 25)}" y="${f.H - 12}" width="50" height="11" fill="var(--bg-panel)"/>`
     + `<text x="${n(labX)}" y="${f.H - 3}" fill="var(--fg-faint)" text-anchor="middle" `
-    + `font-family="${MONO}" font-size="9">${time}</text>`;
+    + `font-family="${MONO}" font-size="10">${time}</text>`;
 }
 
 /* ------------------------------------------------------------------ tools */

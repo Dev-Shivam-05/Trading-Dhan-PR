@@ -98,6 +98,8 @@ async function loadInstruments() {
   $('modeBadge').textContent = replay ? 'REPLAY' : 'LIVE';
   $('modeBadge').className = 'badge ' + (replay ? 'replay' : 'live');
   $('replayBar').hidden = !replay;
+  // P16 row 5: the Scanner workspace starts below the 28px replay line when it is showing.
+  document.body.classList.toggle('replay', replay);
 
   const wrap = $('chips');
   wrap.textContent = '';
@@ -463,7 +465,15 @@ function placeSpotPill(s) {
 
 function scrollToAtm(behavior = 'smooth') {
   const atm = document.querySelector('#ocBody tr.atm');
-  if (atm) atm.scrollIntoView({ block: 'center', behavior });
+  if (!atm) return;
+  // P16 amendment 20: centre the ATM row, snapped to a whole row, so no row is cut at the top edge
+  // under the sticky header. A fractional centre cost one full row at 1440x900.
+  const box = $('gridScroll');
+  const head = document.querySelector('table.oc thead').getBoundingClientRect().height;
+  const rowH = atm.getBoundingClientRect().height || 28;
+  const view = box.clientHeight - head;
+  const want = atm.offsetTop - head - (view - rowH) / 2;
+  box.scrollTo({ top: Math.max(0, Math.round(want / rowH) * rowH), behavior });
 }
 
 function onSnapshot(s) {
@@ -858,7 +868,7 @@ function drawChart() {
   const rising = last.p >= pts[0].p;
   const stroke = rising ? 'var(--up)' : 'var(--down)';
   const lastX = X(last.t), lastY = Y(last.p);
-  const MONO = 'IBM Plex Mono, monospace';
+  const MONO = 'Geist Mono, monospace';
 
   // Zoomed in past the data (chart-tools row 6), a price can sit outside the view. The svg is
   // overflow:visible, so anything off-plot has to be dropped or it paints over the header.
@@ -867,7 +877,7 @@ function drawChart() {
     : `<line x1="0" y1="${Y(p).toFixed(1)}" x2="${(W - PAD_R).toFixed(1)}" y2="${Y(p).toFixed(1)}" `
     + `stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"/>`
     + `<text x="${(W - PAD_R + 6).toFixed(1)}" y="${(Y(p) + 3.5).toFixed(1)}" fill="var(--fg-faint)" `
-    + `font-family="${MONO}" font-size="9.5">${inr(p)}</text>`;
+    + `font-family="${MONO}" font-size="10">${inr(p)}</text>`;
 
   // The pill keeps the true last price readable by sticking to the edge; the dot and its rule
   // are dropped instead of drawn at a price they are not at.
@@ -888,11 +898,11 @@ function drawChart() {
         + `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${stroke}"/>`)
     + `<rect x="${(W - PAD_R + 2).toFixed(1)}" y="${(pillY - 9).toFixed(1)}" width="${PAD_R - 6}" height="18" rx="3" fill="${stroke}"/>`
     + `<text x="${(W - PAD_R + 7).toFixed(1)}" y="${(pillY + 3.5).toFixed(1)}" fill="var(--bg-panel)" `
-    + `font-family="${MONO}" font-size="10.5" font-weight="600">${inr(last.p)}</text>`
-    + `<text x="0" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" font-size="9">`
+    + `font-family="${MONO}" font-size="11" font-weight="600">${inr(last.p)}</text>`
+    + `<text x="0" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" font-size="10">`
     + `${new Date(t0).toLocaleTimeString('en-IN', { hour12: false })}</text>`
     + `<text x="${(W - PAD_R).toFixed(1)}" y="${H - 3}" fill="var(--fg-faint)" text-anchor="end" `
-    + `font-family="${MONO}" font-size="9">`
+    + `font-family="${MONO}" font-size="10">`
     + `${new Date(t1).toLocaleTimeString('en-IN', { hour12: false })}</text>`
     + tools.renderCrosshair();                        // …and the crosshair on top of everything
 }
