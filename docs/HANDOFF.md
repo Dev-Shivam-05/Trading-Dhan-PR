@@ -1,6 +1,11 @@
-# HANDOFF — Dhan Terminal — Phases P21 + P22 — 2026-09-19
+# HANDOFF — Dhan Terminal — Phases P21 + P22 + P23 — 2026-09-19
 
 ## Done
+- **P23 (branch `p23-spot-window`, stacked on P22, pushed).** The chain shows 8 strikes below the
+  spot and 8 at or above it (16 rows) — the user's example, NIFTY 23,346.40 → 22,950 … 23,700,
+  verified live. Spec `docs/spec/spot-window-v1.md`. The user's screenshot of this request still
+  showed Geist Mono and clipped cells: that tab had not been reloaded since before P22 (the server
+  sends `no-cache`), so tell them to reload if the screen looks old.
 - **P21 (branch `p21-prev-close`, pushed).** The header's spot change read `+0.00 (+0.00%)` on a
   shut market. After the session Dhan's `/v2/marketfeed/ohlc` `close` is that day's own close.
   `poller.ts` now takes the daily close (`/v2/charts/historical`) of the session before the one the
