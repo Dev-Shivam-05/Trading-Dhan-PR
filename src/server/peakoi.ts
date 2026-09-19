@@ -28,7 +28,10 @@ import {
 } from './instruments.ts';
 import { isReplay, replayIntraday, replaySessionDates } from './replay.ts';
 
-const CACHE_PATH = path.join(CACHE_DIR, 'peak-oi.json');
+// Replay writes synthetic peaks under real security ids, and a cached peak is never re-fetched,
+// so a shared file would hand a later live session invented numbers as yesterday's peak
+// (found live 2026-09-19: all 400 cached 2026-09-16 rows were replay's). Keep the modes apart.
+const CACHE_PATH = path.join(CACHE_DIR, isReplay() ? 'peak-oi.replay.json' : 'peak-oi.json');
 
 /** Row 7. One key for every peak call so the backfill is strictly serial at 1 req/s. */
 const SLOT_KEY = 'peak:oi';

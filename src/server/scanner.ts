@@ -27,7 +27,9 @@ import {
   isReplay, replayScanPlan, replayFuturesCandles, replaySessionDates, type ReplayScanPlan,
 } from './replay.ts';
 
-const CACHE_PATH = path.join(CACHE_DIR, 'scan-oi.json');
+// Separate from live for the same reason as peak-oi.json: a replayed closing OI must never become
+// a live scan's baseline for that date.
+const CACHE_PATH = path.join(CACHE_DIR, isReplay() ? 'scan-oi.replay.json' : 'scan-oi.json');
 
 /** Row 4. One key, so the 420-instrument quote never races anything else. */
 const QUOTE_KEY = 'scan:quote';

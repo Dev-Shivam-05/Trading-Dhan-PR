@@ -19,7 +19,9 @@ import { PeakOiStore, type PeakView } from './peakoi.ts';
 import { isReplay, replayChain, replayLatency, replayPrevClose } from './replay.ts';
 import { daysToExpiry, sessionState, todayIso, type ResolvedInstrument } from './instruments.ts';
 
-const BASELINE_PATH = path.join(CACHE_DIR, 'iv-baseline.json');
+// The first ATM IV of the day sticks, so a replay run before a live one would fix today's live
+// IV change against a synthetic number. Keep the modes apart.
+const BASELINE_PATH = path.join(CACHE_DIR, isReplay() ? 'iv-baseline.replay.json' : 'iv-baseline.json');
 const BACKOFF_MS = [3000, 6000, 12_000, 30_000];
 const IDLE_RECHECK_MS = 60_000;
 const UNSUBSCRIBE_GRACE_MS = 30_000;
