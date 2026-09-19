@@ -1,16 +1,14 @@
 /* P9 — option candle colouring.
 
-   Spec: docs/spec/option-candles-v1.md. Clicking the CE or the PE half of a strike row switches
-   the existing chart strip into candlestick mode for THAT contract (rows 1, 2) — one chart, one
-   grip, one resize path, and the chain poll underneath is never touched.
+   Spec: docs/spec/option-candles-v1.md, with docs/spec/strike-window-v1.md (P20) rows 9-15 on
+   top. Clicking the CE or the PE half of a strike row opens THAT contract's candles in a small
+   floating window (#optWin). Until P20 the click took over the chart strip; the user asked for
+   the NIFTY chart to stay on screen, so the strip is never touched now and its drawing tools stay
+   enabled. One window at a time: another click replaces the content.
 
-   This file draws into its own <svg id="candleSvg">, layered inside the same .chart-body, rather
-   than borrowing app.js's drawChart(). The two never run at once (`body.optmode` hides one and
-   shows the other), and keeping them apart means neither module has to import the other — the
-   only thing crossing is the number formatting, which is imported so one screen never prints
-   12.4 L in the grid and 1,240,000 on the chart.
-
-   Drawing tools stay bound to the underlying tick chart and are disabled here (row 17). */
+   This file draws into its own <svg id="candleSvg"> rather than borrowing app.js's drawChart(),
+   so neither module has to import the other — the only thing crossing is the number formatting,
+   which is imported so one screen never prints 12.4 L in the grid and 1,240,000 on the chart. */
 
 import { abbr, inr } from '/app.js';
 
@@ -24,6 +22,8 @@ const REFRESH_MS = 60_000;
     price gutter is 76px wide (docs/spec/chart-tools-v1.md rows 1, 7). */
 const PAD_R = 76;
 const PAD_B = 16;
+/** P20 rows 11-12. */
+const WIN = { w: 560, h: 340, minW: 360, minH: 240, inset: 16, key: 'optWin' };
 
 const state = {
   active: false,
@@ -76,10 +76,9 @@ function signedAbbr(v) {
 function setActive(on) {
   if (state.active === on) return;
   state.active = on;
-  document.body.classList.toggle('optmode', on);
-  // app.js owns the tick chart and the drawing tools; it repaints (and disables the tools,
-  // row 17) when it sees this. A custom event rather than an import, so neither module has to
-  // depend on the other.
+  // P20 row 10: a window, not a mode. The strip underneath keeps drawing.
+  $('optWin').hidden = !on;
+  if (on) placeWindow();
   document.dispatchEvent(new CustomEvent('optmode', { detail: { on } }));
   if (on) {
     if (!state.timer) state.timer = setInterval(() => refresh(false), REFRESH_MS);
@@ -371,7 +370,7 @@ function showTip(i, clientX, clientY) {
     + '</table>';
 
   tip.hidden = false;
-  const wrap = $('chartBody').getBoundingClientRect();
+  const wrap = $('optBody').getBoundingClientRect();
   const box = tip.getBoundingClientRect();
   const left = Math.min(Math.max(clientX - wrap.left + 14, 4), wrap.width - box.width - 4);
   const top = Math.min(Math.max(clientY - wrap.top - box.height / 2, 4), wrap.height - box.height - 4);
@@ -380,6 +379,90 @@ function showTip(i, clientX, clientY) {
 }
 
 function hideTip() { $('candleTip').hidden = true; }
+
+/* ------------------------------------------------------------------ window */
+
+function loadBox() {
+  try {
+    const b = JSON.parse(localStorage.getItem(WIN.key) ?? 'null');
+    return b && [b.x, b.y, b.w, b.h].every(Number.isFinite) ? b : null;
+  } catch { return null; }
+}
+function saveBox() {
+  const r = $('optWin').getBoundingClientRect();
+  try {
+    localStorage.setItem(WIN.key, JSON.stringify({
+      x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height),
+    }));
+  } catch { /* private mode */ }
+}
+
+/** Row 12: keep the whole window reachable — a spot saved on a wider screen must not leave the
+ *  title bar (the only drag handle) off the edge. */
+function clampBox(b) {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const w = Math.max(WIN.minW, Math.min(b.w, vw - 16));
+  const h = Math.max(WIN.minH, Math.min(b.h, vh - 16));
+  return {
+    x: Math.min(Math.max(8, b.x), Math.max(8, vw - w - 8)),
+    y: Math.min(Math.max(8, b.y), Math.max(8, vh - h - 8)),
+    w, h,
+  };
+}
+
+function applyBox(b) {
+  const el = $('optWin');
+  el.style.left = `${b.x}px`;
+  el.style.top = `${b.y}px`;
+  el.style.width = `${b.w}px`;
+  el.style.height = `${b.h}px`;
+}
+
+/** Row 11: first time, bottom-right of the chain pane, 16px in; afterwards wherever it was left. */
+function placeWindow() {
+  let b = loadBox();
+  if (!b) {
+    const w = Math.min(WIN.w, window.innerWidth - 32);
+    const r = $('work').getBoundingClientRect();
+    b = { w, h: WIN.h, x: r.right - WIN.inset - w, y: r.bottom - WIN.inset - WIN.h };
+  }
+  applyBox(clampBox(b));
+  state.dirty = true;
+}
+
+{
+  const head = $('optWinHead');
+  let drag = null;
+  head.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target.closest('button')) return;
+    const r = $('optWin').getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height };
+    head.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  head.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    applyBox(clampBox({ x: e.clientX - drag.dx, y: e.clientY - drag.dy, w: drag.w, h: drag.h }));
+  });
+  const end = () => { if (drag) { drag = null; saveBox(); } };
+  head.addEventListener('pointerup', end);
+  head.addEventListener('pointercancel', end);
+
+  // Row 12: resized from the CSS corner handle. Repaint at the new size, and remember it once the
+  // user lets go (debounced — a resize drag fires this every frame).
+  let t = null;
+  new ResizeObserver(() => {
+    state.dirty = true;
+    if (!state.active) return;
+    clearTimeout(t);
+    t = setTimeout(saveBox, 250);
+  }).observe($('optWin'));
+  window.addEventListener('resize', () => {
+    if (!state.active) return;
+    const el = $('optWin');
+    applyBox(clampBox({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }));
+  });
+}
 
 /* ------------------------------------------------------------------ wiring */
 
@@ -450,6 +533,7 @@ window.addEventListener('resize', () => { state.dirty = true; });
  * Nothing in the app reads it.
  */
 window.__candles = {
+  box: () => loadBox(),
   paintMs: 0,
   frames: 0,
   paints: [],

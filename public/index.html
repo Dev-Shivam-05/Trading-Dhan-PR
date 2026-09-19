@@ -115,16 +115,9 @@
 
 <section class="chart pane" id="chartWrap">
   <div class="chart-h">
-    <button class="tog opt" id="candleBack" type="button"
-            title="Back to the underlying chart (Esc)">&larr; underlying</button>
-    <span class="ct opt" id="candleTitle"></span>
-    <span class="legend opt">
-      <span><i class="dot bigin"></i>blue: big player entering</span>
-      <span><i class="dot bigout"></i>yellow: exiting</span>
-    </span>
     <span class="ct tickonly lineonly">Tick chart</span>
     <!-- P19: the same strip as candles (underlying-candles-v1.md row 1). `uconly` / `lineonly`
-         pick the mode's items; `tickonly` still hides all of them in P9's option-candle mode. -->
+         pick the mode's items. `tickonly` is inert since P20: option candles open in #optWin. -->
     <span class="ct tickonly uconly" id="ucTitle">Candles</span>
     <span class="cpx mono tickonly" id="chartPx">—</span>
     <span class="cchg mono tickonly" id="chartChg">—</span>
@@ -133,12 +126,6 @@
       <span><i class="dot slow"></i>3&nbsp;s: IV · Greeks</span>
     </span>
     <span class="grow"></span>
-    <span class="candlecount mono opt" id="candleCount"></span>
-    <span class="range opt" id="candleInterval" role="group" aria-label="Candle interval">
-      <button type="button" data-iv="1">1m</button>
-      <button type="button" data-iv="5" aria-pressed="true">5m</button>
-      <button type="button" data-iv="15">15m</button>
-    </span>
     <!-- #feedPill and #tickRate moved to the status rail (row 13). They were `tickonly` here
          because P9 found them reading as an option's numbers next to an option's candles; in a
          global rail below every pane that ambiguity does not exist. -->
@@ -176,10 +163,6 @@
     <div class="chart-empty tickonly uconly" id="ucMsg" hidden></div>
     <div class="chart-surface tickonly" id="chartSurface"></div>
     <div class="chart-axis tickonly" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
-    <svg id="candleSvg" class="opt" preserveAspectRatio="none" aria-label="Option candles"></svg>
-    <div class="chart-empty opt" id="candleMsg" hidden></div>
-    <div class="chart-surface opt" id="candleSurface"></div>
-    <div class="candletip mono" id="candleTip" hidden></div>
   </div>
   <!-- Splitter #1 — spec row 3. The P5 grip generalised: same element and cursor, now focusable
        and keyboard-driven. panes.js owns the drag. -->
@@ -309,6 +292,35 @@
           title="Toggle the telemetry drawer (L)">⇥ latency</button>
   <span class="clock mono rdrop2" id="clock">--:--:--</span>
 </footer>
+
+<!-- P20 option chart window — docs/spec/strike-window-v1.md rows 10-14. A CE / PE click opens
+     that contract's P9 candles here; the NIFTY strip above the chain is never taken over. The
+     ids are P9's, so candles.js kept its whole renderer. -->
+<section class="optwin" id="optWin" role="dialog" aria-labelledby="candleTitle" hidden>
+  <header class="ow-h" id="optWinHead">
+    <span class="ct" id="candleTitle"></span>
+    <span class="candlecount mono" id="candleCount"></span>
+    <span class="grow"></span>
+    <span class="range" id="candleInterval" role="group" aria-label="Candle interval">
+      <button type="button" data-iv="1">1m</button>
+      <button type="button" data-iv="5" aria-pressed="true">5m</button>
+      <button type="button" data-iv="15">15m</button>
+    </span>
+    <button class="icon ow-x" id="candleBack" type="button" title="Close (Esc)" aria-label="Close the option chart">
+      <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+  <div class="ow-legend legend">
+    <span><i class="dot bigin"></i>blue: big player entering</span>
+    <span><i class="dot bigout"></i>yellow: exiting</span>
+  </div>
+  <div class="ow-body" id="optBody">
+    <svg id="candleSvg" preserveAspectRatio="none" aria-label="Option candles"></svg>
+    <div class="chart-empty" id="candleMsg" hidden></div>
+    <div class="chart-surface ow-surface" id="candleSurface"></div>
+    <div class="candletip mono" id="candleTip" hidden></div>
+  </div>
+</section>
 
 <!-- P19 Chart Style dialog — underlying-candles-v1.md rows 13-20. chart-style.js fills the
      swatch rows and owns every behaviour; this is only the frame. -->

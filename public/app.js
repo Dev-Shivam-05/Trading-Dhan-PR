@@ -333,16 +333,41 @@ function pkMark(peak, max, side) {
   return `<i class="pkmark" style="${side === 'ce' ? 'right' : 'left'}:${pct}%"></i>`;
 }
 
+/** P20 row 1 — strikes each side of the ATM row. */
+const WING = 8;
+
+/**
+ * P20 rows 1-4 (docs/spec/strike-window-v1.md): the ATM row and up to WING strikes on each side,
+ * from the snapshot's own `atmStrike` so the window and the ATM the bar prints cannot disagree.
+ * Near an edge it is simply shorter — rows are never borrowed from the other side. With no ATM
+ * (no spot) there is nothing to centre on, so the whole chain stays.
+ */
+function windowRows(s) {
+  const rows = s.rows;
+  const i = rows.findIndex(r => r.strike === s.atmStrike);
+  if (i < 0) return rows;
+  return rows.slice(Math.max(0, i - WING), Math.min(rows.length, i + WING + 1));
+}
+
+/* Read-only test seam: the P20 verification drives windowRows() with synthetic snapshots, because
+   replay's chain is always centred and a chain edge never happens on its own. Nothing reads it. */
+window.__grid = { windowRows, WING };
+
 function renderGrid(s) {
   buildColgroup();
-  const rows = s.rows;
+  const q = state.filter.trim();
+  // Row 6: a strike search is an explicit lookup, so it reaches the whole chain. Everything else
+  // (including Breached, row 7) sees only the window.
+  const all = s.rows;
+  const rows = q ? all : windowRows(s);
+  // OI bars are scaled to the rows on screen, or the 17 visible bars would be measured against a
+  // far strike nobody can see.
   let maxCe = 0, maxPe = 0;
   for (const r of rows) {
     if ((r.ce.oi ?? 0) > maxCe) maxCe = r.ce.oi ?? 0;
     if ((r.pe.oi ?? 0) > maxPe) maxPe = r.pe.oi ?? 0;
   }
 
-  const q = state.filter.trim();
   let shown = 0;
   const html = rows.map((r, i) => {
     const itmCe = r.strike < s.spot ? 'itm' : '';
@@ -410,12 +435,12 @@ function renderGrid(s) {
 
   $('ocBody').innerHTML = html;
 
-  /* Spec row 8. The default view hides zero rows — `hidden` is only ever set by the strike search
-     or by `Breached`. When one of them does hide something, say so, so a short list reads as a
-     filter rather than as missing data. */
+  /* P20 row 5 (was option-chain row 8). The window always leaves strikes out, so the chip always
+     says so — a 17-row chain must read as a filter, never as missing data. */
   const fc = $('filterChip');
-  fc.hidden = shown === rows.length;
-  fc.textContent = `showing ${shown} of ${rows.length} strikes`;
+  fc.hidden = shown === all.length;
+  fc.textContent = q ? `showing ${shown} of ${all.length} strikes`
+    : `ATM ±${WING} · ${shown} of ${all.length} strikes`;
 
   const body = $('ocBody');
   state.rowByStrike.clear();
@@ -832,9 +857,8 @@ function applyCellTick(it) {
 /* ------------------------------------------------------------------ chart */
 
 function drawChart() {
-  // In option-candle mode candles.js owns the strip. The drawing tools stay bound to the
-  // underlying tick chart and are disabled here — option-candles-v1.md row 17.
-  if (document.body.classList.contains('optmode')) { tools.setEnabled(false); return; }
+  // P20 row 9: option candles open in their own window (candles.js). This strip is never handed
+  // over any more, so P9's early return that blanked it and disabled the tools is gone.
   if (document.body.classList.contains('ucmode')) { drawCandleStrip(); return; }
 
   const svg = $('chartSvg');
