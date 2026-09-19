@@ -497,6 +497,69 @@ export function replayOptionCandles(
   return { open, high, low, close, volume, timestamp, open_interest };
 }
 
+/* ------------------------------------------------- underlying candles (P19) */
+
+/**
+ * underlying-candles-v1.md row 5. A multi-day OHLC payload for the chip's own underlying.
+ *
+ * Anchored at BOTH ends: the walk is generated backwards from `replayBasePrice(key)`, so the last
+ * session's final close is exactly the price replay's ticks wander around, and the forming candle
+ * those ticks update continues the series instead of jumping away from it.
+ *
+ * Generated at one-minute resolution and then aggregated, so the 5m and 15m payloads are exact
+ * roll-ups of the 1m one - a 5m candle can never disagree with its own five 1m candles.
+ */
+export function replayUnderlyingCandles(key: string, intervalMin: number, dates: string[]): Candles {
+  const shape = SHAPES[key] ?? SHAPES.NIFTY!;
+  const mcx = key === 'GOLD';
+  const minutes = mcx ? 870 : SESSION_MINUTES;          // MCX 09:00-23:30, NSE/BSE 09:15-15:30
+  const startHHMM = mcx ? '09:00' : '09:15';
+  // ~0.04% per minute: a NIFTY day then spans roughly 0.5-1%, which is what a real one looks like.
+  const vol = shape.spot * 0.0004;
+
+  // Backwards from the anchor: closes[d][m] for every minute of every date, newest last.
+  const closes: number[][] = dates.map(() => new Array<number>(minutes).fill(0));
+  let px = replayBasePrice(key);
+  for (let d = dates.length - 1; d >= 0; d--) {
+    for (let m = minutes - 1; m >= 0; m--) {
+      closes[d]![m] = Math.round(px * 100) / 100;
+      // Signed step, with a slow per-day drift so some sessions trend and some chop.
+      const drift = (hash(key, dates[d]!, 'udrift') - 0.5) * 0.35;
+      px -= (hash(key, dates[d]!, m, 'ustep') - 0.5 + drift / 10) * 2 * vol;
+    }
+    // Overnight gap into the previous session, up to ±0.4%.
+    px *= 1 + (hash(key, dates[d]!, 'ugap') - 0.5) * 0.008;
+  }
+
+  const timestamp: number[] = [], open: number[] = [], high: number[] = [];
+  const low: number[] = [], close: number[] = [], volume: number[] = [];
+  const iv = Math.max(1, intervalMin);
+
+  for (let d = 0; d < dates.length; d++) {
+    const date = dates[d]!;
+    const t0 = Math.floor(Date.parse(`${date}T${startHHMM}:00+05:30`) / 1000);
+    for (let m0 = 0; m0 < minutes; m0 += iv) {
+      let o = 0, h = -Infinity, l = Infinity, c = 0, v = 0;
+      for (let m = m0; m < Math.min(minutes, m0 + iv); m++) {
+        const cm = closes[d]![m]!;
+        // A minute opens at the previous minute's close (or the day's first close at 09:15).
+        const om = m > 0 ? closes[d]![m - 1]! : cm;
+        const wick = hash(key, date, m, 'uwick') * vol * 0.8;
+        const hm = Math.round((Math.max(om, cm) + wick) * 100) / 100;
+        const lm = Math.round((Math.min(om, cm) - wick * hash(key, date, m, 'ulow')) * 100) / 100;
+        if (m === m0) o = om;
+        if (hm > h) h = hm;
+        if (lm < l) l = lm;
+        c = cm;
+        v += Math.round(20_000 + hash(key, date, m, 'uvol') * 60_000);
+      }
+      timestamp.push(t0 + m0 * 60);
+      open.push(o); high.push(h); low.push(l); close.push(c); volume.push(v);
+    }
+  }
+  return { open, high, low, close, volume, timestamp, open_interest: [] };
+}
+
 /** Plausible network latency so the panel's percentiles and waterfall have real spread. */
 export async function replayLatency(): Promise<number> {
   const base = 120 + Math.random() * 140;

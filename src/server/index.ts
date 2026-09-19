@@ -14,6 +14,7 @@ import { readCredentials } from './dhan.ts';
 import { Scanner, scanCsv } from './scanner.ts';
 import { NseScanner, nseScanCsv, TOP_N_CHOICES, DEFAULT_TOP_N, type TopN } from './scanner-nse.ts';
 import { CandleService, INTERVALS, type Interval } from './candles.ts';
+import { UnderlyingCandleService } from './ucandles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
@@ -42,6 +43,7 @@ const history = new TickHistory();
 const scanner = new Scanner(creds);
 const nseScanner = new NseScanner();
 const candles = new CandleService(creds);
+const ucandles = new UnderlyingCandleService(creds);
 // P17: this process is the one token owner - it renews before the 24 h expiry and rewrites .env.
 if (!isReplay()) keepAlive(creds);
 
@@ -121,6 +123,8 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/candles.js': { file: 'candles.js', type: 'text/javascript; charset=utf-8' },
   '/panes.js': { file: 'panes.js', type: 'text/javascript; charset=utf-8' },
   '/telemetry.js': { file: 'telemetry.js', type: 'text/javascript; charset=utf-8' },
+  '/ucandles.js': { file: 'ucandles.js', type: 'text/javascript; charset=utf-8' },
+  '/chart-style.js': { file: 'chart-style.js', type: 'text/javascript; charset=utf-8' },
 };
 
 for (const [route, { file, type }] of Object.entries(STATIC)) {
@@ -320,6 +324,25 @@ app.get('/api/candles', async (req, reply) => {
   }
 
   return candles.get(inst, expiry, strike, q.side, interval);
+});
+
+/* ------------------------------------------------- underlying candles (P19) */
+
+/**
+ * The chip's own underlying as OHLC candles - underlying-candles-v1.md rows 2-4. Like P9 there is
+ * no session gate: a shut market still charts its last session. `openNow` tells the client
+ * whether re-fetching every 60 s can change anything.
+ */
+app.get('/api/ucandles', async (req, reply) => {
+  const q = req.query as Record<string, string>;
+  const inst = findInstrument(q.key ?? '');
+  if (!inst) return reply.code(400).send({ error: `unknown instrument ${q.key}` });
+  const interval = (q.interval ?? '5') as Interval;
+  if (!(INTERVALS as readonly string[]).includes(interval)) {
+    return reply.code(400).send({ error: `interval must be one of ${INTERVALS.join(' / ')}` });
+  }
+  const res = await ucandles.get(inst, interval);
+  return { ...res, openNow: sessionState(inst.session.id).openNow };
 });
 
 /* ----------------------------------------------------------------- SSE */
