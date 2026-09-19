@@ -16,7 +16,8 @@
     "shots": "node scripts/shots.ts",
     "feed:probe": "node --env-file-if-exists=.env scripts/feed-probe.ts",
     "live:probe": "node --env-file-if-exists=.env scripts/live-probe.ts",
-    "scan:nse": "node scripts/scan-nse.ts"
+    "scan:nse": "node --env-file-if-exists=.env scripts/scan-nse.ts",
+    "notify:test": "node --env-file-if-exists=.env scripts/notify-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",

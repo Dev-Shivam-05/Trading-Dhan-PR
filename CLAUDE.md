@@ -8,6 +8,8 @@ Global rules live in `~/.claude/CLAUDE.md`. These are the ones specific to this 
 - `npm run dev` — live. Needs a valid token **and** an active Data API plan.
 - `npm run check` — the one-line verdict on credentials. **Run this before assuming live data works.**
 
+The Data API plan is **Active** since 2026-09-18 (₹499/month, paid through 17 Oct 2026).
+
 ## Two failure modes that look identical and are not
 A valid token does **not** mean data access. They are separate gates:
 - `DH-906` / `808 Authentication Failed` -> the token is bad or expired. Get a new one.
@@ -15,6 +17,20 @@ A valid token does **not** mean data access. They are separate gates:
   no Data API plan**. No amount of re-pasting tokens fixes this. Subscribe at web.dhan.co ->
   My Profile -> DhanHQ Trading APIs -> Data APIs.
 Tokens last about a day. `npm run check` prints which of the two you are looking at.
+
+## Renewing the token kills the old one — one process owns it (measured 2026-09-19)
+`GET /v2/RenewToken` (headers `access-token`, `dhanClientId`) returns `{createTime, expiryTime,
+token}` good for another 24 h. The docs say POST, and POST answers `DH-905`. The old token dies
+**at once** (`DH-906 Invalid Token`). So exactly one long-lived process may renew: the local
+server (`src/server/token.ts` renews and rewrites `.env`). Never run a second server with a copy of
+`.env` on another machine, and never hand the token to a serverless host that cannot write it back.
+
+## GitHub cron is not a 09:20 clock
+On Fri 18 Sep both the 09:20 and 09:25 cron lines started at **14:00 IST**. Because they started
+together, the two `github-windows` jobs conflicted on `LATEST-github-windows.md`. The on-time run is
+the Windows task `DhanNseScan0920` (`scripts/scan-task.cmd`), and GitHub is the backup. Task
+Scheduler's default is "do not start on battery", and this PC is a laptop. A task created with
+`schtasks` sits in `Queued` until that setting is cleared.
 
 ## Never run `npm run shots` for an ad-hoc check
 It overwrites the 17 committed reference images in `docs/shots/`. Only run it when deliberately

@@ -41,6 +41,12 @@ jobs:
             runner: github-windows
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    # One job per runner at a time. On 18 Sep GitHub started BOTH cron lines at 14:00 IST, the two
+    # github-windows jobs appended to the same LATEST/index files at once, and the second push died
+    # on a rebase conflict. Queued, the second job checks out scan-logs after the first has pushed.
+    concurrency:
+      group: nse-scan-${{ matrix.runner }}
+      cancel-in-progress: false
     defaults:
       run:
         shell: bash
@@ -61,9 +67,15 @@ jobs:
       - run: npm ci
 
       # Headed Chrome needs a display on Linux. Windows runners already have a desktop session.
+      # P17: one phone notification per morning from GitHub - Ubuntu, 09:20 cron line only - as a
+      # backup to the PC's on-time run. The message title says LATE when GitHub started it late.
       - name: Scan NSE
         id: scan
         continue-on-error: true
+        env:
+          NTFY_TOPIC: ${{ (matrix.runner == 'github-ubuntu' && github.event.schedule == '50 3 * * 1-5') && secrets.NTFY_TOPIC || '' }}
+          TELEGRAM_BOT_TOKEN: ${{ (matrix.runner == 'github-ubuntu' && github.event.schedule == '50 3 * * 1-5') && secrets.TELEGRAM_BOT_TOKEN || '' }}
+          TELEGRAM_CHAT_ID: ${{ (matrix.runner == 'github-ubuntu' && github.event.schedule == '50 3 * * 1-5') && secrets.TELEGRAM_CHAT_ID || '' }}
         run: |
           google-chrome --version 2>/dev/null || true
           if [ "$RUNNER_OS" = "Linux" ]; then

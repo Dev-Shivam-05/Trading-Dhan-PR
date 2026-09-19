@@ -23,6 +23,7 @@ import { mkdir, writeFile, appendFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { NseScanner, TOP_N_CHOICES, type NseScanResult, type TopN } from '../src/server/scanner-nse.ts';
+import { notify, channelsConfigured } from '../src/server/notify.ts';
 
 function arg(name: string, fallback: string): string {
   const i = process.argv.indexOf(`--${name}`);
@@ -165,7 +166,45 @@ async function main() {
       `long [${result.long.map(x => x.symbol).join(', ')}]  short [${result.short.map(x => x.symbol).join(', ')}]  ` +
       `prices ${result.market.priceAsOf}  OI ${result.market.oiAsOf}`);
   console.log(`log: ${path.relative(process.cwd(), base)}.md`);
+
+  // P17: the same result, to the user's phone, when a channel is configured (src/server/notify.ts).
+  if (channelsConfigured().length) {
+    const msg = phoneMessage(result, meta);
+    for (const o of await notify(msg.title, msg.body, { urgent: msg.urgent })) {
+      console.log(`notify ${o.channel}: ${o.ok ? 'sent' : 'FAILED ' + o.detail}`);
+    }
+  }
   process.exitCode = result.error ? 1 : 0;
+}
+
+/**
+ * Short enough to read on a lock screen. Anything that makes the numbers NOT this morning's 09:20
+ * - an error, a holiday, GitHub starting the run hours late (it did on 18 Sep: 14:00 IST) - goes
+ * in the title, not buried in the body.
+ */
+function phoneMessage(r: NseScanResult, meta: { date: string; time: string; status: string; runner: string }): { title: string; body: string; urgent: boolean } {
+  const [hh, mm] = meta.time.split(':').map(Number);
+  const late = hh! * 60 + mm! > 9 * 60 + 35;
+  const flags = [
+    r.error ? 'FAILED' : '',
+    meta.status === 'not-today' ? 'NOT TODAY\'S DATA' : '',
+    late && meta.status === 'ok' ? `LATE (${meta.time.slice(0, 5)})` : '',
+  ].filter(Boolean);
+  const title = `NSE scan ${meta.date} ${meta.time.slice(0, 5)} IST${flags.length ? ' - ' + flags.join(', ') : ''}`;
+  if (r.error) return { title, body: `${r.error}\nrunner ${meta.runner}`, urgent: true };
+  const line = (x: NseScanResult['long'][number]) => `${x.symbol} ${pct(x.chgPct)} | OI ${pct(x.oiPct)}`;
+  const body = [
+    `Top ${r.n}: ${r.funnel.list} > ${r.funnel.ranked} > ${r.funnel.chg} > ${r.funnel.oi}`,
+    '',
+    `LONG (${r.long.length})`, ...(r.long.length ? r.long.map(line) : ['none']),
+    '',
+    `SHORT (${r.short.length})`, ...(r.short.length ? r.short.map(line) : ['none']),
+    '',
+    `NSE prices as of ${r.market.priceAsOf || '-'}`,
+    `OI as of ${r.market.oiAsOf || '-'} | ${r.market.status}`,
+    `runner ${meta.runner}`,
+  ].join('\n');
+  return { title, body, urgent: flags.length > 0 };
 }
 
 main().catch(e => {

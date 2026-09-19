@@ -19,6 +19,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { CACHE_DIR } from './paths.ts';
 import { dhanPost, type Credentials } from './dhan.ts';
 import { fnoUniverse, sessionState, todayIso, type FnoStock } from './instruments.ts';
 import { fetchIntraday, closingOiOn, previousSessionIn, type Candles } from './peakoi.ts';
@@ -26,7 +27,7 @@ import {
   isReplay, replayScanPlan, replayFuturesCandles, replaySessionDates, type ReplayScanPlan,
 } from './replay.ts';
 
-const CACHE_PATH = path.resolve(process.cwd(), '.cache', 'scan-oi.json');
+const CACHE_PATH = path.join(CACHE_DIR, 'scan-oi.json');
 
 /** Row 4. One key, so the 420-instrument quote never races anything else. */
 const QUOTE_KEY = 'scan:quote';

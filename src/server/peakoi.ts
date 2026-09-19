@@ -20,6 +20,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { CACHE_DIR } from './paths.ts';
 import { dhanPost, type Credentials } from './dhan.ts';
 import {
   optionContracts, optionInstrument, underlyingInstrument, todayIso,
@@ -27,7 +28,7 @@ import {
 } from './instruments.ts';
 import { isReplay, replayIntraday, replaySessionDates } from './replay.ts';
 
-const CACHE_PATH = path.resolve(process.cwd(), '.cache', 'peak-oi.json');
+const CACHE_PATH = path.join(CACHE_DIR, 'peak-oi.json');
 
 /** Row 7. One key for every peak call so the backfill is strictly serial at 1 req/s. */
 const SLOT_KEY = 'peak:oi';

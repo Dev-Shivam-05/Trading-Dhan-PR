@@ -17,13 +17,14 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { CACHE_DIR } from './paths.ts';
 
 const HOME = 'https://www.nseindia.com/';
 export const PRICE_URL =
   'https://www.nseindia.com/api/NextApi/apiClient/marketWatchApi?functionName=getIndicesData&symbol=SECURITIES%20IN%20F%26O';
 export const OI_URL = 'https://www.nseindia.com/api/live-analysis-oi-spurts-underlyings';
 
-const EVIDENCE_DIR = path.resolve(process.cwd(), '.cache', 'nse');
+const EVIDENCE_DIR = path.join(CACHE_DIR, 'nse');
 const PAGE_TIMEOUT_MS = 30_000;
 
 /** Row 11. NSE rounds to 2 dp, so an honest row recomputes to within 0.005. */

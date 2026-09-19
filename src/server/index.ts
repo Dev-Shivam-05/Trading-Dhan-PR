@@ -17,9 +17,22 @@ import { CandleService, INTERVALS, type Interval } from './candles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
+import { keepAlive, tokenExpiryMs } from './token.ts';
+import { execFileSync } from 'node:child_process';
+import { timingSafeEqual } from 'node:crypto';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
+
+/**
+ * Which commit is running, so a second machine can tell at a glance whether its clone is current
+ * (`/api/health` and the boot banner). Not a git checkout (e.g. a ZIP download) -> 'unknown'.
+ */
+const BUILD = (() => {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%h %cs %s'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch { return 'unknown (not a git checkout)'; }
+})();
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'warn' } });
 const creds = readCredentials();
@@ -29,6 +42,8 @@ const history = new TickHistory();
 const scanner = new Scanner(creds);
 const nseScanner = new NseScanner();
 const candles = new CandleService(creds);
+// P17: this process is the one token owner - it renews before the 24 h expiry and rewrites .env.
+if (!isReplay()) keepAlive(creds);
 
 /**
  * Which instruments each open SSE connection wants ticks for. The feed holds ONE socket, so it
@@ -60,6 +75,41 @@ function findInstrument(id: string): ResolvedInstrument | undefined {
   return registry.instruments.find(i => i.id === id);
 }
 
+/* ------------------------------------------------------------ access (P17) */
+
+/**
+ * Anything that reaches this server through a tunnel or a host's proxy must log in: behind it is
+ * the user's Dhan token and rate limit. A request is "local" only when it comes from loopback AND
+ * carries no X-Forwarded-For - tunnels (ngrok, cloudflared) connect from loopback but always add
+ * that header, and a client cannot strip a header the proxy adds. Local use stays password-free.
+ *
+ * With APP_PASSWORD unset nothing changes, and the server still listens on 127.0.0.1 only.
+ */
+const APP_USER = (process.env.APP_USER ?? 'dhan').trim();
+const APP_PASSWORD = (process.env.APP_PASSWORD ?? '').trim();
+
+function isDirectLocal(req: { ip: string; headers: Record<string, unknown> }): boolean {
+  const loop = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+  return loop && req.headers['x-forwarded-for'] === undefined;
+}
+
+function sameSecret(a: string, b: string): boolean {
+  const x = Buffer.from(a), y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+if (APP_PASSWORD) {
+  app.addHook('onRequest', async (req, reply) => {
+    if (isDirectLocal(req)) return;
+    const h = req.headers.authorization ?? '';
+    if (h.startsWith('Basic ')) {
+      const [user, ...rest] = Buffer.from(h.slice(6), 'base64').toString('utf8').split(':');
+      if (sameSecret(user ?? '', APP_USER) && sameSecret(rest.join(':'), APP_PASSWORD)) return;
+    }
+    return reply.code(401).header('WWW-Authenticate', 'Basic realm="Dhan terminal", charset="UTF-8"').send('login required');
+  });
+}
+
 /* ------------------------------------------------------------ static UI */
 
 const STATIC: Record<string, { file: string; type: string }> = {
@@ -77,7 +127,10 @@ for (const [route, { file, type }] of Object.entries(STATIC)) {
   app.get(route, async (_req, reply) => {
     // Explicit allow-list: no path joining from user input, no traversal surface.
     const body = await readFile(path.join(PUBLIC_DIR, file), 'utf8');
-    return reply.type(type).send(body);
+    // no-cache = revalidate every load. Without it a browser that once opened 127.0.0.1:8787 can
+    // keep painting an older app.css / app.js after a `git pull`, which reads as "the update did
+    // nothing" (the P17 audit of a second machine).
+    return reply.type(type).header('Cache-Control', 'no-cache').send(body);
   });
 }
 
@@ -89,8 +142,12 @@ app.get('/api/health', async (req) => {
   return {
     status: registry.allResolved && (creds || isReplay()) ? 'ok' : 'degraded',
     node: process.version,
+    build: BUILD,
     mode: isReplay() ? 'replay' : 'live',
-    credentials: { clientId: Boolean(creds?.clientId), accessToken: Boolean(creds?.accessToken) },
+    credentials: {
+      clientId: Boolean(creds?.clientId), accessToken: Boolean(creds?.accessToken),
+      tokenExpires: creds ? new Date(tokenExpiryMs(creds.accessToken) ?? 0).toISOString() : null,
+    },
     master: registry.meta,
     allResolved: registry.allResolved,
     instruments: registry.instruments,
@@ -433,6 +490,7 @@ const start = async () => {
   await app.listen({ port: PORT, host: '127.0.0.1' });
 
   console.log(`\nDhan Option Chain Terminal - ${mode}`);
+  console.log(`build ${BUILD}`);
   console.log(`master ${(registry.meta.bytes / 1e6).toFixed(1)} MB, ${registry.meta.rowsKept} tracked rows\n`);
   console.log(lines.join('\n'));
   if (!creds && !isReplay()) console.log('\n  ! no credentials in .env - every poll will report NO_CREDS');
