@@ -333,20 +333,22 @@ function pkMark(peak, max, side) {
   return `<i class="pkmark" style="${side === 'ce' ? 'right' : 'left'}:${pct}%"></i>`;
 }
 
-/** P20 row 1 — strikes each side of the ATM row. */
+/** P23 row 1 — strikes on each side of the spot. */
 const WING = 8;
 
 /**
- * P20 rows 1-4 (docs/spec/strike-window-v1.md): the ATM row and up to WING strikes on each side,
- * from the snapshot's own `atmStrike` so the window and the ATM the bar prints cannot disagree.
- * Near an edge it is simply shorter — rows are never borrowed from the other side. With no ATM
- * (no spot) there is nothing to centre on, so the whole chain stays.
+ * P23 (docs/spec/spot-window-v1.md), replacing P20's "ATM row + 8 each side = 17": WING strikes
+ * strictly BELOW the snapshot's spot and WING strikes AT OR ABOVE it — 16 rows. The user's own
+ * example: NIFTY 23,346.40 → 22,950 … 23,300 below and 23,350 … 23,700 above. A spot sitting
+ * exactly on a strike counts that strike as "above". Near a chain edge a side is simply shorter —
+ * rows are never borrowed from the other side. No spot → the whole chain stays.
  */
 function windowRows(s) {
   const rows = s.rows;
-  const i = rows.findIndex(r => r.strike === s.atmStrike);
-  if (i < 0) return rows;
-  return rows.slice(Math.max(0, i - WING), Math.min(rows.length, i + WING + 1));
+  if (!Number.isFinite(s.spot) || !rows.length) return rows;
+  let i = rows.findIndex(r => r.strike >= s.spot);   // first strike at or above the spot
+  if (i < 0) i = rows.length;                        // spot above the whole chain
+  return rows.slice(Math.max(0, i - WING), Math.min(rows.length, i + WING));
 }
 
 /* Read-only test seam: the P20 verification drives windowRows() with synthetic snapshots, because
@@ -440,7 +442,7 @@ function renderGrid(s) {
   const fc = $('filterChip');
   fc.hidden = shown === all.length;
   fc.textContent = q ? `showing ${shown} of ${all.length} strikes`
-    : `ATM ±${WING} · ${shown} of ${all.length} strikes`;
+    : `Spot ±${WING} · ${shown} of ${all.length} strikes`;
 
   const body = $('ocBody');
   state.rowByStrike.clear();

@@ -255,9 +255,13 @@ export function renderSvg(view, o) {
   let axis = '';
   const step = niceStep(view.hi - view.lo, plotH);
   const dp = step >= 1 ? 0 : 2;
+  // A label under the 18px last-price pill peeks out above and below it ("23,340" behind
+  // "23,346.40", seen live 2026-09-19), so any label within the pill's reach is left out.
+  const lastC = view.vis[view.vis.length - 1].c;
+  const pillAt = Math.min(Math.max(Y(lastC), 9), plotH - 9);
   for (let p = Math.ceil(view.lo / step) * step; p <= view.hi; p += step) {
     const y = Y(p);
-    if (y < 6 || y > plotH - 2) continue;
+    if (y < 6 || y > plotH - 2 || Math.abs(y - pillAt) < 14) continue;
     axis += `<text x="${f1(plotW + 6)}" y="${f1(y + 3.5)}" fill="var(--fg-faint)" `
       + `font-family="${MONO}" font-size="10">${inr(p, dp)}</text>`;
   }
