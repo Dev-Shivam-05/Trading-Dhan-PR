@@ -19,6 +19,7 @@ import { isReplay, replayBasePrice } from './replay.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
+import { timingSafeEqual } from 'node:crypto';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
@@ -72,6 +73,41 @@ let registry: Registry;
 
 function findInstrument(id: string): ResolvedInstrument | undefined {
   return registry.instruments.find(i => i.id === id);
+}
+
+/* ------------------------------------------------------------ access (P17) */
+
+/**
+ * Anything that reaches this server through a tunnel or a host's proxy must log in: behind it is
+ * the user's Dhan token and rate limit. A request is "local" only when it comes from loopback AND
+ * carries no X-Forwarded-For - tunnels (ngrok, cloudflared) connect from loopback but always add
+ * that header, and a client cannot strip a header the proxy adds. Local use stays password-free.
+ *
+ * With APP_PASSWORD unset nothing changes, and the server still listens on 127.0.0.1 only.
+ */
+const APP_USER = (process.env.APP_USER ?? 'dhan').trim();
+const APP_PASSWORD = (process.env.APP_PASSWORD ?? '').trim();
+
+function isDirectLocal(req: { ip: string; headers: Record<string, unknown> }): boolean {
+  const loop = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+  return loop && req.headers['x-forwarded-for'] === undefined;
+}
+
+function sameSecret(a: string, b: string): boolean {
+  const x = Buffer.from(a), y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+if (APP_PASSWORD) {
+  app.addHook('onRequest', async (req, reply) => {
+    if (isDirectLocal(req)) return;
+    const h = req.headers.authorization ?? '';
+    if (h.startsWith('Basic ')) {
+      const [user, ...rest] = Buffer.from(h.slice(6), 'base64').toString('utf8').split(':');
+      if (sameSecret(user ?? '', APP_USER) && sameSecret(rest.join(':'), APP_PASSWORD)) return;
+    }
+    return reply.code(401).header('WWW-Authenticate', 'Basic realm="Dhan terminal", charset="UTF-8"').send('login required');
+  });
 }
 
 /* ------------------------------------------------------------ static UI */
