@@ -448,3 +448,15 @@ removes them.
 Live, every blue candle fired between 09:15 and 09:35, because `median20` at the open includes
 yesterday's quiet tail. Making the median session-only changes `option-candles-v1.md`, so it waits
 for the user's yes.
+
+## 2026-09-19 — Underlying candles come from intraday history, not from ticks (P19)
+The strip's candles are `/v2/charts/intraday` on the underlying (5-day window, latest session
+drawn), with feed ticks only updating the forming candle. Built from ticks alone, the chart would
+be empty whenever the market is shut, which is when almost all work on this project happens. The
+earlier days in the window feed the SMAs, so SMA 20/50 already exist at 09:15.
+
+## 2026-09-19 — Chart Style is for the underlying chart only (P19)
+Up / down / background choices never reach P9's option candles. A user who picks Blue for "up"
+would otherwise see blue option candles that read as "big player entering". Custom backgrounds
+reuse the existing theme token sets (picked by luminance) rather than adding new text colours; the
+existing `#7A8597` already clears 4.5:1 on every dark swatch.
