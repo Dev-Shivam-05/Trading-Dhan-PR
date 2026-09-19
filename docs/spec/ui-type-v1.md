@@ -21,6 +21,15 @@ The P19 session note sits in the plot's top-right, over the candles.
 | 8 | Style button | Icon + the word **"Style"**, 24px tall | The Chart Style dialog is easy to miss |
 | 9 | Option window spot | Opens over the side **not** clicked: CE click → over the PE half, PE click → over the CE half | P20's open decision (PHASES Next 3 #1) |
 
+## Amendments made during the build (2026-09-19)
+
+| # | Row | Amendment | Why |
+|---|---|---|---|
+| 10 | 9 | The side rule applies when the window **opens** or the click **switches CE ↔ PE**. Another strike on the same side leaves it where the user dragged it. Height and vertical position stay the remembered ones; the width is narrowed to fit the half (floor 360px, P20's minimum) | P20 row 11 remembered the whole box; applying the side rule on every click would throw away a drag on each strike |
+| 11 | 7 | A time label whose box would run under the note is skipped (note width estimated at 6px per character, which over-estimates Inter 10px) | The note takes ~180px of the axis row, which is where the 14:30 / 15:00 labels were; the check found 0 overlaps with the skip in place |
+| 12 | 4 | Measured sideways scroll with Greeks **on**: 270px at 1440, 90px at 1620 (was 44px at 1440 with 277 cells cut off). Greeks **off**: 0px at 1440 and 1620 | The risk row asked for the number, not a smaller font |
+| 13 | 8 | Below **1180px** wide the button shows the icon only (24×24) | Measured at 1024: the labelled button left the strip header 5px of slack, and a −100.xx price change wrapped it to 64px on one of three loads |
+
 ## Out of scope
 Colours, shortcuts, element ids, data rules, the Chart Style dialog's controls (it inherits the font).
 

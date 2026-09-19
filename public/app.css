@@ -629,6 +629,9 @@ body.ucmode .lineonly{display:none!important}
 }
 .stylebtn:hover{background:var(--bg-inset);color:var(--fg-base)}
 .stylebtn:active{transform:translateY(1px)}
+/* Amendment 13 — below 1180px the word goes and the icon stays: at 1024 the labelled button left
+   the strip header 5px of slack, and a wider price change wrapped it onto a second 36px line. */
+@media (max-width:1180px){.stylebtn{width:24px;padding:0;justify-content:center}.stylebtn span{display:none}}
 #chartMode button{font-family:Inter,system-ui,sans-serif}
 
 /* Amendment 27 — a custom background carries the text tokens that suit it, by its luminance, so
