@@ -12,10 +12,10 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
+import { CACHE_DIR } from './paths.ts';
 
 const DETAILED_URL = 'https://images.dhan.co/api-data/api-scrip-master-detailed.csv';
 
-const CACHE_DIR = path.resolve(process.cwd(), '.cache');
 const CSV_PATH = path.join(CACHE_DIR, 'api-scrip-master-detailed.csv');
 const META_PATH = path.join(CACHE_DIR, 'master-meta.json');
 

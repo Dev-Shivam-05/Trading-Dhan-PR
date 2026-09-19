@@ -8,6 +8,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { CACHE_DIR } from './paths.ts';
 import { randomUUID } from 'node:crypto';
 import {
   CADENCE_MS, dhanPost, explain, fetchOptionChain,
@@ -18,7 +19,7 @@ import { PeakOiStore, type PeakView } from './peakoi.ts';
 import { isReplay, replayChain, replayLatency, replayPrevClose } from './replay.ts';
 import { daysToExpiry, sessionState, todayIso, type ResolvedInstrument } from './instruments.ts';
 
-const BASELINE_PATH = path.resolve(process.cwd(), '.cache', 'iv-baseline.json');
+const BASELINE_PATH = path.join(CACHE_DIR, 'iv-baseline.json');
 const BACKOFF_MS = [3000, 6000, 12_000, 30_000];
 const IDLE_RECHECK_MS = 60_000;
 const UNSUBSCRIBE_GRACE_MS = 30_000;

@@ -17,9 +17,21 @@ import { CandleService, INTERVALS, type Interval } from './candles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
+import { keepAlive, tokenExpiryMs } from './token.ts';
+import { execFileSync } from 'node:child_process';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
+
+/**
+ * Which commit is running, so a second machine can tell at a glance whether its clone is current
+ * (`/api/health` and the boot banner). Not a git checkout (e.g. a ZIP download) -> 'unknown'.
+ */
+const BUILD = (() => {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%h %cs %s'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch { return 'unknown (not a git checkout)'; }
+})();
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'warn' } });
 const creds = readCredentials();
@@ -29,6 +41,8 @@ const history = new TickHistory();
 const scanner = new Scanner(creds);
 const nseScanner = new NseScanner();
 const candles = new CandleService(creds);
+// P17: this process is the one token owner - it renews before the 24 h expiry and rewrites .env.
+if (!isReplay()) keepAlive(creds);
 
 /**
  * Which instruments each open SSE connection wants ticks for. The feed holds ONE socket, so it
@@ -77,7 +91,10 @@ for (const [route, { file, type }] of Object.entries(STATIC)) {
   app.get(route, async (_req, reply) => {
     // Explicit allow-list: no path joining from user input, no traversal surface.
     const body = await readFile(path.join(PUBLIC_DIR, file), 'utf8');
-    return reply.type(type).send(body);
+    // no-cache = revalidate every load. Without it a browser that once opened 127.0.0.1:8787 can
+    // keep painting an older app.css / app.js after a `git pull`, which reads as "the update did
+    // nothing" (the P17 audit of a second machine).
+    return reply.type(type).header('Cache-Control', 'no-cache').send(body);
   });
 }
 
@@ -89,8 +106,12 @@ app.get('/api/health', async (req) => {
   return {
     status: registry.allResolved && (creds || isReplay()) ? 'ok' : 'degraded',
     node: process.version,
+    build: BUILD,
     mode: isReplay() ? 'replay' : 'live',
-    credentials: { clientId: Boolean(creds?.clientId), accessToken: Boolean(creds?.accessToken) },
+    credentials: {
+      clientId: Boolean(creds?.clientId), accessToken: Boolean(creds?.accessToken),
+      tokenExpires: creds ? new Date(tokenExpiryMs(creds.accessToken) ?? 0).toISOString() : null,
+    },
     master: registry.meta,
     allResolved: registry.allResolved,
     instruments: registry.instruments,
@@ -433,6 +454,7 @@ const start = async () => {
   await app.listen({ port: PORT, host: '127.0.0.1' });
 
   console.log(`\nDhan Option Chain Terminal - ${mode}`);
+  console.log(`build ${BUILD}`);
   console.log(`master ${(registry.meta.bytes / 1e6).toFixed(1)} MB, ${registry.meta.rowsKept} tracked rows\n`);
   console.log(lines.join('\n'));
   if (!creds && !isReplay()) console.log('\n  ! no credentials in .env - every poll will report NO_CREDS');

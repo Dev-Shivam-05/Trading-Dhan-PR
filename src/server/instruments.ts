@@ -8,6 +8,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { CACHE_DIR } from './paths.ts';
 import { loadMaster, type MasterRow, type MasterMeta } from './master.ts';
 import { isReplay } from './replay.ts';
 import { fetchExpiryList, type Credentials } from './dhan.ts';
@@ -156,7 +157,7 @@ function fmt(mins: number): string {
 
 /* -------------------------------------------------------------- gold spike */
 
-const GOLD_RESOLUTION_PATH = path.resolve(process.cwd(), '.cache', 'gold-resolution.json');
+const GOLD_RESOLUTION_PATH = path.join(CACHE_DIR, 'gold-resolution.json');
 
 export type GoldResolution = { underlyingScrip: number; via: string; confirmedAt: string };
 
