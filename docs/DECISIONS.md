@@ -436,3 +436,15 @@ Another session built a card-layout P13 in a second worktree the same evening. T
 rather than rebased: that branch rewrites the very `index.html` / `app.css` blocks this phase
 touches, it was still being worked on, and rebasing onto a moving branch would have mixed two
 unmerged phases into one verification. The conflict is left for the merge, described in HANDOFF.
+
+## 2026-09-19 — Replay and live keep separate cache files (P12b)
+`peak-oi.json`, `iv-baseline.json` and `scan-oi.json` are now `*.replay.json` under `REPLAY=1`.
+The other option was a mode tag inside each entry, which needs a migration and a check in every
+reader. A file split cannot be forgotten by a future reader. The synthetic rows already in the live
+files are left in place: they are keyed by past dates that live never reads, and the 7-day prune
+removes them.
+
+## 2026-09-19 — P9's opening-candle bias is recorded, not fixed
+Live, every blue candle fired between 09:15 and 09:35, because `median20` at the open includes
+yesterday's quiet tail. Making the median session-only changes `option-candles-v1.md`, so it waits
+for the user's yes.

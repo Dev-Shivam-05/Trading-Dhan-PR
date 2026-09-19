@@ -20,6 +20,7 @@ absorbing the work.
 | P11 | Audit fixes | Sixteen defects found by a full read-only audit of `src/server/` and `public/` on 2026-09-03, each reproduced with a runnable script before any fix: the candle colour rule implemented as a division so a zero baseline inverts it; `spot ?? 0` collapsing ATM to the lowest strike and persisting that as the day's IV baseline; an unvalidated `expiry` leaking a `ChainPoller` per distinct value; the spot pill positioned off a `display:none` row; single-letter shortcuts firing on `Ctrl`; three change columns left stale beside a ticking LTP; one `Esc` consumed by two handlers | 11 | Every finding has a script that fails before the fix and passes after, and P10a's 41 checks plus the P2-P9 re-proof still pass | **done (replay)** 2026-09-03 — 16 findings, **all reproduced with a runnable script before any fix and re-run after**. 12 code files, over the ~8 rule and recorded as such. `.cache/bug-evidence-server.js` and `.cache/bug-evidence-client.js` are the evidence; P10a 41/41, P10b 30/30 and the P2–P9 re-proof 37/37 all still pass |
 | P12 | Live verification pass | The first run of every path that has never touched Dhan: `npm run check` READY, then one `/v2/charts/intraday` call (response shape, epoch units, and **whether `open_interest` is units or contracts**), one `/v2/marketfeed/quote` with 420 instruments, `npm run feed:probe` for the binary parser, and the P7/P8/P9 screens driven against live data | ~4 | `npm run check` reports READY; the intraday and quote response shapes match `dhan-api-contract.md` or the doc is corrected; the binary parser decodes real bytes; **P8's AC5 is measured with the market open**; P7, P8 and P9 each lose their "the live path has never run" note | **unblocked 2026-09-19** — plan Active, `check` READY, `live:probe` 17/0 fail (P17). Still open: `feed:probe`, P7/P8/P9 driven live, and **P8's AC5 with the market open**. Earlier: blocked — needed a fresh token **and** a paid Data API plan. These are two separate gates that fail differently; `npm run check` prints which one you are looking at. **2026-09-17: still blocked** (token expired 2026-08-28, `DH-901` / `808`), so the parts that need no credentials were done ahead of time. `npm run live:probe` (`scripts/live-probe.ts` + the pure `scripts/live-shape.ts`) answers the intraday and quote questions in five serial calls and saves every raw body to `.cache/live/`. Its 36 verdict branches pass against replay payloads and deliberately broken ones, and its gate exits cleanly on the expired token. **Found in Dhan's docs before any live call:** intraday `fromDate`/`toDate` are documented as `YYYY-MM-DD HH:MM:SS`, but `peakoi.ts` sends date-only. The probe tries the app's form first and says which one Dhan accepts. `dhan-api-contract.md` §2.5 and §2.6 now record both endpoints |
 | P12b | Live drive of P7 / P9 / feed (P12 remainder) | Each live path checked against a direct Dhan call and a second, independent implementation. The throwaway scripts are in `.cache/p12b-*.ts` | 4 | The feed parser agrees with REST on real bytes; one live strike's peak equals the max of its candle OI; one live candle's colour is re-derived by hand; P8 driven live; P8's AC5 measured with the market open | **partly done 2026-09-19 (Saturday, market shut).** **Feed:** quote (4), full (8) and OI (5) packets for NIFTY and two options agree **exactly** with `/v2/marketfeed/quote` on LTP, volume, OI and OHL. `LTT` turned out to be IST wall-clock encoded as an epoch (contract §2.4). **P7:** three live peaks matched Dhan's raw 18-Sep candles to the unit and the minute. **Bug found and fixed:** replay and live shared `peak-oi.json`, `iv-baseline.json` and `scan-oi.json`, and a cached value is never re-fetched. All 400 cached 16-Sep peaks were replay's (375 candles, not lot multiples) and Dhan's real values differ. A replay scan today wrote `baselineDate 2026-09-18`, exactly the key Monday's live scan would read. Each mode now has its own file, and it was verified that a replay run leaves the live files' mtimes untouched. **P9:** 488/488 live candles (5m / 1m / 15m, NIFTY 22-Sep) agree with Dhan on OHLC, volume and OI and are coloured the same by a second implementation. **Finding for the user, not changed:** every live blue fires in the first 20 minutes (09:15–09:35), because `median20` at the open reaches back into yesterday's quiet tail. **Open:** P8 live (`/api/scan?source=dhan` returns 409 on a shut session, and `NSE_EQ` `net_change` is 0 after the close, see contract §2.6), and P8's AC5. Both need **Mon 21 Sep 09:15+** |
+| P19 | Candles in the UI | User request 2026-09-19: "I need candles in the UI, the same candles, red and green". Most likely the main chart as green/red OHLC candlesticks. Scope, source and interval are **not decided** | ? | To be set by `spec-lock` | **requested, not specified** |
 | P13 | Card layout | *Built by another session on branch `p13-card-layout` (worktree `D:/Temp/Dhan-p13`). Its row lives on that branch; it is noted here only so the numbers do not collide again.* | — | — | see `p13-card-layout` |
 | P18 | Public URL | The terminal reachable from any device, with a login. The server side is built in P17 (`APP_PASSWORD` gate). What's missing is the transport. **(a) PC + tunnel** (ngrok is installed and logged in on this PC): every feature works, including the NSE scanner that needs a headed Chrome, but only while the PC is on. **(b) An always-on host** (Render / Railway with a persistent disk): a paid plan and the user's own account. **Not Vercel**: renewing a Dhan token invalidates the old one, so exactly one long-lived process must own it, and a serverless function has nowhere to keep it | ~3 | A URL opened on a phone asks for the login, then shows the live chain | **blocked on a user decision**, 2026-09-19. Starting the ngrok tunnel was denied by the session's permission classifier as "External Ingress Tunnel", and a token store on GitHub was denied as "Data Exfiltration". Both are the user's call, not something to route around |
 | P17 | Live data + token upkeep + 09:20 notification | The Data API plan is active (₹499/month, until 17 Oct 2026), so P12's gate is gone. The server now renews its own 24 h token (`src/server/token.ts`). The 09:20 scan sends a phone notification (`src/server/notify.ts`: ntfy, and Telegram once the user makes a bot). A Windows task runs that scan on time (`scripts/scan-task.cmd`), because GitHub started the 18-Sep 09:20 cron at 14:00 IST. One GitHub job per runner at a time, because the two late Windows jobs conflicted on `LATEST-github-windows.md`. `/api/health` reports the running commit, and the UI files are served `no-cache`. Proxied requests need a login | 11 | `npm run check` READY; the live chain matches a direct Dhan call leg for leg; the task fires and a notification arrives; a proxied request without the password gets 401 | **done, except the first 09:20 on Mon 21 Sep** 2026-09-19. `check` READY (plan Active). `live:probe` 17 pass / 2 to read / 0 fail. The live NIFTY chain matched a direct `/v2/optionchain` call on **472/472 legs** (OI and LTP). The live UI screenshot shows the LIVE badge, 237 rows and zero console errors. RenewToken measured: **GET** works (the docs' POST answers DH-905), and it **invalidates the old token** (DH-906). Renewal policy 6/6. Task `DhanNseScan0920` ran from Task Scheduler and its ntfy message was read back from the topic. It was first stuck in `Queued` because the task's default is "do not start on battery"; fixed. Auth: local 200, proxied without password 401, wrong 401, right 200, SSE through the gate streams. **11 files, over the ~8 guideline** — the user asked for all of it in one message |
@@ -28,80 +29,40 @@ absorbing the work.
 | P14 | 9:20 scanner on NSE data | The user's 14-09 voice notes (P8's scanner restated, naming "NSE spurt") plus a second recording (manual Run button, top 20 "ya 25 ya 30", cross-verify against a pre-defined F&O list). A new source for the existing panel: an off-screen headed Chrome reads NSE's "Securities in F&O" price feed and OI Spurts; `data/fno-list.txt` (210, validated) gates the universe; top N gainers + N losers → abs(chg) ≥ 2% → OI chg ≥ +7%. P8's Dhan path kept as Source `Dhan` | 7 code | Fixture funnels 210→40→26→4 / 210→50→31→4 / 210→60→36→4 with Long MFSL, Short POLICYBZR, PNBHOUSING, FEDERALBNK, agreed by a second implementation; broken fixtures fail as specified; one real NSE scan reconciles; browser checks in both themes | **done (live NSE, market closed)** 2026-09-17 — spec `docs/spec/scanner-nse-v1.md`, server **31/31**, browser **35/35**, P8 10/10 + 22/22, P2–P9 37/37, P10a 41/41, P10b 30/30. Real NSE scans: 5.4 s and 9.1 s. **Open: a scan pressed at 09:20 IST on a trading day** — whether NSE's feeds are fresh by then is unmeasured |
 
 ## Now
-**P14 (2026-09-17): the scanner works today without Dhan.** The user's new voice notes asked for
-the 9:20 scanner on NSE's own pages, and nseindia.com turned out to be reachable after all — but
-only from a *headed* Chrome (curl, headless Chromium and headless Chrome are all rejected). OI
-Spurts now lists every F&O underlying (216 rows), not the top 25. The panel's default source is NSE;
-Dhan remains selectable. On 17-Sep closing data it returns `210 → 40 → 26 → 4`. Branch
-`p14-nse-scanner`, stacked on `p12-live-verify` — **not** on `p13-card-layout`, which another
-session built in parallel and which rewrites the same `index.html` / `app.css` blocks (see HANDOFF).
+**Live data is on (P17), and the live paths are now proven against Dhan (P12b, 2026-09-19).**
+The feed parser, P7's peak OI and P9's option candles all agree with direct Dhan calls, checked by a
+second, independent implementation. P12b also found and fixed a real bug: replay and live shared
+three cache files, so a replay run could hand a live session invented peaks and baselines. The live
+server runs on 127.0.0.1:8787, owns the token and renews it (build `60e85b0`, older than the branch
+head. Restart it to pick up the login gate and the cache split).
 
-**Every phase that could be built without live credentials is built.** P10a, P10b and P11 all
-landed on 2026-09-03. **P12 is still blocked** (re-checked 2026-09-17: same expired token,
-`DH-901` / `808`). It is the first run of every path that has never touched Dhan, and it needs a
-fresh token *and* a paid Data API plan. **Its credential-free half is done**: `npm run live:probe`
-now settles the intraday and quote questions in one command, and reading Dhan's docs turned up
-one likely live failure before any call. Intraday `fromDate`/`toDate` are documented as
-`YYYY-MM-DD HH:MM:SS`, while `peakoi.ts` sends date-only. Branch `p12-live-verify`.
-`docs/spec/terminal-redesign-v1.md` is **LOCKED** — approved with one `go`, all 22 rows as
-written, plus five amendment rows (23-27) added during the two builds and marked as such.
+**What is still unproven needs a trading session:** P8 driven live, P8's AC5, and whether Dhan's
+`NSE_EQ` `net_change` has reset to 0 by 09:20 (contract §2.6). Mon 21 Sep is the first chance, and
+it is also the first real 09:20 run of the Windows task `DhanNseScan0920`.
 
-The screen is now a terminal shell: chart / chain / telemetry drawer stacked in one column with
-1px seams and two draggable splitters, a 26px always-on status rail pinned beneath them, the
-strike spine pinned with `left:0` **and** `right:0` so it cannot scroll out of view, 17 columns
-fitting 1440px with **zero** horizontal scroll (greeks behind `G`), and dark as the default theme.
-The 380px right dock is gone.
-
-**P11 is the one thing on this board that was not planned in advance.** A full read-only audit of
-`src/server/` and `public/` produced 16 defects; every one was reproduced with a runnable script
-*before* any fix and re-run after. Two of them put wrong numbers on a trading screen — the option
-candle rule could never colour the two clearest cases it exists for, and a missing `last_price`
-made ATM the lowest strike and persisted its deep-ITM IV as the day's IV baseline. One was an
-unauthenticated memory leak reachable with a single query parameter (144 -> 191 MB over 180
-requests). The evidence scripts are `.cache/bug-evidence-server.js` and
-`.cache/bug-evidence-client.js`; the acceptance scripts are `.cache/p10a-verify.js`,
-`.cache/p10b-verify.js` and `.cache/p10-reproof.js`.
-
-**Verification totals, all in replay:** P10a 41/41, P10b 30/30, the P2-P9 re-proof 37/37,
-`tsc --noEmit` clean, zero console errors over a 60 s run. `docs/shots/` re-baselined once, at the
-end of P10b, per row 22 — `06-latency-panel.png` is replaced by `06-latency-drawer.png` and
-`06b-status-rail.png`.
-
-**What is still not proven: everything that needs a live plan.** P7, P8 and P9 remain
-replay-only, P8's AC5 is still the one unmeasured criterion in the project, and P11's server-side
-fixes to `feed.ts`, `peakoi.ts` and `poller.ts` are all on paths that **have never executed
-against Dhan**. The token in `.env` expired 2026-08-28; `npm run check` reports `DH-901` / `808`,
-which is the token gate, not the data-plan gate.
-
-**Eight branches are pushed and none has a PR**: `p6-chart-tools`, `p8-p9-spec-lock`,
-`p7-peak-oi`, `p8-scanner`, `p9-option-candles`, `p10-spec-lock`, `p10a-terminal-shell` (which
-carries P10a, P10b and P11), and now `p12-live-verify`. They are stacked in that order, so merge
-them in that order.
+**Waiting on the user:** P18's transport (tunnel or paid host), P9's opening-candle question (see
+the P12b row), `gh secret set NTFY_TOPIC`, a Telegram bot, and merging the stacked branches.
 
 ## Next 3
-0. **P14 — press Scan at 09:20 IST on the next trading day** (Fri 18 Sep) with the server running
-   (`REPLAY=1 npm run dev` is fine — NSE is live regardless) and record NSE's two timestamps. That
-   is the one P14 criterion still open. Then merge `p13-card-layout` and this branch together:
-   `public/index.html` and `public/app.css` will conflict in the `#scan` block.
-1. **P12 — unblock live data.** It is now the only thing standing between this project and a real
-   verification pass, and three phases plus eleven P11 fixes are queued behind it. Get a fresh
-   token, then subscribe to Data APIs at web.dhan.co, then `npm run check` until it reports READY.
-   The token and the plan are **separate gates** and fail differently — see the project CLAUDE.md.
-2. **Then `npm run live:probe`, `npm run feed:probe`, and fix what they report, in one sitting.**
-   The live probe settles several questions at once. It checks whether Dhan accepts the date-only
-   `fromDate`/`toDate` (if not, `fetchIntraday()` must send `YYYY-MM-DD HH:MM:SS`, or P7, P8 and P9
-   all fail live). It checks whether `open_interest` is in units or contracts (P9 row 7's
-   `5 * lotSize` floor becomes `5` if it is contracts), and whether it is in the same unit as the
-   chain's `oi` (P7's `Pk %`). It also checks P8's 420-instrument body and what `net_change` and
-   `ohlc.close` actually mean. The raw bodies land in `.cache/live/`, so they can be read after the
-   token dies. **P8's AC5 must still be re-run with the market open**; it is the one criterion
-   never measured.
-3. **Open the PRs.** Seven stacked branches with no PR is the largest unmanaged risk on the
-   project now that the board is clear.
+1. **P19 — candles in the UI (user request, 2026-09-19).** In the user's words: "I need candles in
+   the UI, the same candles, red and green." Most likely this means the main (underlying/spot)
+   chart drawn as green/red OHLC candlesticks instead of the tick line. P9's option chart already
+   draws green/red candles. **Not specified yet.** Start with `spec-lock`: which chart, which
+   interval(s), where the candles come from (`/v2/charts/intraday` on the underlying vs built from
+   feed ticks), and how it coexists with P6's drawings and P9's option mode. Propose exact values
+   and wait for one word.
+2. **Mon 21 Sep, 09:15-09:30 IST — the market-open checks.** Read `.cache/scan-task.log` and the
+   ntfy message from the 09:20 task. Drive `/api/scan?source=dhan` live and recompute its funnel from
+   the payload. Measure P8's AC5. Record the time `NSE_EQ` `net_change` goes non-zero. Then run
+   `feed:probe` again to see live ticks, not just a snapshot.
+3. **P9 opening-candle decision, then the PRs.** Ask whether `median20` should stay within the
+   session (the recommendation) and apply it only on a yes. Then merge the stacked branches in
+   order. `p17-live-deploy` and `p12b-live-drive` sit on top.
 
 ## Session log
 | Date | Phase | What happened |
 |---|---|---|
+| 2026-09-19 | P12b | Live drive on a shut market. The feed (quote/full/OI packets), P7's peaks and P9's 488 candles were checked against direct Dhan calls, and all agree. Found and fixed replay/live sharing `peak-oi` / `iv-baseline` / `scan-oi` caches. P8 and AC5 wait for Monday. The user asked for red/green candles in the UI, which became P19. Branch `p12b-live-drive`. |
 | 2026-08-19 | — | PRD, API contract, spec lock and UI contract written. Dhan API facts and five of six security ids verified against the live instrument master. Awaiting `go` on `docs/spec/option-chain-v1.md`. |
 | 2026-08-19 | P0 | Spec approved (`go`). Backend skeleton built on Node 24 native TypeScript — no build step. Master downloads (35.7 MB, 185,088 tracked rows) and resolves NIFTY 13/lot 65, BANKNIFTY 25/30, SENSEX 51/20, RELIANCE 2885/500, HDFCBANK 1333/650. Session windows verified live: equity chips reported closed at 20:57 IST while MCX reported open. `tsc --noEmit` clean. **GOLD blocked**: SPIKE-01 needs `.env` credentials; candidates 483079 (near-month FUTCOM) and 114 surfaced in `/api/health`. Branch `p0-skeleton`, commit `02f0e4b`, no remote configured yet. |
 
