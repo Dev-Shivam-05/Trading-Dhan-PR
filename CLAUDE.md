@@ -383,6 +383,19 @@ UI work against a credential-free replay server on another port (`PORT=8791 REPL
 src/server/index.ts`, no `--env-file`, so it cannot touch the token), and expect the user to see
 each saved step.
 
+## "The chart is gone" — check `localStorage.chart` before debugging
+`C` (or the toggle at the right of the chart bar) collapses the strip and **persists** it in
+`localStorage.chart = '0'`, so it survives reloads. The user reported it as a disappeared chart on
+2026-09-20. Since P24 the collapsed toggle reads "▸ Show chart". When the user reports a missing
+chart, ask them to press `C` first. Likewise, an old-looking screen is usually a tab not reloaded
+since a UI change; the server already sends `no-cache`.
+
+## No double quotes inside a PowerShell here-string commit message
+`git commit -m @'…"Show chart"…'@` in Windows PowerShell 5.1 split the message at the embedded
+quotes, and git read the rest as a pathspec (`error: pathspec '…' did not match`). **Nothing was
+committed**, and a `git push` in the same call still pushed the old head. Keep commit messages free
+of `"`, and read `git log -1` after every commit.
+
 ## Replay and live must never share a persisted cache
 Replay writes synthetic values under **real** security ids. `peak-oi.json`, `iv-baseline.json` and
 `scan-oi.json` were shared, and none of them re-fetches a key it already holds. So a `REPLAY=1` run

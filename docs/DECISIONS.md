@@ -471,3 +471,26 @@ visible gain. The strike search still reaches the whole chain, because it is an 
 The user reversed four earlier invariants (all strikes rendered, the chip hidden when unfiltered,
 at least 19 visible rows, an option click taking over the strip). Each old check was rewritten in a
 `-p20` copy to assert the new rule, so the property is still being measured.
+
+## 2026-09-19 — The previous close comes from daily candles, not from marketfeed (P21)
+Once the session is over, Dhan's `/v2/marketfeed/ohlc` `close` is that day's own close and
+`quote.net_change` is 0, so the header read +0.00. The reference is now the `/v2/charts/historical`
+daily close of the session before the one the intraday payload ends on. The session is read off
+the data rather than off a weekday table, because there is no holiday list and MCX traded on a day
+NSE did not. Matches TradingView to the paisa on all five NSE chips.
+
+## 2026-09-19 — One font, and text never clipped: the grid scrolls instead (P22)
+Geist Mono was replaced by Inter with tabular figures, and the chain went from a fixed layout to
+`table-layout:auto`. The trade-off was priced before building: with Greeks on the grid scrolls
+270px at 1440 (it was 44px, with 277 cells cut off). A cut-off number on a trading screen is worse
+than a scroll bar.
+
+## 2026-09-19 — The strike window is anchored on the spot (P23)
+The user gave both ends (NIFTY 23,346.40 → 22,950 … 23,700): 8 strikes strictly below the spot
+and 8 at or above it, 16 rows. It replaces P20's ATM + 8 each side. A spot exactly on a strike
+counts that strike as "above".
+
+## 2026-09-20 — A collapsed chart says so (P24)
+The collapse is persisted in `localStorage.chart`, and a stray `C` sets it, so the user read it as
+"the chart is gone". The collapse itself stays (it is a feature). Collapsed, the toggle reads
+"▸ Show chart" instead of a rotated 24px arrow.
