@@ -23,7 +23,7 @@ const LABEL_GAP_PX = 28;
 /** Amendment 26 (guess, locked): time labels sit on IST clock boundaries at least this far apart. */
 const TIME_GAP_PX = 72;
 const TIME_STEPS_MIN = [5, 15, 30, 60, 120, 240];
-const MONO = 'Geist Mono, monospace';
+const MONO = 'Inter, system-ui, sans-serif';
 const IST_MS = 5.5 * 3600 * 1000;
 
 /* ------------------------------------------------------------------- store */
@@ -323,11 +323,15 @@ export function renderSvg(view, o) {
   const pxPerMin = (plotW * 60_000) / Math.max(1, view.t1 - view.t0);
   const stepMin = TIME_STEPS_MIN.find(m => m * pxPerMin >= TIME_GAP_PX) ?? 1440;
   let lastX = -Infinity;
+  // ui-type-v1 row 7: the session note sits at the right end of this row, so a time label that
+  // would run under it is skipped. 6px per character over-estimates Inter 10px (5.4-6.2), so the
+  // estimate errs towards a gap, never an overlap.
+  const noteLeft = o.note ? plotW - 4 - o.note.length * 6 : Infinity;
   for (const k of vis) {
     const mod = Math.round((k.t + IST_MS) / 60_000) % 1440;
     if (mod % stepMin) continue;
     const x = X(k.t);
-    if (x < 14 || x > plotW - 14 || x - lastX < TIME_GAP_PX) continue;
+    if (x < 14 || x > plotW - 14 || x - lastX < TIME_GAP_PX || x + 16 > noteLeft - 8) continue;
     lastX = x;
     times += `<text x="${f1(x)}" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" `
       + `font-size="10" text-anchor="middle">${esc(k.at)}</text>`;
@@ -349,9 +353,10 @@ export function renderSvg(view, o) {
     + (chg === null ? '' : ` <tspan fill="${kc}">${chg > 0 ? '+' : ''}${inr(chg)} (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)</tspan>`)
     + '</text>';
 
-  /* session note, top-right, opposite the readout (amendment 28) */
+  /* session note on the time-axis row, right-aligned (ui-type-v1 row 7; amendment 28 had it in
+     the plot's top-right, where it sat on the day's highs) */
   const note = o.note
-    ? `<text data-note="1" x="${f1(plotW - 4)}" y="11" text-anchor="end" fill="var(--fg-faint)" `
+    ? `<text data-note="1" x="${f1(plotW - 4)}" y="${H - 3}" text-anchor="end" fill="var(--fg-faint)" `
       + `font-family="${MONO}" font-size="10" paint-order="stroke" stroke="var(--chart-bg)" `
       + `stroke-width="3" stroke-linejoin="round">${esc(o.note)}</text>`
     : '';

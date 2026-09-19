@@ -1,7 +1,8 @@
 /* Dhan terminal — redesign v2. Spec: docs/spec/redesign-v2.md (P16).
 
    Rules that hold everywhere in this file:
-   - two families only: Geist for words, Geist Mono for every number (row 6)
+   - one family: Inter for words and numbers, tabular figures everywhere (P22 ui-type-v1 row 1;
+     was Geist + Geist Mono, whose mono digits overflowed 277 of 425 chain cells)
    - eight sizes only: 10 / 11 / 12 / 13 / 14 / 16 / 22 / 32 px (row 7) — a check enforces it
    - one accent, and the ATM row is where it lands hardest (rows 8, 14)
    - every token name the JS reads (--accent, --bg-panel, --fg-faint, --up, ...) is kept, and now
@@ -53,12 +54,12 @@
 html,body{height:100%}
 body{
   margin:0;background:var(--bg-base);color:var(--fg-base);
-  font-family:Geist,system-ui,sans-serif;font-size:13px;line-height:1.4;
+  font-family:Inter,system-ui,sans-serif;font-size:13px;line-height:1.4;font-variant-numeric:tabular-nums;
   display:flex;flex-direction:column;overflow:hidden;
   -webkit-font-smoothing:antialiased;
 }
 button,input,select{font-family:inherit}
-.mono{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.mono{font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .grow{flex:1}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 :focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:4px}
@@ -84,7 +85,7 @@ button,input,select{font-family:inherit}
 .wstab[aria-selected="true"]::after{
   content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--accent);
 }
-.wstab kbd{font:500 10px "Geist Mono",monospace;color:var(--fg-faint);margin-left:6px}
+.wstab kbd{font:500 10px Inter,system-ui,sans-serif;color:var(--fg-faint);margin-left:6px}
 .navr{min-width:180px;display:flex;justify-content:flex-end;align-items:center;gap:12px}
 .icon{
   width:30px;height:30px;border-radius:6px;border:1px solid var(--border-strong);
@@ -103,7 +104,7 @@ button,input,select{font-family:inherit}
 }
 .replaybar[hidden]{display:none}
 .replaybar b{font-weight:600;color:var(--warn)}
-.replaybar code{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-base)}
+.replaybar code{font-family:Inter,system-ui,sans-serif;font-size:11px;color:var(--fg-base)}
 
 /* ------------------------------------------------- instrument bar (row 12) */
 .hstrip{
@@ -140,7 +141,7 @@ button,input,select{font-family:inherit}
 
 .statechip{
   display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:0;
-  font:500 10px "Geist Mono",monospace;letter-spacing:.04em;white-space:nowrap;
+  font:500 10px Inter,system-ui,sans-serif;letter-spacing:.04em;white-space:nowrap;
 }
 .statechip.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
 .statechip.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 14%,transparent)}
@@ -148,7 +149,7 @@ button,input,select{font-family:inherit}
 .statechip[hidden]{display:none}
 
 .srch input,.expwrap select{
-  font-family:"Geist Mono",monospace;font-size:12px;color:var(--fg-base);
+  font-family:Inter,system-ui,sans-serif;font-size:12px;color:var(--fg-base);
   background:transparent;border:1px solid var(--border-strong);border-radius:6px;
   height:30px;padding:0 8px;
 }
@@ -169,7 +170,7 @@ a.tog.off{opacity:.45;pointer-events:none}
   height:36px;padding:0 16px;border:0;background:var(--accent);color:var(--accent-fg);font-size:13px;font-weight:600;
 }
 .tog.primary:hover{background:var(--accent-hover);color:var(--accent-fg)}
-.tog.primary kbd{font:500 10px "Geist Mono",monospace;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.18)}
+.tog.primary kbd{font:500 10px Inter,system-ui,sans-serif;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.18)}
 
 /* ----------------------------------------------------------------- shell */
 /* P10a rows 2 and 5 — panes stacked in one column, flush, one 1px seam. */
@@ -197,12 +198,14 @@ a.tog.off{opacity:.45;pointer-events:none}
 
 /* --------------------------------------------------------------- the grid */
 table.oc{
-  border-collapse:separate;border-spacing:0;width:100%;min-width:1484px;table-layout:fixed;
-  font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-variant-numeric:tabular-nums;
+  /* ui-type-v1 row 4: `auto`, so a cell grows to its text instead of cutting it. The <colgroup>
+     widths are now minimums; past the viewport the scroller takes over and the spine stays pinned. */
+  border-collapse:separate;border-spacing:0;width:100%;table-layout:auto;
+  font-family:Inter,system-ui,sans-serif;font-size:12px;font-variant-numeric:tabular-nums;
 }
 table.oc thead th{
   position:sticky;background:var(--bg-panel);z-index:3;
-  font-family:Geist,sans-serif;font-weight:500;color:var(--fg-faint);white-space:nowrap;text-align:right;padding:0 8px;
+  font-family:Inter,system-ui,sans-serif;font-weight:500;color:var(--fg-faint);white-space:nowrap;text-align:right;padding:0 8px;
 }
 thead tr.sides th{top:0;height:24px;font-size:11px;color:var(--fg-muted);border-bottom:1px solid var(--border)}
 thead th.side.ce{text-align:left}
@@ -245,7 +248,8 @@ td.oi{position:relative;isolation:isolate}
 td.oi .bar{position:absolute;top:5px;bottom:5px;left:0;border-radius:3px;z-index:-1;background:var(--down-bar)}
 td.oi.r .bar{left:auto;right:0;background:var(--up-bar)}
 td.oi.r{text-align:left}
-td.oi .pkmark{position:absolute;top:4px;bottom:4px;width:1px;background:var(--fg-faint);opacity:.7;z-index:-1}
+/* ui-type-v1 row 5: a 6px tick under the digits, not a full-height line through them. */
+td.oi .pkmark{position:absolute;bottom:2px;height:6px;width:1px;background:var(--fg-faint);opacity:.7;z-index:-1}
 
 /* P7 — live OI against yesterday's peak */
 td.pk{color:var(--fg-muted)}
@@ -259,8 +263,7 @@ tr.atm:hover td.spine{background:var(--accent-hover)}
 tr.spotline td{border-bottom:1px dashed var(--border-strong)}
 tr.hidden{display:none}
 
-/* Greeks off — P10a row 7: 17 columns / 1132px. */
-body.nogreeks table.oc{min-width:1132px}
+/* Greeks off — P10a row 7: 17 columns. */
 body.nogreeks table.oc .gk{display:none}
 
 /* Amendment 21 — 10px text, 12px tall: it overhangs each neighbouring row by 6px and clears the
@@ -303,7 +306,7 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
   border:0;background:var(--accent);color:var(--accent-fg);transition:background 160ms var(--ease);
 }
 .btn:hover{background:var(--accent-hover)}
-.exp details{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-faint);max-width:70ch;width:100%}
+.exp details{font-family:Inter,system-ui,sans-serif;font-size:11px;color:var(--fg-faint);max-width:70ch;width:100%}
 .exp details summary{cursor:pointer}
 .exp details pre{
   text-align:left;background:var(--bg-inset);color:var(--fg-muted);padding:10px 12px;border-radius:6px;
@@ -318,7 +321,7 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 }
 .rstat{display:flex;align-items:center;gap:5px}
 .rstat em{font-style:normal;color:var(--fg-faint)}
-.rv{font-family:"Geist Mono",monospace;color:var(--fg-base);font-weight:500}
+.rv{font-family:Inter,system-ui,sans-serif;color:var(--fg-base);font-weight:500}
 .rv small{color:var(--fg-faint);font-weight:400;margin-left:1px;font-size:10px}
 .rv.warn{color:var(--warn)}
 .rv.crit{color:var(--crit)}
@@ -328,14 +331,14 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .conn.on i{background:var(--ok)}
 .conn.off i{background:var(--crit)}
 .badge{
-  font:500 10px "Geist Mono",monospace;letter-spacing:.06em;padding:1px 7px;border-radius:999px;
+  font:500 10px Inter,system-ui,sans-serif;letter-spacing:.06em;padding:1px 7px;border-radius:999px;
   color:var(--fg-muted);background:var(--bg-inset);
 }
 .badge.replay{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
 .badge.live{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
-.clock{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-muted)}
+.clock{font-family:Inter,system-ui,sans-serif;font-size:11px;color:var(--fg-muted)}
 .railbtn{
-  font:500 10px "Geist Mono",monospace;cursor:pointer;height:18px;padding:0 8px;
+  font:500 10px Inter,system-ui,sans-serif;cursor:pointer;height:18px;padding:0 8px;
   background:transparent;color:var(--fg-muted);border:1px solid var(--border-strong);border-radius:4px;
   transition:background 160ms var(--ease),color 160ms var(--ease);
 }
@@ -369,7 +372,7 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .wf i[data-stage="compute"]{background:var(--compute)}
 .wf i[data-stage="transport"]{background:color-mix(in srgb,var(--render) 45%,var(--bg-inset))}
 .wf i[data-stage="render"]{background:var(--render)}
-.wfkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-family:"Geist Mono",monospace;font-size:10px;color:var(--fg-muted)}
+.wfkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-family:Inter,system-ui,sans-serif;font-size:10px;color:var(--fg-muted)}
 .wfkey span{display:flex;align-items:center;gap:5px}
 .wfkey b{width:7px;height:7px;border-radius:2px}
 .spark{width:100%;height:54px;display:block}
@@ -377,9 +380,9 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .pct{background:var(--bg-inset);border-radius:6px;padding:6px 8px}
 .pct .k2{font-size:10px;color:var(--fg-faint)}
 .pct .v2{font-size:13px;font-weight:500}
-.log table{width:100%;border-collapse:collapse;font-family:"Geist Mono",monospace;font-size:10px}
+.log table{width:100%;border-collapse:collapse;font-family:Inter,system-ui,sans-serif;font-size:10px}
 .log th{
-  position:sticky;top:0;background:var(--bg-panel);font-family:Geist,sans-serif;font-size:10px;
+  position:sticky;top:0;background:var(--bg-panel);font-family:Inter,system-ui,sans-serif;font-size:10px;
   font-weight:500;color:var(--fg-faint);padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);
 }
 .log td{padding:5px 8px;border-bottom:1px solid var(--grid-line);color:var(--fg-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -387,7 +390,7 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .log td.bad{color:var(--crit)}
 
 /* ------------------------------------------------------------ chart strip */
-/* Row 12 — a 28px header over a 112px plot, 140px in all. `C` collapses the plot. */
+/* Row 12, amended by ui-type-v1 row 6 — a 28px header over a 200px plot. `C` collapses the plot. */
 .chart{flex:0 0 auto;display:flex;flex-direction:column;background:var(--bg-base)}
 .chart-h{display:flex;align-items:center;gap:12px;min-height:28px;padding:2px 16px;flex-wrap:wrap;font-size:11px;color:var(--fg-faint)}
 .chart-h .ct{font-size:11px;color:var(--fg-faint)}
@@ -399,7 +402,7 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .dot.tick{background:var(--up)}
 .dot.slow{background:var(--accent)}
 .feedpill{
-  display:flex;align-items:center;gap:6px;font:500 10px "Geist Mono",monospace;letter-spacing:.04em;
+  display:flex;align-items:center;gap:6px;font:500 10px Inter,system-ui,sans-serif;letter-spacing:.04em;
   color:var(--fg-muted);background:var(--bg-inset);border-radius:999px;padding:1px 8px;
 }
 .feedpill i{width:6px;height:6px;border-radius:999px;background:var(--flat)}
@@ -407,10 +410,10 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .feedpill.live i{background:var(--ok);animation:pulse 2.4s infinite}
 .feedpill.bad{color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent)}
 .feedpill.bad i{background:var(--crit)}
-.tickrate{font-family:"Geist Mono",monospace;font-size:11px;color:var(--fg-faint)}
+.tickrate{font-family:Inter,system-ui,sans-serif;font-size:11px;color:var(--fg-faint)}
 .range,.tools{display:flex;gap:2px;padding:2px;border-radius:6px;background:var(--bg-inset)}
 .range button,.tools button{
-  font:500 11px "Geist Mono",monospace;height:20px;padding:0 8px;cursor:pointer;
+  font:500 11px Inter,system-ui,sans-serif;height:20px;padding:0 8px;cursor:pointer;
   background:transparent;color:var(--fg-muted);border:0;border-radius:4px;
   transition:background 160ms var(--ease),color 160ms var(--ease);
 }
@@ -423,7 +426,7 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .tools button.confirm{color:var(--crit);font-size:10px}
 #chartBtn{width:24px;height:24px;font-size:12px}
 
-.chart-body{position:relative;height:112px;min-height:70px;padding:0 16px 8px}
+.chart-body{position:relative;height:200px;min-height:70px;padding:0 16px 8px}
 .chart-body svg{width:100%;height:100%;display:block;overflow:visible}
 .chart-empty{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -494,7 +497,7 @@ body.replay .scan{top:76px}
 .seg{display:inline-flex;padding:2px;gap:2px;border-radius:6px;background:var(--bg-inset)}
 .seg button{
   height:28px;padding:0 10px;border:0;border-radius:5px;background:transparent;cursor:pointer;
-  font:500 12px Geist,sans-serif;color:var(--fg-muted);transition:background 160ms var(--ease),color 160ms var(--ease);
+  font:500 12px Inter,system-ui,sans-serif;color:var(--fg-muted);transition:background 160ms var(--ease),color 160ms var(--ease);
 }
 .seg button:hover{color:var(--fg-base)}
 .seg button[aria-pressed="true"]{background:var(--bg-panel);color:var(--fg-base);box-shadow:0 0 0 1px var(--border-strong)}
@@ -508,7 +511,7 @@ body.replay .scan{top:76px}
   background:var(--bg-panel);border:1px solid var(--border);box-shadow:var(--shadow-sm);
 }
 .fstep .fk{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint)}
-.fstep b{font:500 32px/1.1 "Geist Mono",monospace;letter-spacing:-.02em;color:var(--fg-base)}
+.fstep b{font:500 32px/1.1 Inter,system-ui,sans-serif;letter-spacing:-.02em;color:var(--fg-base)}
 .fstep .fbar{height:4px;border-radius:999px;background:var(--bg-inset);overflow:hidden;margin-top:4px}
 .fstep .fbar i{display:block;height:100%;width:0;border-radius:999px;background:var(--fg-faint);transition:width 480ms ease-out}
 .fstep em{font-style:normal;font-size:11px;color:var(--fg-faint);margin-top:4px}
@@ -530,12 +533,12 @@ body.replay .scan{top:76px}
 .scan-sec h3::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--fg-faint)}
 .scan-sec.long h3::before{background:var(--up)}
 .scan-sec.short h3::before{background:var(--down)}
-.scan-sec h3 span{font:500 12px "Geist Mono",monospace;color:var(--fg-faint)}
+.scan-sec h3 span{font:500 12px Inter,system-ui,sans-serif;color:var(--fg-faint)}
 .scan-none{margin:0;padding:16px;font-size:12px;color:var(--fg-faint)}
 
 table.scan-t{border-collapse:separate;border-spacing:0;width:100%;font-size:12px;font-variant-numeric:tabular-nums;table-layout:fixed}
 table.scan-t th{
-  text-align:right;font:500 11px Geist,sans-serif;color:var(--fg-faint);
+  text-align:right;font:500 11px Inter,system-ui,sans-serif;color:var(--fg-faint);
   padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;
 }
 table.scan-t th:first-child,table.scan-t td:first-child{padding-left:16px}
@@ -548,14 +551,14 @@ table.scan-t tbody tr:last-child td{border-bottom:0}
 table.scan-t th.l,table.scan-t td.l{text-align:left}
 table.scan-t tbody tr{transition:background 160ms var(--ease)}
 table.scan-t tbody tr:hover td{background:var(--bg-inset)}
-table.scan-t td b{font:600 14px Geist,sans-serif;color:var(--fg-base)}
-table.scan-t td .nm{display:block;font:400 11px Geist,sans-serif;color:var(--fg-faint);overflow:hidden;text-overflow:ellipsis}
+table.scan-t td b{font:600 14px Inter,system-ui,sans-serif;color:var(--fg-base)}
+table.scan-t td .nm{display:block;font:400 11px Inter,system-ui,sans-serif;color:var(--fg-faint);overflow:hidden;text-overflow:ellipsis}
 table.scan-t td.up{color:var(--up);font-size:13px;font-weight:500}
 table.scan-t td.down{color:var(--down);font-size:13px;font-weight:500}
 table.scan-t td.flat{color:var(--flat)}
 table.scan-t td.dim{color:var(--fg-faint)}
 table.scan-t td.oich span{
-  display:inline-block;font:500 11px "Geist Mono",monospace;padding:3px 6px;border-radius:999px;background:var(--bg-inset);color:var(--fg-base);
+  display:inline-block;font:500 11px Inter,system-ui,sans-serif;padding:3px 6px;border-radius:999px;background:var(--bg-inset);color:var(--fg-base);
 }
 
 .scan-skip{border-top:0}
@@ -571,7 +574,7 @@ table.scan-t td.oich span{
 .skreason{color:var(--warn);white-space:nowrap;font-size:11px}
 .skl{color:var(--fg-muted);font-size:11px}
 table.trace{width:100%;border-collapse:collapse;font-size:12px}
-table.trace th{font:500 11px Geist,sans-serif;color:var(--fg-faint);text-align:right;padding:8px 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+table.trace th{font:500 11px Inter,system-ui,sans-serif;color:var(--fg-faint);text-align:right;padding:8px 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 table.trace td{padding:6px 16px;text-align:right;border-bottom:1px solid var(--grid-line)}
 table.trace th.l,table.trace td.l{text-align:left}
 table.trace td.pass{color:var(--accent);font-weight:500}
@@ -617,8 +620,16 @@ body.ucmode .lineonly{display:none!important}
   background-image:radial-gradient(circle,var(--grid-line) 1px,transparent 1.3px);
   background-size:16px 16px;background-position:8px 8px;
 }
-#styleBtn{width:24px;height:24px}
-#chartMode button{font-family:Geist,system-ui,sans-serif}
+/* ui-type-v1 row 8 — icon + word, 24px tall, the same row height as the header's other controls. */
+.stylebtn{
+  height:24px;display:inline-flex;align-items:center;gap:6px;padding:0 10px 0 8px;cursor:pointer;
+  font:500 11px Inter,system-ui,sans-serif;color:var(--fg-muted);background:transparent;
+  border:1px solid var(--border-strong);border-radius:6px;
+  transition:background 160ms var(--ease),color 160ms var(--ease);
+}
+.stylebtn:hover{background:var(--bg-inset);color:var(--fg-base)}
+.stylebtn:active{transform:translateY(1px)}
+#chartMode button{font-family:Inter,system-ui,sans-serif}
 
 /* Amendment 27 — a custom background carries the text tokens that suit it, by its luminance, so
    the axis stays readable on a dark swatch under the light theme and the reverse. */
@@ -672,7 +683,7 @@ body.ucmode .lineonly{display:none!important}
 }
 .cs-seg button{
   display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;
-  background:transparent;color:var(--fg-faint);font:500 14px Geist,system-ui,sans-serif;cursor:pointer;
+  background:transparent;color:var(--fg-faint);font:500 14px Inter,system-ui,sans-serif;cursor:pointer;
   transition:background 120ms var(--ease),color 120ms var(--ease),box-shadow 120ms var(--ease);
 }
 .cs-seg button:hover{color:var(--fg-base)}
@@ -723,7 +734,7 @@ body.ucmode .lineonly{display:none!important}
 .cs-sma{margin-bottom:12px}
 .sma-hint{display:flex;align-items:center;padding:0 6px;font-size:11px;line-height:1.35;color:var(--fg-faint)}
 .cs-save,.cs-reset{
-  height:40px;border:0;border-radius:999px;cursor:pointer;font:600 14px Geist,system-ui,sans-serif;
+  height:40px;border:0;border-radius:999px;cursor:pointer;font:600 14px Inter,system-ui,sans-serif;
   transition:opacity 120ms var(--ease),background 120ms var(--ease);
 }
 .cs-save{background:var(--fg-base);color:var(--bg-base)}

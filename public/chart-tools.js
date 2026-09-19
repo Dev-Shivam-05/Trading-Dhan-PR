@@ -18,7 +18,7 @@ const HANDLE_R = 3.5;             // row 18
 const SAVE_MS = 250;              // row 22
 const CAP = 200;                  // row 24 — shapes per (instrument, expiry)
 const CLEAR_CONFIRM_MS = 3000;    // row 21
-const MONO = 'Geist Mono, monospace';
+const MONO = 'Inter, system-ui, sans-serif';
 const KEY_PREFIX = 'draw:v1:';    // row 22
 
 const TOOLS = ['cursor', 'trend', 'hline', 'ray', 'rect'];

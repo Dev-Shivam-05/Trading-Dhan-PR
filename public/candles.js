@@ -78,7 +78,6 @@ function setActive(on) {
   state.active = on;
   // P20 row 10: a window, not a mode. The strip underneath keeps drawing.
   $('optWin').hidden = !on;
-  if (on) placeWindow();
   document.dispatchEvent(new CustomEvent('optmode', { detail: { on } }));
   if (on) {
     if (!state.timer) state.timer = setInterval(() => refresh(false), REFRESH_MS);
@@ -108,11 +107,15 @@ function markRow() {
 /** Row 1. Exactly one contract at a time. */
 function select(strike, side) {
   if (!state.scope) return;
+  const moved = !state.active || state.sel?.side !== side;
   state.sel = { strike, side };
   state.data = null;
   state.hover = -1;
   hideTip();
   setActive(true);
+  // ui-type-v1 row 9: opening, or switching CE <-> PE, puts the window over the other half. Another
+  // strike on the same side leaves it wherever the user dragged it.
+  if (moved) placeWindow(side);
   markRow();
   renderHead();
   refresh(true);
@@ -208,7 +211,7 @@ const PAINT = {
   yellow: { fill: 'var(--big-out)', line: 'var(--big-out-line)' },
 };
 const GROUPS = ['up', 'down', 'blue', 'yellow'];
-const MONO = 'Geist Mono, monospace';
+const MONO = 'Inter, system-ui, sans-serif';
 
 function groupOf(k) {
   if (k.fired === 'blue') return 'blue';
@@ -418,15 +421,30 @@ function applyBox(b) {
   el.style.height = `${b.h}px`;
 }
 
-/** Row 11: first time, bottom-right of the chain pane, 16px in; afterwards wherever it was left. */
-function placeWindow() {
-  let b = loadBox();
-  if (!b) {
-    const w = Math.min(WIN.w, window.innerWidth - 32);
-    const r = $('work').getBoundingClientRect();
-    b = { w, h: WIN.h, x: r.right - WIN.inset - w, y: r.bottom - WIN.inset - WIN.h };
+/**
+ * ui-type-v1 row 9 (replaces P20 row 11's bottom-right default): the window opens over the half of
+ * the chain that was NOT clicked - a CE click puts it right of the strike spine, a PE click left of
+ * it - so the clicked side stays readable. Height and vertical spot are the remembered ones (else
+ * the pane's bottom, 16px in); the width is the remembered one, narrowed to fit that half.
+ */
+function placeWindow(side) {
+  const saved = loadBox();
+  const r = $('work').getBoundingClientRect();
+  const spine = document.querySelector('#oc thead th.spine')?.getBoundingClientRect();
+  const h = saved?.h ?? WIN.h;
+  const y = saved?.y ?? r.bottom - WIN.inset - h;
+  let w = saved?.w ?? WIN.w;
+  let x;
+  if (spine && spine.width) {
+    const lo = side === 'ce' ? spine.right + WIN.inset : r.left + WIN.inset;
+    const hi = side === 'ce' ? r.right - WIN.inset : spine.left - WIN.inset;
+    w = Math.max(WIN.minW, Math.min(w, hi - lo));
+    x = side === 'ce' ? hi - w : lo;
+  } else {
+    w = Math.min(w, window.innerWidth - 32);
+    x = r.right - WIN.inset - w;
   }
-  applyBox(clampBox(b));
+  applyBox(clampBox({ x, y, w, h }));
   state.dirty = true;
 }
 

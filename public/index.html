@@ -6,8 +6,8 @@
 <title>Dhan Terminal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- P16 row 6: Geist for words, Geist Mono for every number. Exactly two families. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
+<!-- P22 ui-type-v1 row 1: Inter for words and numbers, one family. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -152,8 +152,9 @@
       <button type="button" data-mode="candle" title="Candlesticks">Candles</button>
       <button type="button" data-mode="line" title="Tick line">Line</button>
     </span>
-    <button class="icon tickonly" id="styleBtn" type="button" title="Chart style" aria-label="Chart style" aria-haspopup="dialog">
-      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 2v12M8 2v12M13 2v12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1.5" y="4" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/><rect x="6.5" y="9" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/><rect x="11.5" y="5.5" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/></svg>
+    <!-- ui-type-v1 row 8: icon + word, so the dialog can be found. -->
+    <button class="stylebtn tickonly" id="styleBtn" type="button" title="Chart style" aria-haspopup="dialog">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 2v12M8 2v12M13 2v12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1.5" y="4" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/><rect x="6.5" y="9" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/><rect x="11.5" y="5.5" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/></svg><span>Style</span>
     </button>
     <button class="icon" id="chartBtn" type="button" title="Collapse chart (C)" aria-label="Collapse chart">▾</button>
   </div>

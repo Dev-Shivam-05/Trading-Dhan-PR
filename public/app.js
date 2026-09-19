@@ -906,7 +906,7 @@ function drawChart() {
   const rising = last.p >= pts[0].p;
   const stroke = rising ? 'var(--up)' : 'var(--down)';
   const lastX = X(last.t), lastY = Y(last.p);
-  const MONO = 'Geist Mono, monospace';
+  const MONO = 'Inter, system-ui, sans-serif';
 
   // Zoomed in past the data (chart-tools row 6), a price can sit outside the view. The svg is
   // overflow:visible, so anything off-plot has to be dropped or it paints over the header.
