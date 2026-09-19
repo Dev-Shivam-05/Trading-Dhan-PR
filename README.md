@@ -43,6 +43,18 @@ for a few seconds — that is how NSE is read; leave it alone. The panel shows t
 and Short lists, and NSE's own "as of" times. `REPLAY=1` only makes the option chain behind the
 panel synthetic; **the scanner always uses live NSE data**.
 
+**Is this computer's copy up to date?** Run `git pull`, start the app, and open
+<http://127.0.0.1:8787/api/health>. `build` shows the commit that is running. It should match the
+newest commit on GitHub's `main`. A ZIP download shows `unknown`, so download a fresh ZIP instead.
+
+**09:20 on your phone.** On the main PC, the Windows task `DhanNseScan0920` runs the scan at 09:20
+Mon–Fri. It sends the result to every channel set in `.env`:
+- **ntfy** (no account): install the *ntfy* app and subscribe to the topic in `NTFY_TOPIC`.
+- **Telegram**: create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN`, send your bot any message,
+  run `npm run notify:test -- --chat-id`, and set the `TELEGRAM_CHAT_ID` it prints.
+
+`npm run notify:test` sends a test message to every configured channel.
+
 No browser needed at all:
 
 ```bash
