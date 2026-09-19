@@ -366,6 +366,15 @@ not like a focus bug. A modal must (a) hand focus to the rebuilt control and (b)
 from a document-level capture listener while it is open. Any `innerHTML`-style re-render of a
 focused control needs the same care.
 
+## Dhan's `ohlc.close` is the previous close only while the session is on (measured 2026-09-19)
+After the session, `/v2/marketfeed/ohlc` and `/quote` return **that day's own close** as
+`ohlc.close` (NIFTY 23346.4 = `last_price`) and `net_change` 0 — for `IDX_I` and `NSE_EQ` alike.
+The header showed `+0.00 (+0.00%)` all weekend while TradingView showed `+75.80 (+0.33%)`. MCX's
+quote still carried the real previous close at the same moment. The previous close now comes from
+`/v2/charts/historical` (daily, official close, NSE holidays absent per exchange) — the close of
+the session before the intraday payload's latest date. The scanner's `last_price - net_change`
+has the same exposure on a shut market.
+
 ## Replay and live must never share a persisted cache
 Replay writes synthetic values under **real** security ids. `peak-oi.json`, `iv-baseline.json` and
 `scan-oi.json` were shared, and none of them re-fetches a key it already holds. So a `REPLAY=1` run
