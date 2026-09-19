@@ -202,6 +202,12 @@ export function init(options) {
     b.addEventListener('click', () => { draft.mode = b.dataset.mode; renderControls(); });
   }
   els.root.addEventListener('keydown', onKey);
+  // While the dialog is open it owns the keyboard even when focus has fallen out of it (a
+  // clicked element that re-rendered takes focus to <body> with it). Without this, Esc after a
+  // swatch click reached nothing and the dialog could not be closed from the keyboard.
+  document.addEventListener('keydown', (e) => {
+    if (draft && !els.root.contains(e.target)) onKey(e);
+  }, true);
 
   els.svg.addEventListener('pointermove', (e) => {
     const f = els.frame;
@@ -308,6 +314,12 @@ function swatchContrast(side, v) {
 
 function renderControls() {
   applyBg(els.preview, draft);
+  // The swatch rows are rebuilt below; remember which control had focus so it can be handed to
+  // its replacement instead of falling to <body>.
+  const a = document.activeElement;
+  const refocus = a && els.root.contains(a)
+    ? { group: a.closest('[role="radiogroup"]')?.id, v: a.dataset?.v, add: a.classList?.contains('add') }
+    : null;
 
   for (const b of $('csMode').querySelectorAll('button')) {
     const on = b.dataset.mode === draft.mode;
@@ -332,6 +344,11 @@ function renderControls() {
   swatchRow($('csDown'), DOWN, 'down', (o) => candleGlyph(o.v === 'theme' ? 'var(--down)' : o.v));
   renderSma();
   dirty = true;
+  if (refocus?.group && refocus.group !== 'csMode') {
+    const g = $(refocus.group);
+    const el = refocus.add ? g.querySelector('.add') : g.querySelector(`[data-v="${refocus.v}"]`);
+    (el && !el.disabled ? el : g.querySelector('[tabindex="0"]'))?.focus();
+  }
 }
 
 function swatchRow(wrap, list, field, inner) {
@@ -453,7 +470,8 @@ function onKey(e) {
     const list = focusables();
     if (!list.length) return;
     const i = list.indexOf(document.activeElement);
-    const next = e.shiftKey ? (i <= 0 ? list.length - 1 : i - 1) : (i === list.length - 1 ? 0 : i + 1);
+    const next = i < 0 ? 0
+      : e.shiftKey ? (i === 0 ? list.length - 1 : i - 1) : (i === list.length - 1 ? 0 : i + 1);
     e.preventDefault();
     list[next].focus();
     return;

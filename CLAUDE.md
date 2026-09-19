@@ -350,6 +350,14 @@ It answers P12's intraday and quote questions in five calls and keeps the raw bo
 `fetchIntraday()` sends date-only — if the probe prints `FAIL date format`, fix that before
 driving any P7/P8/P9 screen live, or every candle-backed column reads "request failed".
 
+## A control that rebuilds itself on click takes focus to `<body>` with it
+P19's Chart Style dialog re-renders its swatch rows on every pick. The clicked button was
+removed, focus fell to `<body>`, and the dialog's own `keydown` listener (on its root) never saw
+the next Esc, so the dialog could not be closed from the keyboard. That looks like "Esc is broken",
+not like a focus bug. A modal must (a) hand focus to the rebuilt control and (b) own the keyboard
+from a document-level capture listener while it is open. Any `innerHTML`-style re-render of a
+focused control needs the same care.
+
 ## Replay and live must never share a persisted cache
 Replay writes synthetic values under **real** security ids. `peak-oi.json`, `iv-baseline.json` and
 `scan-oi.json` were shared, and none of them re-fetches a key it already holds. So a `REPLAY=1` run

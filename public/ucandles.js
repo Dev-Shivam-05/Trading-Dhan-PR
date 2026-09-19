@@ -349,6 +349,13 @@ export function renderSvg(view, o) {
     + (chg === null ? '' : ` <tspan fill="${kc}">${chg > 0 ? '+' : ''}${inr(chg)} (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)</tspan>`)
     + '</text>';
 
+  /* session note, top-right, opposite the readout (amendment 28) */
+  const note = o.note
+    ? `<text data-note="1" x="${f1(plotW - 4)}" y="11" text-anchor="end" fill="var(--fg-faint)" `
+      + `font-family="${MONO}" font-size="10" paint-order="stroke" stroke="var(--chart-bg)" `
+      + `stroke-width="3" stroke-linejoin="round">${esc(o.note)}</text>`
+    : '';
+
   /* hover guide in the preview (the strip has chart-tools' crosshair instead) */
   let guide = '';
   if (o.hoverGuide && o.hover >= 0 && o.hover < vis.length) {
@@ -362,7 +369,7 @@ export function renderSvg(view, o) {
     + axis
     + `<g clip-path="url(#${clip})">${candles}${smas}${rule}</g>`
     + (o.drawings ?? '')
-    + guide + pill + times + readout
+    + guide + pill + times + readout + note
     + (o.crosshair ?? '');
 }
 

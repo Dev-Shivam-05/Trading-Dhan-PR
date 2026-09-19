@@ -153,11 +153,28 @@ for (const theme of ['light', 'dark'] as const) {
 {
   const { ctx, page } = await open('dark', false);
   await waitForChain(page);
+  // P19 made candles the default; these two shots are the tick LINE, so switch to it first.
+  await page.click('#chartMode [data-mode="line"]');
   await page.waitForTimeout(14000);            // let the chart fill with ticks
   await shot(page, '09-tick-chart-dark');
   const el = await page.$('#chartWrap');
   await el!.screenshot({ path: path.join(OUT, '10-chart-strip.png') });
   console.log('  10-chart-strip.png');
+  await ctx.close();
+}
+
+/* 14-15. P19 - the underlying candles (the default) and the Chart Style dialog. */
+{
+  const { ctx, page } = await open('dark', false);
+  await waitForChain(page);
+  await page.waitForFunction(`window.__ucandles && window.__ucandles.data() && !window.__ucandles.loading()`, null, { timeout: 20_000 });
+  await page.waitForTimeout(800);
+  const el = await page.$('#chartWrap');
+  await el!.screenshot({ path: path.join(OUT, '14-candle-strip-dark.png') });
+  console.log('  14-candle-strip-dark.png');
+  await page.click('#styleBtn');
+  await page.waitForTimeout(600);
+  await shot(page, '15-chart-style-dark');
   await ctx.close();
 }
 

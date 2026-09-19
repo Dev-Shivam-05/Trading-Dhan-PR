@@ -938,8 +938,7 @@ function drawCandleStrip() {
   const view = uc.buildView(st.data, style, tools.applyZoom);
   state.ucView = view;
 
-  // Row 21. With candles on screen a failed refresh is reported in the header note instead —
-  // the candles already drawn are still true.
+  // Row 21. With candles on screen a failed refresh is reported in the plot's note instead.
   const msg = $('ucMsg');
   msg.hidden = !!view;
   if (!view) {
@@ -953,23 +952,29 @@ function drawCandleStrip() {
   const col = cstyle.colours($('chartBody'), style);
   svg.innerHTML = uc.renderSvg(view, {
     W, H, X: tools.X, Y: tools.Y, up: col.up, down: col.down, inr,
-    hover: state.ucHover, clipId: 'ucClipStrip',
+    hover: state.ucHover, clipId: 'ucClipStrip', note: ucNote(),
     drawings: tools.renderDrawings(),               // chart-tools row 26 — above the series…
     crosshair: tools.renderCrosshair(),             // …and the crosshair on top of everything
   });
 }
 
-/** Header items that follow the candle data: interval buttons and the session note. */
+/** Header items that follow the candle data: the interval buttons. */
 function renderUcHead() {
   const st = uc.current();
   for (const b of $('ucInterval').children) {
     b.setAttribute('aria-pressed', String(b.dataset.iv === st.interval));
   }
+}
+
+/** Row 21 / amendment 28: the session note, drawn in the plot's top-right corner. In the header it
+ *  wrapped the strip to two lines at 1024px. With candles on screen a failed refresh is reported
+ *  here too — the candles already drawn are still true. */
+function ucNote() {
+  const st = uc.current();
   const d = st.data;
-  const note = $('ucNote');
-  if (d && st.message && d.candles?.length) note.textContent = st.message;
-  else if (d?.sessionDate) note.textContent = `session ${dayLabel(d.sessionDate)}${st.openNow ? '' : ' · market closed'}`;
-  else note.textContent = '';
+  if (d && st.message && d.candles?.length) return st.message;
+  if (d?.sessionDate) return `session ${dayLabel(d.sessionDate)}${st.openNow ? '' : ' · market closed'}`;
+  return '';
 }
 
 /* One paint per frame at most, however many ticks arrived in between. */

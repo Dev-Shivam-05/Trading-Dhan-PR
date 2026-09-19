@@ -625,17 +625,17 @@ body.ucmode .lineonly{display:none!important}
 /* Amendment 27 — a custom background carries the text tokens that suit it, by its luminance, so
    the axis stays readable on a dark swatch under the light theme and the reverse. */
 [data-chartbg="dark"]{
-  --fg-base:#E6EAF2; --fg-muted:#A3ADBD; --fg-faint:#8A95A8;
+  --fg-base:#E6EAF2; --fg-muted:#A3ADBD; --fg-faint:#7A8597;
   --up:#2FD08A; --down:#FF5C6C;
   --border:rgba(148,163,184,.10); --border-strong:rgba(148,163,184,.20);
-  --grid-line:rgba(148,163,184,.12);
+  --grid-line:rgba(148,163,184,.10);
   --accent:#8B7CFF; --accent-wash:rgba(139,124,255,.14); --accent-fg:#0B0B12;
 }
 [data-chartbg="light"]{
-  --fg-base:#0B1220; --fg-muted:#4B5565; --fg-faint:#5B6373;
+  --fg-base:#0B1220; --fg-muted:#4B5565; --fg-faint:#6B7385;
   --up:#047857; --down:#C81E3A;
   --border:rgba(15,23,42,.08); --border-strong:rgba(15,23,42,.16);
-  --grid-line:rgba(15,23,42,.10);
+  --grid-line:rgba(15,23,42,.07);
   --accent:#5B4BF5; --accent-wash:rgba(91,75,245,.10); --accent-fg:#FFFFFF;
 }
 
@@ -665,8 +665,8 @@ body.ucmode .lineonly{display:none!important}
   width:22px;height:22px;border-radius:999px;display:grid;place-items:center;cursor:help;
   font-size:12px;color:var(--fg-muted);border:1px solid var(--border-strong);
 }
-.cs-sub{margin:6px 0 16px;font-size:13px;line-height:1.45;color:var(--fg-muted)}
-.cs-side h3{margin:18px 0 10px;font-size:14px;font-weight:500;color:var(--fg-base)}
+.cs-sub{margin:6px 0 14px;font-size:13px;line-height:1.45;color:var(--fg-muted)}
+.cs-side h3{margin:14px 0 10px;font-size:14px;font-weight:500;color:var(--fg-base)}
 
 .cs-seg{
   display:grid;grid-template-columns:1fr 1fr;gap:4px;height:44px;padding:4px;flex:0 0 44px;
@@ -721,8 +721,8 @@ body.ucmode .lineonly{display:none!important}
 .sma[aria-checked="true"] i{opacity:1}
 .sma[aria-checked="true"] span,.sma[aria-checked="true"] input{color:var(--fg-base)}
 
-.cs-actions{margin-top:auto;padding-top:14px;display:grid;gap:8px;border-top:1px solid var(--border)}
-.cs-sma{margin-bottom:16px}
+.cs-actions{margin-top:auto;padding-top:12px;display:grid;gap:8px;border-top:1px solid var(--border)}
+.cs-sma{margin-bottom:12px}
 .sma-hint{display:flex;align-items:center;padding:0 6px;font-size:11px;line-height:1.35;color:var(--fg-faint)}
 .cs-save,.cs-reset{
   height:40px;border:0;border-radius:999px;cursor:pointer;font:600 14px Geist,system-ui,sans-serif;

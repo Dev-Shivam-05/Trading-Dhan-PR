@@ -34,6 +34,23 @@ Rows marked **(guess)** had no value in the codebase or the reference behind the
 | 23 | Strip height | Stays **112px** (P16). The dialog preview is the big view; the strip can be dragged taller | P16's ≥ 19 chain rows |
 | 24 | Files | `src/server/ucandles.ts` (new), `replay.ts`, `index.ts`, `public/ucandles.js` (new leaf), `public/chart-style.js` (new leaf), `index.html`, `app.css`, `app.js`. 8 code files | Inside the ~8 rule |
 
+## Amendments made during the build (2026-09-19)
+
+Each one either fills a value the table left open or corrects a row that measurement proved wrong.
+
+| # | Row | Amendment | Why |
+|---|---|---|---|
+| 25 | 6 | A candle's **centre sits at its open time**; the x range is `first open − iv/2` to `last open + iv/2` | chart-tools' crosshair prints the snapped point's time. With centres at `t + iv/2` it read 09:17:30 for the 09:15 candle, and fixing that inside chart-tools would have been a 9th file |
+| 26 | 8 | Time labels on IST clock boundaries (5 / 15 / 30 / 60 / 120 / 240 min), the smallest step that keeps them **≥ 72px (guess)** apart, 10px mono | The row locked price labels only |
+| 27 | 15, 18 | A custom background sets `data-chartbg="dark"` or `"light"` **by its luminance (> 0.4 = light)**, which swaps in that theme's existing text / up / down / grid tokens inside the chart. No new colour values: `#7A8597` measures 4.56–4.94:1 on all six dark swatches | Row 18 said "dark-theme tokens" only, which is wrong for a light colour picked with `+` |
+| 28 | 21 | The session note (`session 18 Sep · market closed`, or the refresh error while candles are on screen) is drawn **in the plot's top-right**, 10px mono, not beside the interval buttons | Measured: the 198px note wrapped the strip header to 64px at 1024 wide. Without it the header is 28px |
+| 29 | 15 | **Theme** background = the strip's existing `--bg-base`, not `--bg-panel` | `--bg-panel` would have changed P16's strip colour for every user who never opens the dialog |
+| 30 | 13 | The Style button is **24px**, the same as `#chartBtn` | 28px made the header row taller than its 28px min-height |
+| 31 | 16 | Candle swatches are **30px** | Eight 32px swatches plus the arrow column do not fit the 300px content width of a 340px card |
+| 32 | 12 | The SMA grid's fourth cell reads "Click to show or hide · type a period, 2–200" | The reference has a `+` there; a fourth slot is out of scope, and an empty cell looked broken |
+| 33 | 4 | A feed tick on a **later** IST date than the drawn session triggers a re-fetch, at most once per 60 s | A page opened while the market was shut has no 60 s timer (row 4), so on Monday's open it would otherwise keep Friday until reloaded |
+| 34 | 20 | Re-rendering a swatch row hands focus to the rebuilt swatch, and the dialog owns the keyboard while open even if focus has left it | Found by the suite: after a swatch click focus fell to `<body>`, and Esc could no longer close the dialog |
+
 ## Out of scope
 Volume bars, EMA / VWAP / other indicators, a fourth SMA slot, horizontal pan / zoom across days,
 intervals other than 1 / 5 / 15, restyling the P9 option candles.
