@@ -349,3 +349,11 @@ It answers P12's intraday and quote questions in five calls and keeps the raw bo
 `.cache/live/`. Dhan's docs show intraday `fromDate`/`toDate` as `YYYY-MM-DD HH:MM:SS` while
 `fetchIntraday()` sends date-only — if the probe prints `FAIL date format`, fix that before
 driving any P7/P8/P9 screen live, or every candle-backed column reads "request failed".
+
+## Replay and live must never share a persisted cache
+Replay writes synthetic values under **real** security ids. `peak-oi.json`, `iv-baseline.json` and
+`scan-oi.json` were shared, and none of them re-fetches a key it already holds. So a `REPLAY=1` run
+for UI work quietly supplied the next live session's peaks, IV baseline and scan OI baseline. Found
+live on 2026-09-19: all 400 cached 16-Sep peaks were replay's, which shows as `candles: 375`
+(Dhan's real sessions have 385, including 15:30–15:39). Each mode now writes `*.replay.json`.
+**Any new file under `CACHE_DIR` that holds market data picks its name by `isReplay()`.**

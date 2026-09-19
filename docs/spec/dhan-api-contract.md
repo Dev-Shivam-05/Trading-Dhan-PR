@@ -82,6 +82,18 @@ Limits: 5 WebSocket connections per user, 5000 instruments per connection, 100 i
 JSON message. Binary packets, **little endian**. Response codes: `2` ticker (LTP + LTT),
 `4` quote, `5` OI, `6` prev close, `8` full (quote + OI + 5×20-byte depth).
 
+**Measured live 2026-09-19 (Saturday, market shut)** — `src/server/feed.ts`'s parser on real bytes
+for NIFTY (`IDX_I 13`, quote), `NSE_FNO 56995` (quote) and `56996` (full), compared with a
+`/v2/marketfeed/quote` call made straight afterwards. LTP, volume, OI, open, high and low all
+agree **exactly** on all three. The quote subscription on an option also delivers a separate code-5
+OI packet. On a shut market each instrument sends one snapshot and then nothing.
+- **`LTT` is IST wall-clock time encoded as an epoch**, not UTC. The option's `LTT` decodes with
+  `new Date(ltt*1000)` to `15:39:59Z`, and REST says `18/09/2026 15:39:59` (IST). Subtract 19,800 s
+  to get real UTC. Nothing reads `ltt` today (replay fills it with real UTC seconds, the opposite
+  convention). Anything that starts using it must convert it.
+- The index's `LTT` and REST `last_trade_time` both read `18/09/2026 20:05:33`, hours after the
+  close. For `IDX_I` it is the last broadcast, not a trade time.
+
 ### 2.5 Intraday candles — P7, P8, P9
 Read from https://dhanhq.co/docs/v2/historical-data/ on **2026-09-17. Not yet seen live.**
 ```
@@ -110,6 +122,15 @@ POST https://api.dhan.co/v2/charts/intraday
   chain's `oi`**. P7's `Pk %` divides one by the other.
 - **Seconds or milliseconds**, and whether the arrays come flat or inside `data`. The app accepts both.
 
+**Answered live 2026-09-19** (`live:probe`, then P12b): date-only `fromDate`/`toDate` is accepted.
+The arrays are flat. Timestamps are epoch **seconds**. `open_interest` is in **units** (every value
+is a multiple of the lot) and in the same unit as the chain's `oi`. A session has **385** one-minute
+candles, not 375: Dhan includes `15:30`–`15:39` after the close (5-minute: 77 candles, up to `15:35`).
+Replay synthesises 375, so a cached entry with `candles: 375` came from replay.
+Three P7 peaks read from the live server's cache matched Dhan's raw 18-Sep candles to the unit and
+the minute. So did 488/488 of P9's live candles (OHLC, volume, OI and colour, recomputed
+independently). See PHASES P12b.
+
 ### 2.6 Market Quote response — P8's scanner
 Read from https://dhanhq.co/docs/v2/market-quote/ on **2026-09-17. Not yet seen live.** P8 uses
 this as its **primary** source, not as the fallback that §2.3 describes.
@@ -135,6 +156,19 @@ The scanner computes `prevClose = last_price - net_change` (scanner-v1 row 5), w
 documented meaning. It uses `ohlc.close` only as a fallback. If live `close` turns out to be today's
 price, that fallback would score every stock at 0.00%. The probe checks both readings against each
 other.
+
+**Measured live 2026-09-19, market shut — the two segments do not behave the same:**
+- `NSE_FNO`: `net_change` is non-zero on 210/210 futures, and `ohlc.close` is the **previous**
+  close. For option 56995: `last_price 88.05`, `close 94.60`, `net_change -6.55`.
+- `NSE_EQ` (07:09 IST) and `IDX_I` (19:40 IST): `net_change` is **0** on 210/210 and `close ==
+  last_price`. After the close, the cash segment's `close` becomes the day's close and the change
+  resets. So row 5's `prevClose = last_price - net_change` gives 0.00% for every stock outside
+  the session. `/api/scan?source=dhan` already refuses a shut session (409), which is why P8 cannot
+  be driven live on a weekend. **The time the reset happens is still unmeasured.** If it is before
+  the 09:20 scan, the Dhan scan reads 0% for every stock. Check it on the first trading morning.
+- `oi_day_high` read on a shut market is the **last session's** peak. 56995 reads `17206605`,
+  exactly P7's candle-derived peak for 18 Sep. That makes it a free cross-check for P7, but only
+  while the market is shut.
 
 ## 3. Rate limits that shape the architecture
 
