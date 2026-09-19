@@ -2,6 +2,9 @@
    Talks only to the local backend. Never sees a Dhan credential. */
 
 import * as tools from '/chart-tools.js';
+// P19. Both are leaves (chart-style imports only ucandles), so there is no cycle back into here.
+import * as uc from '/ucandles.js';
+import * as cstyle from '/chart-style.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -85,6 +88,10 @@ const state = {
   rowByStrike: new Map(),
   tickTimes: [],
   feed: { state: 'off' },
+  // P19 underlying candles: the candle under the pointer (index into the drawn session), and the
+  // last frame's view so the pointer can be turned back into a candle.
+  ucHover: -1,
+  ucView: null,
 };
 
 /* ------------------------------------------------------------------ chips */
@@ -147,6 +154,8 @@ function select(id, expiry) {
   $('chartChg').className = 'cchg mono tickonly dim';
   state.chartDirty = true;
   tools.setScope(inst.id, state.expiry);       // drawings never cross an instrument or an expiry
+  state.ucHover = -1;
+  uc.setScope(inst.id, inst.label);            // underlying-candles-v1.md row 2
 
   [...$('chips').children].forEach((b, i) =>
     b.setAttribute('aria-pressed', String(state.instruments[i].id === id)));
@@ -615,6 +624,9 @@ $('themeBtn').addEventListener('click', () => {
   localStorage.setItem('theme', next);
   applyTheme(next);
   if (state.snapshot) placeSpotPill(state.snapshot);
+  // The candle colours re-resolve against the new theme (underlying-candles-v1.md row 18).
+  state.chartDirty = true;
+  cstyle.repaint();
 });
 
 /* The 380px right dock is gone (P10b row 12). telemetry.js owns #panelBtn and the drawer; `L`
@@ -692,6 +704,7 @@ function onTicks(batch) {
     if (it.k === 'u') {
       if (it.p !== null && it.p !== undefined) {
         state.ticks.push({ t: it.t, p: it.p });
+        uc.onTick(it.t, it.p);                   // underlying-candles-v1.md row 4: the forming candle
         // The chart only ever needs the visible window plus a little slack.
         if (state.ticks.length > 6000) state.ticks.splice(0, state.ticks.length - 6000);
         paintSpot(it.p);
@@ -822,6 +835,7 @@ function drawChart() {
   // In option-candle mode candles.js owns the strip. The drawing tools stay bound to the
   // underlying tick chart and are disabled here — option-candles-v1.md row 17.
   if (document.body.classList.contains('optmode')) { tools.setEnabled(false); return; }
+  if (document.body.classList.contains('ucmode')) { drawCandleStrip(); return; }
 
   const svg = $('chartSvg');
   const box = svg.getBoundingClientRect();
@@ -907,6 +921,57 @@ function drawChart() {
     + tools.renderCrosshair();                        // …and the crosshair on top of everything
 }
 
+/**
+ * P19 — the strip as underlying candles (underlying-candles-v1.md). Same svg, same content box
+ * and the same chart-tools frame as the tick line, so the axis drag, the crosshair and every P6
+ * drawing work unchanged: a drawing is (time, price), and X()/Y() are chart-tools' own.
+ */
+function drawCandleStrip() {
+  const svg = $('chartSvg');
+  const box = svg.getBoundingClientRect();
+  const W = Math.max(1, Math.round(box.width));
+  const H = Math.max(1, Math.round(box.height));
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const st = uc.current();
+  const style = cstyle.get();
+  const view = uc.buildView(st.data, style, tools.applyZoom);
+  state.ucView = view;
+
+  // Row 21. With candles on screen a failed refresh is reported in the header note instead —
+  // the candles already drawn are still true.
+  const msg = $('ucMsg');
+  msg.hidden = !!view;
+  if (!view) {
+    msg.textContent = st.loading ? 'loading candles…'
+      : (st.message ?? `no candles for ${st.label} in the last 5 days`);
+  }
+  tools.setEnabled(!!view && view.vis.length >= 2);  // chart-tools row 25
+  if (!view) { svg.innerHTML = ''; return; }
+
+  tools.setFrame({ W, H, t0: view.t0, t1: view.t1, lo: view.lo, hi: view.hi, pts: view.pts });
+  const col = cstyle.colours($('chartBody'), style);
+  svg.innerHTML = uc.renderSvg(view, {
+    W, H, X: tools.X, Y: tools.Y, up: col.up, down: col.down, inr,
+    hover: state.ucHover, clipId: 'ucClipStrip',
+    drawings: tools.renderDrawings(),               // chart-tools row 26 — above the series…
+    crosshair: tools.renderCrosshair(),             // …and the crosshair on top of everything
+  });
+}
+
+/** Header items that follow the candle data: interval buttons and the session note. */
+function renderUcHead() {
+  const st = uc.current();
+  for (const b of $('ucInterval').children) {
+    b.setAttribute('aria-pressed', String(b.dataset.iv === st.interval));
+  }
+  const d = st.data;
+  const note = $('ucNote');
+  if (d && st.message && d.candles?.length) note.textContent = st.message;
+  else if (d?.sessionDate) note.textContent = `session ${dayLabel(d.sessionDate)}${st.openNow ? '' : ' · market closed'}`;
+  else note.textContent = '';
+}
+
 /* One paint per frame at most, however many ticks arrived in between. */
 function chartLoop() {
   if (state.chartDirty) {
@@ -915,6 +980,11 @@ function chartLoop() {
     drawChart();
     // paint cost, read by the replay verification script through the chart-tools test seam
     if (window.__chart) window.__chart.paintMs = performance.now() - t0;
+    if (document.body.classList.contains('ucmode') && window.__ucandles) {
+      const p = window.__ucandles.paints;
+      p.push(performance.now() - t0);
+      if (p.length > 400) p.shift();
+    }
   }
   requestAnimationFrame(chartLoop);
 }
@@ -938,6 +1008,45 @@ tools.init({
   tools: $('chartTools'),
   inr,
   repaint: () => { state.chartDirty = true; },
+});
+
+/* P19 — mode, interval and the Chart Style dialog (underlying-candles-v1.md rows 1, 3, 13, 19) */
+function applyStyle(s) {
+  document.body.classList.toggle('ucmode', s.mode === 'candle');
+  for (const b of $('chartMode').children) b.setAttribute('aria-pressed', String(b.dataset.mode === s.mode));
+  cstyle.applyBg($('chartBody'), s);
+  state.ucHover = -1;
+  state.chartDirty = true;
+}
+uc.init({
+  onChange: () => { renderUcHead(); state.chartDirty = true; cstyle.repaint(); },
+});
+cstyle.init({ inr, onSave: applyStyle });
+applyStyle(cstyle.get());
+renderUcHead();
+$('chartMode').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b) cstyle.setMode(b.dataset.mode);
+});
+$('ucInterval').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.ucHover = -1;
+  uc.setInterval_(b.dataset.iv);
+});
+$('styleBtn').addEventListener('click', () => cstyle.open());
+/* Row 11 — the readout follows the pointer. chart-tools owns the surface's crosshair; this only
+   reads the same pointer, it does not compete for it. */
+$('chartSurface').addEventListener('pointermove', (e) => {
+  if (!document.body.classList.contains('ucmode') || !state.ucView) return;
+  const r = $('chartSurface').getBoundingClientRect();
+  const v = state.ucView;
+  const t = v.t0 + ((e.clientX - r.left) / Math.max(1, r.width)) * (v.t1 - v.t0);
+  const i = uc.indexAt(v, t);
+  if (i !== state.ucHover) { state.ucHover = i; state.chartDirty = true; }
+});
+$('chartSurface').addEventListener('pointerleave', () => {
+  if (state.ucHover !== -1) { state.ucHover = -1; state.chartDirty = true; }
 });
 
 $('chartRange').addEventListener('click', (e) => {

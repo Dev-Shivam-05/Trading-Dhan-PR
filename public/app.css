@@ -603,3 +603,152 @@ table.trace td.pass{color:var(--accent);font-weight:500}
 }
 /* The chip is wider than a clipped number; let it show whole rather than end in an ellipsis. */
 table.scan-t td.oich{overflow:visible;text-overflow:clip}
+
+/* ------------------------------------------ underlying candles + Chart Style (P19) */
+/* docs/spec/underlying-candles-v1.md. Same load-bearing !important pair as P9's: .chart-empty and
+   .chart-body svg set their own display, and a mode item left on screen reads as broken JS. */
+body:not(.ucmode) .uconly{display:none!important}
+body.ucmode .lineonly{display:none!important}
+#ucMsg[hidden],#csMsg[hidden],.cs-warn[hidden]{display:none!important}
+
+/* Row 9 — the dot grid is the plot's background in both modes. `--chart-bg` is what the Chart
+   Style background overrides, and the OHLC readout's halo reads it. */
+.chart-body{
+  --chart-bg:var(--bg-base);
+  background-color:var(--chart-bg);
+  background-image:radial-gradient(circle,var(--grid-line) 1px,transparent 1.3px);
+  background-size:16px 16px;background-position:8px 8px;
+}
+#styleBtn{width:24px;height:24px}
+#chartMode button{font-family:Geist,system-ui,sans-serif}
+
+/* Amendment 27 — a custom background carries the text tokens that suit it, by its luminance, so
+   the axis stays readable on a dark swatch under the light theme and the reverse. */
+[data-chartbg="dark"]{
+  --fg-base:#E6EAF2; --fg-muted:#A3ADBD; --fg-faint:#8A95A8;
+  --up:#2FD08A; --down:#FF5C6C;
+  --border:rgba(148,163,184,.10); --border-strong:rgba(148,163,184,.20);
+  --grid-line:rgba(148,163,184,.12);
+  --accent:#8B7CFF; --accent-wash:rgba(139,124,255,.14); --accent-fg:#0B0B12;
+}
+[data-chartbg="light"]{
+  --fg-base:#0B1220; --fg-muted:#4B5565; --fg-faint:#5B6373;
+  --up:#047857; --down:#C81E3A;
+  --border:rgba(15,23,42,.08); --border-strong:rgba(15,23,42,.16);
+  --grid-line:rgba(15,23,42,.10);
+  --accent:#5B4BF5; --accent-wash:rgba(91,75,245,.10); --accent-fg:#FFFFFF;
+}
+
+/* Row 13 — the dialog frame */
+.csx{
+  position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);animation:csfade 180ms var(--ease);
+}
+.csx[hidden]{display:none!important}
+.cs{
+  width:min(1040px,calc(100vw - 48px));height:min(640px,calc(100vh - 96px));
+  display:flex;gap:12px;padding:12px;border-radius:28px;
+  background:var(--bg-base);border:1px solid var(--border-strong);box-shadow:var(--shadow-md);
+  animation:cspop 180ms var(--ease);
+}
+@keyframes csfade{from{opacity:0}to{opacity:1}}
+@keyframes cspop{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
+
+/* Row 14 — the controls card */
+.cs-side{
+  flex:0 0 340px;display:flex;flex-direction:column;padding:20px;overflow:auto;
+  background:var(--bg-subtle);border:1px solid var(--border);border-radius:20px;
+}
+.cs-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cs-head h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;color:var(--fg-base)}
+.cs-help{
+  width:22px;height:22px;border-radius:999px;display:grid;place-items:center;cursor:help;
+  font-size:12px;color:var(--fg-muted);border:1px solid var(--border-strong);
+}
+.cs-sub{margin:6px 0 16px;font-size:13px;line-height:1.45;color:var(--fg-muted)}
+.cs-side h3{margin:18px 0 10px;font-size:14px;font-weight:500;color:var(--fg-base)}
+
+.cs-seg{
+  display:grid;grid-template-columns:1fr 1fr;gap:4px;height:44px;padding:4px;flex:0 0 44px;
+  border-radius:999px;background:var(--bg-base);border:1px solid var(--border);
+}
+.cs-seg button{
+  display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;
+  background:transparent;color:var(--fg-faint);font:500 14px Geist,system-ui,sans-serif;cursor:pointer;
+  transition:background 120ms var(--ease),color 120ms var(--ease),box-shadow 120ms var(--ease);
+}
+.cs-seg button:hover{color:var(--fg-base)}
+.cs-seg button[aria-checked="true"]{
+  background:var(--bg-inset);color:var(--fg-base);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 8px rgba(0,0,0,.28);
+}
+
+/* Rows 15-17 — swatches. The ring sits outside a 2px gap in the card's own colour. */
+.cs-sw{display:flex;align-items:center;justify-content:space-between}
+.sw{
+  position:relative;width:28px;height:28px;padding:0;border:0;border-radius:999px;cursor:pointer;
+  display:grid;place-items:center;background:var(--bg-inset);color:var(--fg-faint);
+  transition:transform 120ms var(--ease),box-shadow 120ms var(--ease),opacity 120ms var(--ease);
+}
+.sw i{display:block;width:20px;height:20px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(148,163,184,.28)}
+.sw:hover:not(:disabled){transform:scale(1.08)}
+.sw[aria-checked="true"]{box-shadow:0 0 0 2px var(--bg-subtle),0 0 0 3.5px var(--fg-muted)}
+.sw:disabled{opacity:.28;cursor:not-allowed}
+.sw.add span{font-size:16px;line-height:1}
+.sw.add:not(.custom){background:transparent;box-shadow:inset 0 0 0 1px var(--border-strong)}
+.cs-row{display:grid;grid-template-columns:16px 1fr;align-items:center;gap:8px;margin-bottom:8px}
+.cs-dir{font-size:14px;color:var(--fg-faint);text-align:center}
+.cs-sw.candle .sw{width:30px;height:30px;background:var(--bg-base)}
+.cs-warn{margin:2px 0 0;font-size:11px;line-height:1.4;color:var(--warn)}
+
+/* Row 12 — SMA slots, two to a row like the reference */
+.cs-sma{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sma{
+  display:flex;align-items:center;gap:8px;height:40px;padding:0 10px 0 14px;border-radius:999px;
+  background:var(--bg-base);border:1px solid var(--border);cursor:pointer;user-select:none;
+  transition:background 120ms var(--ease),border-color 120ms var(--ease);
+}
+.sma i{flex:0 0 32px;height:2px;border-radius:2px;opacity:.35;transition:opacity 120ms var(--ease)}
+.sma span{font-size:12px;color:var(--fg-faint)}
+.sma input{
+  width:34px;margin-left:auto;border:0;border-radius:6px;padding:2px 4px;text-align:right;
+  background:transparent;color:var(--fg-muted);font-size:13px;-moz-appearance:textfield;appearance:textfield;
+}
+.sma input::-webkit-outer-spin-button,.sma input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.sma input:focus{background:var(--bg-base);outline:none;color:var(--fg-base)}
+.sma:hover{border-color:var(--border-strong)}
+.sma[aria-checked="true"]{background:var(--bg-inset);border-color:var(--border-strong)}
+.sma[aria-checked="true"] i{opacity:1}
+.sma[aria-checked="true"] span,.sma[aria-checked="true"] input{color:var(--fg-base)}
+
+.cs-actions{margin-top:auto;padding-top:14px;display:grid;gap:8px;border-top:1px solid var(--border)}
+.cs-sma{margin-bottom:16px}
+.sma-hint{display:flex;align-items:center;padding:0 6px;font-size:11px;line-height:1.35;color:var(--fg-faint)}
+.cs-save,.cs-reset{
+  height:40px;border:0;border-radius:999px;cursor:pointer;font:600 14px Geist,system-ui,sans-serif;
+  transition:opacity 120ms var(--ease),background 120ms var(--ease);
+}
+.cs-save{background:var(--fg-base);color:var(--bg-base)}
+.cs-save:hover{opacity:.9}
+.cs-reset{background:var(--bg-inset);color:var(--fg-base)}
+.cs-reset:hover{background:var(--border-strong)}
+
+/* Row 13 — the preview */
+.cs-preview{
+  --chart-bg:var(--bg-base);
+  flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 20px 12px 24px;border-radius:20px;
+  background-color:var(--chart-bg);
+  background-image:radial-gradient(circle,var(--grid-line) 1px,transparent 1.3px);
+  background-size:16px 16px;background-position:8px 8px;
+}
+.cs-ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.cs-sym{font-size:22px;font-weight:600;letter-spacing:-.01em;color:var(--fg-base)}
+.cs-name{margin-top:2px;font-size:13px;color:var(--fg-muted)}
+.cs-close{
+  flex:0 0 40px;width:40px;height:40px;border:0;border-radius:999px;display:grid;place-items:center;
+  cursor:pointer;background:var(--bg-inset);color:var(--fg-muted);
+  transition:color 120ms var(--ease),background 120ms var(--ease);
+}
+.cs-close:hover{color:var(--fg-base);background:var(--border-strong)}
+.cs-plot{position:relative;flex:1;min-height:0;margin-top:16px}
+.cs-plot svg{width:100%;height:100%;display:block;overflow:visible}

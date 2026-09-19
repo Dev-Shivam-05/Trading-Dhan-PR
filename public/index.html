@@ -122,7 +122,10 @@
       <span><i class="dot bigin"></i>blue: big player entering</span>
       <span><i class="dot bigout"></i>yellow: exiting</span>
     </span>
-    <span class="ct tickonly">Tick chart</span>
+    <span class="ct tickonly lineonly">Tick chart</span>
+    <!-- P19: the same strip as candles (underlying-candles-v1.md row 1). `uconly` / `lineonly`
+         pick the mode's items; `tickonly` still hides all of them in P9's option-candle mode. -->
+    <span class="ct tickonly uconly" id="ucTitle">Candles</span>
     <span class="cpx mono tickonly" id="chartPx">—</span>
     <span class="cchg mono tickonly" id="chartChg">—</span>
     <span class="legend tickonly">
@@ -130,6 +133,7 @@
       <span><i class="dot slow"></i>3&nbsp;s: IV · Greeks</span>
     </span>
     <span class="grow"></span>
+    <span class="candlecount mono tickonly uconly" id="ucNote"></span>
     <span class="candlecount mono opt" id="candleCount"></span>
     <span class="range opt" id="candleInterval" role="group" aria-label="Candle interval">
       <button type="button" data-iv="1">1m</button>
@@ -147,17 +151,30 @@
       <button type="button" data-tool="rect" aria-pressed="false" title="Rectangle (B)" aria-label="Rectangle">▭</button>
       <button type="button" id="chartClear" title="Clear all drawings — click twice" aria-label="Clear all drawings">✕</button>
     </span>
-    <span class="range tickonly" id="chartRange" role="group" aria-label="Chart window">
+    <span class="range tickonly uconly" id="ucInterval" role="group" aria-label="Candle interval">
+      <button type="button" data-iv="1">1m</button>
+      <button type="button" data-iv="5">5m</button>
+      <button type="button" data-iv="15">15m</button>
+    </span>
+    <span class="range tickonly lineonly" id="chartRange" role="group" aria-label="Chart window">
       <button type="button" data-range="60000">1m</button>
       <button type="button" data-range="300000" aria-pressed="true">5m</button>
       <button type="button" data-range="900000">15m</button>
       <button type="button" data-range="0">All</button>
     </span>
+    <span class="range tickonly" id="chartMode" role="group" aria-label="Chart type">
+      <button type="button" data-mode="candle" title="Candlesticks">Candles</button>
+      <button type="button" data-mode="line" title="Tick line">Line</button>
+    </span>
+    <button class="icon tickonly" id="styleBtn" type="button" title="Chart style" aria-label="Chart style" aria-haspopup="dialog">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 2v12M8 2v12M13 2v12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1.5" y="4" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/><rect x="6.5" y="9" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/><rect x="11.5" y="5.5" width="3" height="3" rx="1" fill="var(--bg-base)" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
     <button class="icon" id="chartBtn" type="button" title="Collapse chart (C)" aria-label="Collapse chart">▾</button>
   </div>
   <div class="chart-body" id="chartBody">
     <svg id="chartSvg" class="tickonly" preserveAspectRatio="none" aria-label="Live tick chart"></svg>
-    <div class="chart-empty tickonly" id="chartEmpty">waiting for the first tick…</div>
+    <div class="chart-empty tickonly lineonly" id="chartEmpty">waiting for the first tick…</div>
+    <div class="chart-empty tickonly uconly" id="ucMsg" hidden></div>
     <div class="chart-surface tickonly" id="chartSurface"></div>
     <div class="chart-axis tickonly" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
     <svg id="candleSvg" class="opt" preserveAspectRatio="none" aria-label="Option candles"></svg>
@@ -293,6 +310,61 @@
           title="Toggle the telemetry drawer (L)">⇥ latency</button>
   <span class="clock mono rdrop2" id="clock">--:--:--</span>
 </footer>
+
+<!-- P19 Chart Style dialog — underlying-candles-v1.md rows 13-20. chart-style.js fills the
+     swatch rows and owns every behaviour; this is only the frame. -->
+<div class="csx" id="chartStyle" hidden>
+  <div class="cs" role="dialog" aria-modal="true" aria-labelledby="csTitle">
+    <div class="cs-side">
+      <div class="cs-head">
+        <h2 id="csTitle">Chart Style</h2>
+        <span class="cs-help" tabindex="0" role="note"
+              title="Applies to the underlying chart only. Option candles keep green / red with their blue / yellow signals."
+              aria-label="Applies to the underlying chart only. Option candles keep green and red with their blue and yellow signals.">?</span>
+      </div>
+      <p class="cs-sub">Chart Style overrides Layout and Light/Dark mode settings</p>
+      <div class="cs-seg" id="csMode" role="radiogroup" aria-label="Chart type">
+        <button type="button" role="radio" data-mode="candle">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5 1.5v13M11 1.5v13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="3" y="4" width="4" height="7" rx="1" fill="currentColor"/><rect x="9" y="6" width="4" height="5" rx="1" fill="currentColor"/></svg>
+          Candle
+        </button>
+        <button type="button" role="radio" data-mode="line">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M1.5 12l4-4.5 3 2.5 5.5-6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M1.5 14.5h13" stroke="currentColor" stroke-width="1.2" opacity=".5"/></svg>
+          Line
+        </button>
+      </div>
+      <h3 id="csBgLabel">Background</h3>
+      <div class="cs-sw" id="csBg" role="radiogroup" aria-labelledby="csBgLabel"></div>
+      <h3>Candle Stick</h3>
+      <div class="cs-row"><span class="cs-dir" aria-hidden="true">&uarr;</span>
+        <div class="cs-sw candle" id="csUp" role="radiogroup" aria-label="Candle up colour"></div></div>
+      <div class="cs-row"><span class="cs-dir" aria-hidden="true">&darr;</span>
+        <div class="cs-sw candle" id="csDown" role="radiogroup" aria-label="Candle down colour"></div></div>
+      <p class="cs-warn" id="csWarn" role="status" aria-live="polite" hidden></p>
+      <h3>SMA Indicator</h3>
+      <div class="cs-sma" id="csSma"></div>
+      <div class="cs-actions">
+        <button type="button" class="cs-save" id="csSave">Save</button>
+        <button type="button" class="cs-reset" id="csReset">Reset</button>
+      </div>
+    </div>
+    <div class="cs-preview" id="csPreview">
+      <header class="cs-ph">
+        <div>
+          <div class="cs-sym" id="csSym"></div>
+          <div class="cs-name" id="csName"></div>
+        </div>
+        <button type="button" class="cs-close" id="csClose" aria-label="Close without saving (Esc)" title="Close without saving (Esc)">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+      <div class="cs-plot">
+        <svg id="csSvg" preserveAspectRatio="none" aria-label="Chart style preview"></svg>
+        <div class="chart-empty" id="csMsg" hidden></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
