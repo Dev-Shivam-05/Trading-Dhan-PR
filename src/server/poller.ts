@@ -15,9 +15,11 @@ import {
   type CallTiming, type Credentials, type OptionChainResponse,
 } from './dhan.ts';
 import { derive, ivChangePct, type Baseline, type Derived } from './derive.ts';
-import { PeakOiStore, type PeakView } from './peakoi.ts';
+import { PeakOiStore, datesIn, fetchIntraday, istParts, type Candles, type PeakView } from './peakoi.ts';
 import { isReplay, replayChain, replayLatency, replayPrevClose } from './replay.ts';
-import { daysToExpiry, sessionState, todayIso, type ResolvedInstrument } from './instruments.ts';
+import {
+  daysToExpiry, sessionState, todayIso, underlyingInstrument, type ResolvedInstrument,
+} from './instruments.ts';
 
 // The first ATM IV of the day sticks, so a replay run before a live one would fix today's live
 // IV change against a synthetic number. Keep the modes apart.
@@ -316,7 +318,7 @@ class ChainPoller {
     const d = derive(call.data);
 
     const baseline = await this.baselines.get(this.key, d.atmIV);
-    const prevClose = await underlyingPrevClose(this.instrument, this.creds);
+    const prevClose = await underlyingPrevClose(this.instrument, this.creds, session.openNow);
     const spotChange = prevClose !== null ? d.spot - prevClose : null;
 
     // P7: enqueue whatever peaks this strike list still needs and read what is already cached.
@@ -369,40 +371,77 @@ class ChainPoller {
 /* ------------------------------------------------------ underlying prev close */
 
 /**
- * Previous close of the UNDERLYING, for the header's spot change. It does not move intraday,
- * so one call per instrument per day is enough. Dhan's OHLC `close` is the reference close for
- * the instrument; if it ever comes back equal to spot during a live session, this assumption
- * needs revisiting against a live token.
+ * Previous close of the UNDERLYING, for the header's spot change: the daily close of the session
+ * BEFORE the one the spot belongs to.
+ *
+ * Not `/v2/marketfeed/ohlc`'s `close`. Measured Sat 2026-09-19: once the session is over Dhan
+ * returns that day's own close there (NIFTY `close` 23346.4 = `last_price` 23346.4, quote
+ * `net_change` 0), so the header read +0.00 (+0.00%) against TradingView's +75.80 (+0.33%).
+ *
+ * The session the spot belongs to is read off the intraday payload's latest date, not off a
+ * weekday table (there is no holiday list here - MCX traded on 14 Sep while NSE did not). The
+ * close comes from the daily candles (`/v2/charts/historical`), which carry the official close:
+ * 17 Sep NIFTY 23270.6, RELIANCE 1243.9, SENSEX 74314.59 - each TradingView's reference to the paisa.
  */
-const prevCloseCache = new Map<string, number | null>();
+type PrevCloseEntry = { value: number | null; day: string; sessionDate: string; at: number };
+const prevCloseCache = new Map<string, PrevCloseEntry>();
+/** While the market is open but the payload still ends on an earlier day (09:15 Monday), look again. */
+const PREV_CLOSE_RECHECK_MS = 60_000;
+const PREV_CLOSE_KEY = 'prevclose';
 
-async function underlyingPrevClose(inst: ResolvedInstrument, creds: Credentials | null): Promise<number | null> {
-  const id = `${todayIso()}|${inst.id}`;
-  if (prevCloseCache.has(id)) return prevCloseCache.get(id)!;
+function isoDaysFromToday(days: number): string {
+  return new Date(Date.now() + 5.5 * 3600 * 1000 + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+async function underlyingPrevClose(
+  inst: ResolvedInstrument, creds: Credentials | null, openNow: boolean,
+): Promise<number | null> {
+  const today = todayIso();
+  const hit = prevCloseCache.get(inst.id);
+  if (hit && hit.day === today) {
+    const settled = hit.sessionDate === today || !openNow;
+    if (settled || Date.now() - hit.at < PREV_CLOSE_RECHECK_MS) return hit.value;
+  }
 
   if (isReplay()) {
-    const v = replayPrevClose(inst.id);
-    prevCloseCache.set(id, v);
-    return v;
+    const value = replayPrevClose(inst.id);
+    prevCloseCache.set(inst.id, { value, day: today, sessionDate: today, at: Date.now() });
+    return value;
   }
-  if (!creds || inst.underlyingScrip === null) { prevCloseCache.set(id, null); return null; }
+  const instrument = underlyingInstrument(inst.id);
+  if (!creds || inst.underlyingScrip === null || !instrument) return null;
 
-  type OhlcResponse = { data: Record<string, Record<string, { ohlc?: { close?: number } }>> };
-  const call = await dhanPost<OhlcResponse>('/v2/marketfeed/ohlc',
-    { [inst.underlyingSeg]: [inst.underlyingScrip] },
-    { creds, key: `ohlc:${inst.id}`, cadenceMs: 1000 });
-
+  const ask = { securityId: String(inst.underlyingScrip), exchangeSegment: inst.underlyingSeg, instrument };
+  // toDate is tomorrow: a date-only toDate may be exclusive, and today's candles must be in.
+  const intraday = await fetchIntraday(creds, {
+    ...ask, seg: inst.underlyingSeg, interval: '15', oi: false,
+    fromDate: isoDaysFromToday(-7), toDate: isoDaysFromToday(1),
+    key: PREV_CLOSE_KEY, cadenceMs: 1000,
+  });
   /*
-   * A FAILED call is not an answer. Caching its null under today's date makes one 10 s timeout at
-   * 09:15 hide the header's spot change and change % for the entire session, even though every
-   * chain poll afterwards succeeds - `prevCloseCache` is module-level and nothing invalidates it,
-   * so only a restart clears it. Leave the key absent and let the next poll retry.
+   * A FAILED call is not an answer. Caching a null here would hide the header's spot change for
+   * the whole day, since nothing else invalidates this module-level cache. Keep whatever was
+   * known and let the next poll retry.
    */
-  if (!call.ok) return null;
+  if (intraday.why) return hit?.value ?? null;
+  const sessionDate = datesIn(intraday.candles).pop();
+  if (!sessionDate) return hit?.value ?? null;
 
-  const close = call.data?.data?.[inst.underlyingSeg]?.[String(inst.underlyingScrip)]?.ohlc?.close ?? null;
-  const value = typeof close === 'number' && Number.isFinite(close) && close > 0 ? close : null;
-  prevCloseCache.set(id, value);
+  const daily = await dhanPost<Candles & { data?: Candles }>('/v2/charts/historical',
+    { ...ask, expiryCode: 0, oi: false, fromDate: isoDaysFromToday(-14), toDate: isoDaysFromToday(1) },
+    { creds, key: PREV_CLOSE_KEY, cadenceMs: 1000, timeoutMs: 20_000 });
+  if (!daily.ok) return hit?.value ?? null;
+
+  let value: number | null = null;
+  // Same unwrap as fetchIntraday: the arrays are top-level today, but tolerate a `data` wrapper.
+  const body = daily.data?.data ?? daily.data;
+  const ts = body?.timestamp ?? [], close = body?.close ?? [];
+  for (let i = 0; i < ts.length; i++) {
+    const d = istParts(ts[i]!)?.date;
+    const c = close[i];
+    if (d && d < sessionDate && typeof c === 'number' && Number.isFinite(c) && c > 0) value = c;
+  }
+  prevCloseCache.set(inst.id, { value, day: today, sessionDate, at: Date.now() });
   return value;
 }
 
