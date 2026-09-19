@@ -306,10 +306,18 @@ MCX is the one session usually open.
 tool is one-shot (it resets to `cursor` afterwards). Two `page.mouse.click()` calls draw nothing
 and report `0 shapes`, which reads as a broken seam rather than a broken gesture.
 
+## A check that picks its target from the rendered DOM breaks when the DOM is windowed
+P9's illiquid check took "the top rendered row" as a deep OTM strike. After P20 rendered only
+ATM ± 8, that row was 8 strikes out, replay kept it liquid, and the check failed with nothing wrong
+in P9. Pick test targets from the data's own rule (replay's `ILLIQUID_OFFSET`), not from whatever
+the page happens to render.
+
 ## Write the docs with the Write/Edit tools, not a bash heredoc
 `cat > docs/... <<'EOF'` on a long markdown table died with ``unexpected EOF while looking for
 matching `'`` — the docs here are full of backticks, pipes and apostrophes, and one of them ends
-the heredoc early. Write and Edit handle the same content without escaping. Git also rewrites LF to
+the heredoc early. Write and Edit handle the same content without escaping. **This also applies to multi-line Python
+patch scripts:** a `python - <<'PYEOF'` heredoc died the same way twice in P19/P20 even with the
+quoted delimiter. Write the script to `.cache/*.py` with the Write tool, then run it. Git also rewrites LF to
 CRLF on these files, so a diff that looks whole-file is usually just line endings.
 
 ## Phase order is an instruction, not a preference

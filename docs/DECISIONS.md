@@ -460,3 +460,14 @@ Up / down / background choices never reach P9's option candles. A user who picks
 would otherwise see blue option candles that read as "big player entering". Custom backgrounds
 reuse the existing theme token sets (picked by luminance) rather than adding new text colours; the
 existing `#7A8597` already clears 4.5:1 on every dark swatch.
+
+## 2026-09-19 — The strike window is UI-only (P20)
+The grid renders ATM ± 8, but the server still polls and subscribes the whole chain. P7's backfill
+already goes nearest-ATM first, so the 34 visible contracts get their peaks first anyway. Trimming
+the server would make the feed subscriptions follow the ATM, which is more moving parts for no
+visible gain. The strike search still reaches the whole chain, because it is an explicit lookup.
+
+## 2026-09-19 — Superseded checks are rewritten, never dropped (P20)
+The user reversed four earlier invariants (all strikes rendered, the chip hidden when unfiltered,
+at least 19 visible rows, an option click taking over the strip). Each old check was rewritten in a
+`-p20` copy to assert the new rule, so the property is still being measured.

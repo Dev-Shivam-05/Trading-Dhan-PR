@@ -1,70 +1,49 @@
-# HANDOFF — Dhan Terminal — Phase P19 — 2026-09-19
+# HANDOFF — Dhan Terminal — Phase P20 — 2026-09-19
 
 ## Done
-- **The main chart strip now draws the underlying as green/red OHLC candles** (the default mode),
-  1m / 5m / 15m, with the latest session drawn and an SMA 20 on by default. It works for all six
-  chips, and on a shut market it shows the last session (`session 18 Sep · market closed` top-right).
-- **Chart Style dialog** (the button with the sliders icon in the chart header), modelled on the
-  user's reference image: Candle / Line, 7 backgrounds + picker, 6 up + 6 down colours + picker,
-  three SMA slots (9 / 20 / 50, editable 2–200), a live full-size preview, and Save / Reset.
-  × / Esc / backdrop discard. Colours under 3:1 against the background are disabled or refused.
-- **Line** mode is P5's tick line, unchanged. P6 drawings work in both modes, because they are
-  (time, price) through chart-tools' X/Y.
-- Verified: `.cache/p19-verify.js` **62/62**, three runs in a row, 60 s soak with zero console
-  errors, paint p95 5.6 ms at 375 candles + 3 SMAs. **Live history:** `.cache/p19-live.ts` got
-  6/6 exact matches with direct Dhan calls (NIFTY, RELIANCE × 1/5/15m, every OHLC value).
-- Regressions: P10a 42/42, P10b 30/30, P9 22/22. P2–P9 re-proof 36/37 and P16 35/37 fail
-  **identically on the pre-P19 commit `be8dfff`**, so those failures are environmental (details
-  below).
-- `docs/shots/` re-baselined once. 09/10 now switch to Line first; 14 (candle strip) and 15 (the
-  dialog) are new. Images 15 and 09 were opened and checked.
+- **The chain shows only the ATM row and 8 strikes each side (17 rows).** It re-centres on every
+  3 s snapshot from the ATM the bar prints. The chip reads `ATM ±8 · 17 of N strikes`. Strike
+  search still reaches the whole chain; Breached filters inside the window.
+- **A CE / PE click opens that contract's chart in a floating window** (P9's candles, blue/yellow,
+  1m/5m/15m, tooltip, no option chain). It drags by its title bar, resizes from the corner, and
+  remembers its position and size. × / Esc / a chip switch close it; the Scanner hides it.
+- **The NIFTY chart is never taken over now.** It stays on screen with its drawing tools; ▾ / `C`
+  still collapse it by hand.
+- Verified: `.cache/p20-verify.js` **29/29**, 60 s soak with zero console errors. Older suites with
+  the superseded checks rewritten (not dropped): P10a 42/42, P2–P9 re-proof 37/37, P9 22/22,
+  P19 62/62, P10b 30/30, P16 35/37. The 2 P16 reds are the live-NSE funnel, identical before P19.
+  `docs/shots/` re-baselined; `01-chain-dark.png` opened and checked.
+- P19 earlier this session: underlying candles + the Chart Style dialog (branch `p19-candles`).
 
 ## Files changed
-- `src/server/ucandles.ts` (new): `UnderlyingCandleService` fetches intraday on the underlying over
-  a 5-day window, marks `sessionStart`, persists nothing.
-- `src/server/replay.ts`: `replayUnderlyingCandles`, a 1-minute walk anchored so the last close
-  equals `replayBasePrice`, rolled up to 5m and 15m.
-- `src/server/index.ts`: `GET /api/ucandles` (400 on a bad key or interval), plus 2 `STATIC` rows.
-- `public/ucandles.js` (new leaf): data store, 60 s refresh, `mergeTick`, SMA, `buildView`,
-  `renderSvg`, and the test seam `window.__ucandles`.
-- `public/chart-style.js` (new): the saved style (`chartStyle:v1`), the contrast guard and the
-  dialog.
-- `public/app.js`, `index.html`, `app.css`: strip wiring, header controls, the dot grid, and the
-  dialog markup and styles.
-- `scripts/shots.ts`: tick shots switch to Line first; new shots 14 and 15.
-- `docs/spec/underlying-candles-v1.md` (24 rows + amendments 25–34), `GLOSSARY.md` (3 terms),
-  `PHASES.md`, `CLAUDE.md` (the focus-loss rule).
+- `public/app.js`: `windowRows()` (ATM ± 8) in `renderGrid`, the chip text, the `window.__grid`
+  test seam; the P9 early return that blanked the strip is removed.
+- `public/candles.js`: a window instead of `body.optmode`; place / drag / resize / persist
+  (`localStorage.optWin`), clamped into the viewport.
+- `public/index.html`: the option chart markup moved out of the strip into `<section id="optWin">`.
+- `public/app.css`: the dead `.opt` / `optmode` rules removed; `.optwin` styles, hidden while the
+  Scanner is showing.
+- `docs/spec/strike-window-v1.md` (16 rows + build notes), `PHASES.md`, `DECISIONS.md`,
+  `CLAUDE.md` (2 lessons), `docs/shots/`.
 
 ## Decisions made
-- The candle source is `/v2/charts/intraday`, not candles built from ticks. Ticks alone draw nothing
-  on a shut market, which is when most work here happens.
-- Custom backgrounds reuse the existing theme tokens, picked by luminance. `#7A8597` measures
-  4.56–4.94:1 on every dark swatch, so no new text colour was introduced.
-- The session note moved from the header into the plot (amendment 28), because the header wrapped
-  to 64px at 1024 wide.
-- The Chart Style applies only to the underlying chart. Option candles keep their colours, because
-  blue and yellow mean "big player" there.
+- UI-only window; the server still polls and subscribes the whole chain. P7 already backfills
+  nearest-ATM first.
+- Superseded invariants are rewritten in `-p20` copies of the old suites, so they keep measuring.
 
 ## Known broken / deliberately skipped
-- **The live forming-candle merge has not been watched live.** It needs Mon 21 Sep from 09:15;
-  until then it is tested only through the seam.
-- **SMA 50's colour `#8B7CFF` is the same as the drawing-tool accent**, so a trendline and SMA 50
-  look alike. That colour was locked in row 12. It is the user's call; suggest a different colour.
-- **Environmental reds, identical on `be8dfff`:** the P3 CSV percentile check (the telemetry ring
-  is empty at the weekend) and P16's funnel plus zero state (it reads live NSE, now 210→40→29→3,
-  against the P14 fixture's 210→40→26→4).
-- **`.cache/p9-verify.js` predates P16's workspaces.** It needs `ws=chain` seeded; the patched copy
-  is `.cache/p9-verify-8788.js`.
-- **Leftovers to clean up by hand.** A worktree `D:/Temp/Dhan-p19base` (at `be8dfff`, no work in
-  it, junction already removed) was left behind because `git worktree remove` was denied. Two replay
-  servers are still running: 8790 and 8788.
-- The live server on 8787 was restarted at the user's request on the P19 build `5cf97e7` (PID 11412,
-  log `.cache/live-8787.log`). It owns the token; the old PID 32412 is gone.
+- **The default window spot hides the PE columns of the lower rows, ATM included** (at 1024 wide,
+  nearly the whole PE side). It is movable and remembered. Recommendation for the user: open it
+  over the side that was NOT clicked. Waiting for their word.
+- **AC2 (the window following a moving ATM) is proven only indirectly.** Replay's ATM never moved
+  in 30 s. Watch it live on Monday.
+- From P19, still open: the forming candle live (Monday 09:15+); SMA 50's colour equals the
+  drawing accent; the leftover worktree `D:/Temp/Dhan-p19base`; replay servers on 8790 / 8788.
 
 ## Next session starts here
-- Phase: P20 (ATM ±8 strike window + option chart in a floating window) was requested on
-  2026-09-19 after P19. Its spec-lock table was proposed and waits for `go`. The Mon 21 Sep 09:15
-  market-open checks (PHASES Next 3 #2) include P19's forming candle.
+- Phase: the option-window default-spot decision (one word from the user), then the Mon 21 Sep
+  09:15 market-open checks (PHASES Next 3 #2), including P19's forming candle and P20's re-centring.
 - First command: `git worktree list; netstat -ano | grep LISTEN | grep ':87'; npm run check`
-- Watch out for: the 8787 server is the **one token owner**. Kill it only by its PID, start ONE
-  plain `npm run dev`, then assert a single listener, zero `EADDRINUSE`, and `/ucandles.js` → 200.
+- Watch out for: 8787 is the **one token owner**. Kill it only by its PID, start ONE plain
+  `npm run dev`, then assert a single listener, zero `EADDRINUSE`, and the new build in
+  `/api/health`.

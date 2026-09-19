@@ -29,6 +29,25 @@ option mode and disabled the drawing tools). The user asked for exactly this rev
 | 15 | Drawing tools | Stay enabled on the NIFTY chart while the window is open | The strip is no longer taken over |
 | 16 | Files | `public/app.js`, `public/candles.js`, `public/index.html`, `public/app.css`. 4 code files | Inside the ~8 rule |
 
+## Build notes (2026-09-19)
+
+- **Row 11's "why" was wrong on screen.** With only 17 rows there are no far-OTM rows for the window
+  to sit over: at 560 × 340 bottom-right it hides the PE columns right of LTP for the lower half of
+  the rows, ATM included (at 1024 wide, nearly the whole PE side). The window moves and remembers
+  its place, which is what the user accepted with `go`. A better default is the user's call.
+- **Superseded checks, rewritten in `-p20` copies (never dropped):** `.cache/p10a-verify-p20.js`
+  (row count = the window; the chip always reads `ATM ±8 · n of N`), `.cache/p10-reproof-p20.js`
+  (feed subscriptions = 2 × snapshot strikes + 1, because the server still subscribes the whole
+  chain; Pk % cells = 2 × rendered rows; the option chart opens in its window and the strip stays),
+  `.cache/p9-verify-p20.js` (window open, strip visible, tools enabled; the illiquid check aims at
+  ATM − 16 strikes, because the rendered top row is now only 8 out), `.cache/p16-verify-p20.js`
+  (all 17 rows visible instead of ≥ 19 / 23 / 24), and `.cache/p19-verify.js` (a CE click leaves
+  the underlying candles on screen).
+- **AC2 is proven indirectly.** Replay's ATM stayed at 24,100 for the whole 30 s sample, so the
+  window was never seen moving. What was proven: every render was centred on the ATM the bar
+  printed (60/60 samples), and `windowRows()` handles different ATMs and both chain edges through
+  the test seam `window.__grid`.
+
 ## Out of scope
 More than one option window; a setting for the 8; server-side trimming of the chain or the feed.
 
