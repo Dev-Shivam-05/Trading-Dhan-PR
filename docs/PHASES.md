@@ -44,9 +44,11 @@ it is also the first real 09:20 run of the Windows task `DhanNseScan0920`.
 the P12b row), `gh secret set NTFY_TOPIC`, a Telegram bot, and merging the stacked branches.
 
 ## Next 3
-1. **Restart the live server on 8787** (PID 32412, build `60e85b0`) so it serves P19, the login
-   gate and the cache split. It is the one token owner: kill it by PID, start ONE `npm run dev`,
-   then check `/api/health`'s build and that `/ucandles.js` returns 200.
+1. **P20 — ATM ±8 strikes + option chart in a floating window** (user request 2026-09-19): the
+   chain shows only 8 strikes each side of ATM, the NIFTY chart stays on screen (collapsible
+   with `C`), and a CE/PE click opens that contract's chart in a small window instead of taking
+   over the strip. Spec-lock table proposed; waiting for `go`. (Live server on 8787 already
+   restarted on the P19 build, PID 11412.)
 2. **Mon 21 Sep, 09:15-09:30 IST — the market-open checks.** Read `.cache/scan-task.log` and the
    ntfy message from the 09:20 task. Drive `/api/scan?source=dhan` live and recompute its funnel from
    the payload. Measure P8's AC5. Record the time `NSE_EQ` `net_change` goes non-zero. Then run

@@ -58,11 +58,13 @@
 - **Leftovers to clean up by hand.** A worktree `D:/Temp/Dhan-p19base` (at `be8dfff`, no work in
   it, junction already removed) was left behind because `git worktree remove` was denied. Two replay
   servers are still running: 8790 and 8788.
-- The live server on 8787 (PID 32412) still runs the old build `60e85b0` without `/api/ucandles`.
+- The live server on 8787 was restarted at the user's request on the P19 build `5cf97e7` (PID 11412,
+  log `.cache/live-8787.log`). It owns the token; the old PID 32412 is gone.
 
 ## Next session starts here
-- Phase: restart the live server so the user sees P19 live, then the Mon 21 Sep 09:15 market-open
-  checks (PHASES Next 3 #2), including P19's forming candle.
+- Phase: P20 (ATM ±8 strike window + option chart in a floating window) was requested on
+  2026-09-19 after P19. Its spec-lock table was proposed and waits for `go`. The Mon 21 Sep 09:15
+  market-open checks (PHASES Next 3 #2) include P19's forming candle.
 - First command: `git worktree list; netstat -ano | grep LISTEN | grep ':87'; npm run check`
 - Watch out for: the 8787 server is the **one token owner**. Kill it only by its PID, start ONE
   plain `npm run dev`, then assert a single listener, zero `EADDRINUSE`, and `/ucandles.js` → 200.
