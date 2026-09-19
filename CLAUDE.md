@@ -375,6 +375,14 @@ quote still carried the real previous close at the same moment. The previous clo
 the session before the intraday payload's latest date. The scanner's `last_price - net_change`
 has the same exposure on a shut market.
 
+## Saving a file under `public/` changes the user's live screen at once
+`src/server/index.ts` reads each `STATIC` file from disk **per request**, so the live server on
+8787 serves a UI edit on the user's next reload — no restart, and no way to stage it. Server code
+(`src/server/*.ts`) is the opposite: it needs the PID-kill-and-restart routine. Build and verify
+UI work against a credential-free replay server on another port (`PORT=8791 REPLAY=1 node
+src/server/index.ts`, no `--env-file`, so it cannot touch the token), and expect the user to see
+each saved step.
+
 ## Replay and live must never share a persisted cache
 Replay writes synthetic values under **real** security ids. `peak-oi.json`, `iv-baseline.json` and
 `scan-oi.json` were shared, and none of them re-fetches a key it already holds. So a `REPLAY=1` run

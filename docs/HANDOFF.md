@@ -1,49 +1,41 @@
-# HANDOFF — Dhan Terminal — Phase P20 — 2026-09-19
+# HANDOFF — Dhan Terminal — Phases P21 + P22 — 2026-09-19
 
 ## Done
-- **The chain shows only the ATM row and 8 strikes each side (17 rows).** It re-centres on every
-  3 s snapshot from the ATM the bar prints. The chip reads `ATM ±8 · 17 of N strikes`. Strike
-  search still reaches the whole chain; Breached filters inside the window.
-- **A CE / PE click opens that contract's chart in a floating window** (P9's candles, blue/yellow,
-  1m/5m/15m, tooltip, no option chain). It drags by its title bar, resizes from the corner, and
-  remembers its position and size. × / Esc / a chip switch close it; the Scanner hides it.
-- **The NIFTY chart is never taken over now.** It stays on screen with its drawing tools; ▾ / `C`
-  still collapse it by hand.
-- Verified: `.cache/p20-verify.js` **29/29**, 60 s soak with zero console errors. Older suites with
-  the superseded checks rewritten (not dropped): P10a 42/42, P2–P9 re-proof 37/37, P9 22/22,
-  P19 62/62, P10b 30/30, P16 35/37. The 2 P16 reds are the live-NSE funnel, identical before P19.
-  `docs/shots/` re-baselined; `01-chain-dark.png` opened and checked.
-- P19 earlier this session: underlying candles + the Chart Style dialog (branch `p19-candles`).
+- **P21 (branch `p21-prev-close`, pushed).** The header's spot change read `+0.00 (+0.00%)` on a
+  shut market. After the session Dhan's `/v2/marketfeed/ohlc` `close` is that day's own close.
+  `poller.ts` now takes the daily close (`/v2/charts/historical`) of the session before the one the
+  intraday payload ends on. Live: NIFTY +75.80 (+0.33%), BANKNIFTY +302.95, SENSEX −19.63,
+  RELIANCE −17.50, HDFCBANK +18.00 — all equal to TradingView. The live server on 8787 runs it.
+- **The TradingView comparison** the user asked about: same data (12:15 candle H/L identical, O/C
+  within 0.25). Differences on screen were the 112px strip vs TV's tall pane, and Dhan putting the
+  official close 23,346.40 into the 15:25 candle while TV's candles end at the last trade 23,341.75.
+- **P22 (branch `p22-type-and-fit`, stacked on P21, pushed).** Spec `docs/spec/ui-type-v1.md`.
+  Inter everywhere; grid cells grow to their text (0 cut-off cells, was 277/425); 200px chart;
+  peak tick under the digits; session note on the time axis; labelled Style button; the option
+  window opens over the side not clicked. Replay 22/22, live 23/23, every older suite green except
+  P16's environmental live-NSE funnel row.
 
 ## Files changed
-- `public/app.js`: `windowRows()` (ATM ± 8) in `renderGrid`, the chip text, the `window.__grid`
-  test seam; the P9 early return that blanked the strip is removed.
-- `public/candles.js`: a window instead of `body.optmode`; place / drag / resize / persist
-  (`localStorage.optWin`), clamped into the viewport.
-- `public/index.html`: the option chart markup moved out of the strip into `<section id="optWin">`.
-- `public/app.css`: the dead `.opt` / `optmode` rules removed; `.optwin` styles, hidden while the
-  Scanner is showing.
-- `docs/spec/strike-window-v1.md` (16 rows + build notes), `PHASES.md`, `DECISIONS.md`,
-  `CLAUDE.md` (2 lessons), `docs/shots/`.
+- P21: `src/server/poller.ts`.
+- P22: `public/index.html`, `app.css`, `app.js`, `candles.js`, `chart-tools.js`, `ucandles.js`,
+  `telemetry.js`, `panes.js`; `docs/spec/ui-type-v1.md`; `docs/shots/` (re-baselined).
+- Docs: `PHASES.md`, `CLAUDE.md` (2 lessons: Dhan `ohlc.close`; `public/` edits are live at once).
 
 ## Decisions made
-- UI-only window; the server still polls and subscribes the whole chain. P7 already backfills
-  nearest-ATM first.
-- Superseded invariants are rewritten in `-p20` copies of the old suites, so they keep measuring.
+- The option window's side rule applies on open and on a CE↔PE switch only; height and vertical
+  spot stay remembered (amendment 10).
+- Greeks on now scrolls sideways (270px at 1440) instead of cutting text — the spec's risk row said
+  report it, not shrink the type.
 
 ## Known broken / deliberately skipped
-- **The default window spot hides the PE columns of the lower rows, ATM included** (at 1024 wide,
-  nearly the whole PE side). It is movable and remembered. Recommendation for the user: open it
-  over the side that was NOT clicked. Waiting for their word.
-- **AC2 (the window following a moving ATM) is proven only indirectly.** Replay's ATM never moved
-  in 30 s. Watch it live on Monday.
-- From P19, still open: the forming candle live (Monday 09:15+); SMA 50's colour equals the
-  drawing accent; the leftover worktree `D:/Temp/Dhan-p19base`; replay servers on 8790 / 8788.
+- **GOLD's header change mixes two contracts** (chain spot 153,176 vs its future's LTP 154,263).
+  Before and after P21. PHASES Next 3 #1.
+- The daily-candle behaviour during a live session is unmeasured until Mon 21 Sep 09:15.
+- Leftovers not mine: worktree `D:/Temp/Dhan-p19base`, replay servers on 8788 / 8790.
+- The suite copies with rewritten checks live in `.cache/p22suite/` (gitignored, like all suites).
 
 ## Next session starts here
-- Phase: the option-window default-spot decision (one word from the user), then the Mon 21 Sep
-  09:15 market-open checks (PHASES Next 3 #2), including P19's forming candle and P20's re-centring.
+- Phase: PHASES Next 3 — GOLD's contract, then the Monday 09:15 checks (now including P21's).
 - First command: `git worktree list; netstat -ano | grep LISTEN | grep ':87'; npm run check`
-- Watch out for: 8787 is the **one token owner**. Kill it only by its PID, start ONE plain
-  `npm run dev`, then assert a single listener, zero `EADDRINUSE`, and the new build in
-  `/api/health`.
+- Watch out for: 8787 is the one token owner and serves `public/` from disk — a saved UI file is
+  on the user's screen at their next reload.

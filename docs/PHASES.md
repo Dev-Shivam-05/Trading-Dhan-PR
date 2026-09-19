@@ -45,16 +45,18 @@ it is also the first real 09:20 run of the Windows task `DhanNseScan0920`.
 the P12b row), `gh secret set NTFY_TOPIC`, a Telegram bot, and merging the stacked branches.
 
 ## Next 3
-1. **The option window's default spot (user decision).** At 560 × 340 bottom-right it hides the
-   PE columns of the lower rows, ATM included. Recommended: open it over the side that was NOT
-   clicked (CE click → over the PE side, PE click → over the CE side), so the clicked side stays
-   readable. One word from the user, then a small change in `candles.js`.
+1. **GOLD's header change mixes two contracts** (found in P21). The chain's spot (153,176) is not
+   the charted future's LTP (154,263); find which contract the option chain's `last_price` is and
+   take the previous close of that one. Until then GOLD's `±chg` is not trustworthy.
 2. **Mon 21 Sep, 09:15-09:30 IST — the market-open checks.** Read `.cache/scan-task.log` and the
    ntfy message from the 09:20 task. Drive `/api/scan?source=dhan` live and recompute its funnel from
    the payload. Measure P8's AC5. Record the time `NSE_EQ` `net_change` goes non-zero. Then run
    `feed:probe` again to see live ticks, not just a snapshot.
    Also watch P19's forming candle grow from live ticks at 09:15, and a new 09:15 candle appear
    without a reload (amendment 33).
+   P21: at 09:15 the header must read today's spot against **Friday's** close (NIFTY 23,346.40);
+   check it once the first candle lands, and whether `/v2/charts/historical` already carries a
+   partial candle for today (it must not be taken as the previous close).
 3. **P9 opening-candle decision, then the PRs.** Ask whether `median20` should stay within the
    session (the recommendation) and apply it only on a yes. Then merge the stacked branches in
    order. `p17-live-deploy` and `p12b-live-drive` sit on top.
@@ -62,6 +64,7 @@ the P12b row), `gh secret set NTFY_TOPIC`, a Telegram bot, and merging the stack
 ## Session log
 | Date | Phase | What happened |
 |---|---|---|
+| 2026-09-19 | P22 | **Type, fit and chart height** (`docs/spec/ui-type-v1.md`, 9 rows + amendments 10–13, locked with one `go`). Measured first: 277 of 425 chain cells cut off with Greeks on at 1620 wide. Built: Inter everywhere (HTML + every SVG `MONO` constant, one family, tabular figures); the grid on `table-layout:auto` so cells grow to their text; the P7 peak marker a 6px tick under the digits; chart plot 112 → 200px; the session note on the time-axis row; a labelled **Style** button (icon-only below 1180px — amendment 13, the header wrapped at 1024); the option window opens over the side NOT clicked (P20's open decision). `.cache/p22-verify.mjs` **22/22 replay, 23/23 live** (17 of 17 rows at 1440×900 live, 16 in replay because of the notice line). Regressions, superseded checks rewritten in `.cache/p22suite/` not dropped: P20 29/29, P10a 42/42, P2–P9 37/37, P9 22/22, P19 62/62, P10b 30/30, P16 36/37 (the red is the live-NSE funnel vs its fixed fixture, environmental since P19). **Cost, measured:** Greeks on now scrolls sideways 270px at 1440 and 90px at 1620 (was 44px with the text cut off). `docs/shots/` re-baselined; `01-chain-dark` and `13-scanner-dark` opened and read |
 | 2026-09-19 | P21 | **The header's spot change read `+0.00 (+0.00%)` on a shut market; TradingView read `+75.80 (+0.33%)` for the same NIFTY close.** Cause, measured with direct Dhan calls: after the session `/v2/marketfeed/ohlc` returns that day's own close as `close` (NIFTY 23346.4 = `last_price`; `quote` `net_change` 0). Fix in `poller.ts` only: the reference is the `/v2/charts/historical` daily close of the session before the one the intraday payload ends on. Live after the fix, all six chips: NIFTY +75.80 (+0.33%), BANKNIFTY +302.95 (+0.54%), SENSEX −19.63 (−0.03%), RELIANCE −17.50 (−1.41%), HDFCBANK +18.00 (+2.52%) — each equal to TradingView's watchlist. Replay unchanged (NIFTY −83.28). The same comparison showed the candles agree: 12:15 H/L identical to the paisa, O/C within 0.25. **Open:** GOLD's chain spot (153,176) is not its charted future's LTP (154,263), so GOLD's change mixes two contracts, before and after this fix; and the daily candle's behaviour during a live session is unmeasured until Mon 21 Sep |
 | 2026-09-19 | P20 | Spec-locked with one `go`. The chain shows ATM ± 8 (17 rows); the option chart opens in a floating window and the NIFTY strip stays. 29/29 in replay; superseded checks in five older suites rewritten to the new rule. The screenshot showed the window covering the ATM row's PE side, which is recorded for the user. Branch `p20-strike-window`. |
 | 2026-09-19 | P19 | Spec-locked (24 rows, one `go`) from the user's request plus a reference image of a "Chart Style" dialog. Built `/api/ucandles`, the candle strip and the dialog. The suite found one real bug (Esc stopped closing the dialog after a swatch click: the re-render dropped focus to `<body>`), now fixed and recorded in CLAUDE.md. 62/62 in replay, live history equal to Dhan 6/6. Branch `p19-candles`. |
