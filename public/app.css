@@ -438,7 +438,8 @@ tr.skel td>span{display:inline-block;width:80%;height:8px;border-radius:4px;back
 .chart-axis{position:absolute;right:16px;top:0;bottom:8px;width:76px;cursor:ns-resize;touch-action:none}
 .chart-axis:hover{background:var(--accent-wash)}
 body.nochart .chart-body,body.nochart .psplit{display:none}
-body.nochart #chartBtn{transform:rotate(-90deg)}
+/* P24 — collapsed, the toggle is a labelled button, not a rotated arrow nobody finds. */
+body.nochart #chartBtn{width:auto;padding:0 10px;font:500 11px Inter,system-ui,sans-serif;color:var(--fg-base);border-color:var(--accent)}
 
 /* ------------------------------------------------- option candles (P9) */
 /* The !important pair is load-bearing: .chart-empty and .chart-body svg set their own display. */

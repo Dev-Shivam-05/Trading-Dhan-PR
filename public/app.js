@@ -1094,6 +1094,13 @@ $('chartRange').addEventListener('click', (e) => {
 function setChart(open) {
   document.body.classList.toggle('nochart', !open);
   localStorage.setItem('chart', open ? '1' : '0');
+  // P24: collapsed, the only way back used to be a 24px rotated arrow at the far right, and a
+  // stray `C` persists the collapse across reloads — the user read it as "the chart is gone".
+  // Collapsed, the button says what it does.
+  const b = $('chartBtn');
+  b.textContent = open ? '▾' : '▸ Show chart';
+  b.title = open ? 'Collapse chart (C)' : 'Show chart (C)';
+  b.setAttribute('aria-label', open ? 'Collapse chart' : 'Show chart');
   state.chartDirty = true;
 }
 setChart(localStorage.getItem('chart') !== '0');
