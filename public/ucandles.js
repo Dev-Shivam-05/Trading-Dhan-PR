@@ -15,6 +15,11 @@
 export const INTERVALS = ['1', '5', '15'];
 /** Row 4. */
 const REFRESH_MS = 60_000;
+/** panel-windows-v1.md row 8. A FAILED fetch does not wait for the next refresh: it backs off
+ *  through this ladder and resets to the head on the first success. Measured before it was
+ *  written — reusing REFRESH_MS as the retry cadence cost up to 60 s of dead chart for a 2 s
+ *  server restart (the table at the top of that spec). */
+const RETRY_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000];
 /** Same content box as drawChart() and chart-tools (chart-tools-v1.md row 1). */
 export const PAD_R = 76;
 export const PAD_B = 16;
@@ -42,6 +47,14 @@ const store = {
   seq: 0,
   /** Bumped on every change to `data`, so a caller can cache work per version. */
   version: 0,
+  /** Row 8. Index into RETRY_MS; 0 means the last fetch succeeded. */
+  retryStep: 0,
+  /** Row 9. Epoch ms of the next automatic attempt, or 0 when nothing is scheduled. */
+  retryAt: 0,
+  /** Row 16. 1 s repaint ticker, alive only while an error is on screen. */
+  cdTimer: null,
+  /** The error without the "retrying in Ns" tail, so the tail can be recomputed every second. */
+  errorText: null,
 };
 
 let onChange = () => {};
@@ -78,6 +91,61 @@ function schedule(ms) {
   store.timer = setTimeout(() => refresh(false), ms);
 }
 
+/* ------------------------------------------------------- failure and retry */
+
+/** Row 9. The seconds left before the next automatic attempt, never below 0. */
+function secondsLeft() {
+  return Math.max(0, Math.ceil((store.retryAt - Date.now()) / 1000));
+}
+
+/** Rows 9 and 16. One repaint a second while an error is up, and not one after it clears. */
+function startCountdown() {
+  if (store.cdTimer) return;
+  store.cdTimer = setInterval(() => {
+    if (!store.errorText) { stopCountdown(); return; }
+    store.message = `${store.errorText} — retrying in ${secondsLeft()} s`;
+    changed();
+  }, 1000);
+}
+
+function stopCountdown() {
+  clearInterval(store.cdTimer);
+  store.cdTimer = null;
+}
+
+/** Row 8. Called on every failed fetch. */
+function failed(error) {
+  const wait = RETRY_MS[Math.min(store.retryStep, RETRY_MS.length - 1)];
+  store.retryStep = Math.min(store.retryStep + 1, RETRY_MS.length - 1);
+  store.retryAt = Date.now() + wait;
+  store.errorText = error;
+  store.message = `${error} — retrying in ${Math.round(wait / 1000)} s`;
+  schedule(wait);
+  startCountdown();
+}
+
+/** Row 8. Called on every successful fetch. */
+function succeeded() {
+  store.retryStep = 0;
+  store.retryAt = 0;
+  store.errorText = null;
+  stopCountdown();
+}
+
+/** Row 9's button. Also row 10's path: an immediate attempt that cancels the pending backoff. */
+export function retryNow() {
+  if (!store.key) return;
+  clearTimeout(store.timer);
+  store.retryAt = 0;
+  refresh(true);
+}
+
+/** Row 10. The feed came back; anything showing an error tries again at once rather than
+ *  sitting out the rest of its backoff. Healthy panels are left alone. */
+export function onReconnect() {
+  if (store.errorText) retryNow();
+}
+
 export async function refresh(showLoading) {
   if (!store.key) return;
   const seq = ++store.seq;
@@ -85,13 +153,17 @@ export async function refresh(showLoading) {
   if (showLoading) { store.loading = true; changed(); }
   store.lastFetch = Date.now();
 
-  let body = null, error = null;
+  // `unreachable` separates "the server answered and said no" from "there is no server". Only
+  // the second is a blip, and only the second enters row 8's ladder — a 400 for a bad interval
+  // would otherwise be re-asked every two seconds forever.
+  let body = null, error = null, unreachable = false;
   try {
     const res = await fetch(`/api/ucandles?key=${encodeURIComponent(key)}&interval=${interval}`);
     body = await res.json();
     if (!res.ok || body.error) error = body.error ?? `HTTP ${res.status}`;
   } catch (err) {
     error = `could not reach the backend — ${err}`;
+    unreachable = true;
   }
   if (seq !== store.seq) return;                     // a newer request has already been sent
   store.loading = false;
@@ -99,9 +171,11 @@ export async function refresh(showLoading) {
   if (error) {
     // Row 21: say so and actually retry. A refresh that fails keeps the candles already on
     // screen — they are still true, only no longer extending.
-    store.message = `${error} — retrying in 60 s`;
-    schedule(REFRESH_MS);
+    // panel-windows-v1.md row 8: the retry ladder for a blip, REFRESH_MS for a real refusal.
+    if (unreachable) { failed(error); }
+    else { succeeded(); store.message = error; schedule(REFRESH_MS); }
   } else {
+    succeeded();
     store.openNow = !!body.openNow;
     store.data = body;
     store.message = body.note ?? null;
@@ -392,5 +466,9 @@ window.__ucandles = {
   interval: () => store.interval,
   message: () => store.message,
   loading: () => store.loading,
+  /** panel-windows-v1.md rows 8-10, read by the recovery verification script. */
+  retryStep: () => store.retryStep,
+  retryInMs: () => Math.max(0, store.retryAt - Date.now()),
+  retryNow, onReconnect,
   mergeTick, smaSeries, niceStep, buildView, istDate,
 };

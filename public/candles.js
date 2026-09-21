@@ -18,6 +18,9 @@ const $ = (id) => document.getElementById(id);
 const INTERVALS = ['1', '5', '15'];
 /** Row 14. Candles close every 5 min, so 60 s is at most 60 s stale for one call a minute. */
 const REFRESH_MS = 60_000;
+/** panel-windows-v1.md row 8. The retry ladder for a FAILED fetch — this window is the one the
+ *  user photographed stuck on "could not reach the backend" while the server was already back. */
+const RETRY_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000];
 /** Same content box as the tick chart: .chart-body pads 16px sideways, 8px bottom, and the
     price gutter is 76px wide (docs/spec/chart-tools-v1.md rows 1, 7). */
 const PAD_R = 76;
@@ -41,6 +44,12 @@ const state = {
   timer: null,
   /** Bumped on every request so a slow reply for an old contract can never paint (AC5). */
   seq: 0,
+  /** panel-windows-v1.md rows 8, 9, 16 — the same three fields ucandles.js carries. */
+  retryStep: 0,
+  retryAt: 0,
+  retryTimer: null,
+  cdTimer: null,
+  errorText: null,
   /** Last frame's geometry, so the pointer can be turned back into a candle index. */
   frame: null,
 };
@@ -142,6 +151,81 @@ function setInterval_(iv) {
   refresh(true);
 }
 
+/* ------------------------------------------------------- failure and retry */
+
+/* panel-windows-v1.md rows 8-10, 16. Same ladder as ucandles.js, kept here rather than imported:
+   these two modules deliberately do not import each other (see this file's header). */
+
+function secondsLeft() {
+  return Math.max(0, Math.ceil((state.retryAt - Date.now()) / 1000));
+}
+
+function startCountdown() {
+  if (state.cdTimer) return;
+  state.cdTimer = setInterval(() => {
+    if (!state.errorText) { stopCountdown(); return; }
+    state.message = `${state.errorText} — retrying in ${secondsLeft()} s`;
+    state.dirty = true;
+  }, 1000);
+}
+
+function stopCountdown() {
+  clearInterval(state.cdTimer);
+  state.cdTimer = null;
+}
+
+function failed(error) {
+  const wait = RETRY_MS[Math.min(state.retryStep, RETRY_MS.length - 1)];
+  state.retryStep = Math.min(state.retryStep + 1, RETRY_MS.length - 1);
+  state.retryAt = Date.now() + wait;
+  state.errorText = error;
+  state.message = `${error} — retrying in ${Math.round(wait / 1000)} s`;
+  clearTimeout(state.retryTimer);
+  state.retryTimer = setTimeout(() => refresh(false), wait);
+  startCountdown();
+}
+
+function succeeded() {
+  state.retryStep = 0;
+  state.retryAt = 0;
+  state.errorText = null;
+  clearTimeout(state.retryTimer);
+  state.retryTimer = null;
+  stopCountdown();
+}
+
+/** panel-windows-v1.md row 9 + amendment 16. Same shape as app.js's ucMsgText(): the node is
+ *  built once, because the countdown rewrites the words every second and a button rebuilt under
+ *  the pointer eats the click. */
+function msgText(msg, text, showRetry) {
+  if (!msg.firstElementChild) {
+    const span = document.createElement('span');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'retry';
+    b.textContent = 'Retry now';
+    b.addEventListener('click', () => retryNow());
+    msg.textContent = '';
+    msg.append(span, b);
+  }
+  const [span, btn] = msg.children;
+  if (span.textContent !== text) span.textContent = text;
+  btn.hidden = !showRetry;
+}
+
+/** Row 9's button, and row 10's path when the feed comes back. */
+export function retryNow() {
+  if (!state.active) return;
+  clearTimeout(state.retryTimer);
+  state.retryAt = 0;
+  refresh(true);
+}
+
+/** Row 10. Only a panel that is actually broken refetches. */
+export function onReconnect() {
+  if (state.active && state.errorText) retryNow();
+}
+
 /* ------------------------------------------------------------------ fetch */
 
 async function refresh(showLoading) {
@@ -162,15 +246,17 @@ async function refresh(showLoading) {
     const body = await res.json();
     if (seq !== state.seq) return;                 // a newer request has already been sent
     state.loading = false;
-    if (!res.ok) { state.data = null; state.message = body.error ?? `HTTP ${res.status}`; }
-    else if (body.error) { state.data = null; state.message = body.error; }
-    else if (body.note) { state.data = body; state.message = body.note; }
-    else { state.data = body; state.message = null; }
+    // A 4xx/5xx with a body is the server answering, not a blip: it is reported and not retried,
+    // exactly as before. Only an unreachable backend enters the row 8 ladder.
+    if (!res.ok) { succeeded(); state.data = null; state.message = body.error ?? `HTTP ${res.status}`; }
+    else if (body.error) { succeeded(); state.data = null; state.message = body.error; }
+    else if (body.note) { succeeded(); state.data = body; state.message = body.note; }
+    else { succeeded(); state.data = body; state.message = null; }
   } catch (err) {
     if (seq !== state.seq) return;
     state.loading = false;
     state.data = null;
-    state.message = `could not reach the backend — ${err}`;
+    failed(`could not reach the backend — ${err}`);
   }
   renderHead();
   state.dirty = true;
@@ -236,10 +322,11 @@ function drawCandles() {
   msg.hidden = !(state.message || !ks.length);
   // Row 15's empty state names the strike, so it is composed here rather than printed from the
   // server's note — the server has no digit grouping and the header beside it says "23,100".
-  msg.textContent = (state.data && state.data.note && state.sel)
+  // panel-windows-v1.md row 9 + amendment 16: built once, words updated in place.
+  msgText(msg, (state.data && state.data.note && state.sel)
     ? `no trades in this contract today — ${state.scope.label} `
       + `${inr(state.sel.strike, 0)} ${state.sel.side.toUpperCase()}`
-    : (state.message ?? (state.loading ? 'loading candles…' : 'no candles'));
+    : (state.message ?? (state.loading ? 'loading candles…' : 'no candles')), !!state.errorText);
 
   if (!ks.length) { svg.innerHTML = ''; state.frame = null; return; }
 
@@ -506,8 +593,25 @@ document.addEventListener('chain-scope', (e) => {
   // BANKNIFTY would chart a contract the reader never asked for.
   if (changed && state.active) back();
   else renderHead();
+  bootFromUrl();
 });
 document.addEventListener('chain-render', markRow);
+
+/* panel-windows-v1.md row 10 — app.js saw the stream come back. */
+document.addEventListener('backend-back', onReconnect);
+
+/* panel-windows-v1.md rows 2 and 3. `?pop=opt&strike=…&side=…` opens this window straight onto
+   that contract, once, as soon as app.js has announced a scope to hang it on. */
+let booted = false;
+function bootFromUrl() {
+  if (booted || !state.scope) return;
+  const q = new URLSearchParams(location.search);
+  if (q.get('pop') !== 'opt') { booted = true; return; }
+  const strike = Number(q.get('strike'));
+  const side = q.get('side');
+  booted = true;
+  if (Number.isFinite(strike) && (side === 'ce' || side === 'pe')) select(strike, side);
+}
 
 $('candleBack').addEventListener('click', back);
 $('candleInterval').addEventListener('click', (e) => {

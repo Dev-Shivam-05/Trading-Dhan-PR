@@ -789,3 +789,59 @@ body:has(#scan:not([hidden])) .optwin{display:none!important}
 /* Same content box as .chart-body, so the P9 pointer maths (16px sides, 8px bottom, 76px gutter)
    still lines up with the svg. */
 .ow-body{position:relative;flex:1;min-height:0;padding:0 16px 8px}
+
+/* ======================================================================
+   P26 — panel windows. Spec: docs/spec/panel-windows-v1.md
+   ====================================================================== */
+
+/* Row 4 — the same 30px .icon square as #chartBtn and #candleBack beside them; only the glyph
+   is smaller, because ⛶ and ⧉ draw taller than ▾ at the same size. */
+.icon.pw{font-size:13px}
+.hstrip .icon.pw{width:26px;height:26px;font-size:12px}
+.ow-h .icon.pw{width:24px;height:24px;font-size:11px}
+
+/* Row 12 — the note that says why nothing happened. */
+.panelnote{margin-left:auto;color:var(--warn);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.panelnote[hidden]{display:none}
+
+/* Row 9 / amendment 15 — .chart-empty is pointer-events:none, so the button inside it has to
+   opt back in or it can never be clicked. The failure looks like a dead button, not like CSS. */
+.chart-empty{gap:10px}
+.chart-empty .retry{
+  pointer-events:auto;cursor:pointer;font:500 11px Inter,system-ui,sans-serif;
+  padding:3px 9px;border-radius:6px;border:1px solid var(--accent);
+  background:transparent;color:var(--accent);
+}
+.chart-empty .retry:hover{background:var(--accent-wash)}
+.chart-empty .retry[hidden]{display:none}
+
+/* Row 2 — popup mode. One panel per window; the other two are removed from layout entirely, so
+   AC2's `offsetParent === null` is true rather than merely invisible. */
+body.pop .psplit{display:none}
+body.pop button.pw[id$="Pop"]{display:none}        /* a popup cannot pop itself out again */
+body.pop-chart #work,body.pop-chart #optWin,
+body.pop-chain #chartWrap,body.pop-chain #optWin,
+body.pop-opt #chartWrap,body.pop-opt #work{display:none!important}
+/* The chart pane is sized by panes.js in the shell; alone in a window it takes the whole height. */
+body.pop-chart #chartWrap{flex:1;min-height:0}
+body.pop-chart .chart-body{height:auto!important;flex:1;min-height:0}
+/* Row 3 — popped out, the option chart is the window, not a 560x340 box floating in one. */
+body.pop-opt #optWin{
+  position:static;width:auto;height:auto;flex:1;min-height:0;
+  border:0;border-radius:0;box-shadow:none;resize:none;
+}
+body.pop-opt .ow-h{cursor:default}
+
+/* Row 1 — fullscreen. The element is lifted out of the shell's flex column, so it has to be told
+   its own size; without this a 200px chart stays 200px on a 1080px screen. */
+#chartWrap:fullscreen,#work:fullscreen,#optWin:fullscreen{
+  width:100vw;height:100vh;background:var(--bg-base);
+}
+#chartWrap:fullscreen{display:flex;flex-direction:column}
+#chartWrap:fullscreen .chart-body{height:auto!important;flex:1;min-height:0}
+#chartWrap:fullscreen .psplit{display:none}
+/* The strike spine is position:sticky in both directions; fullscreen makes a new containing
+   block, so the scrollport has to be the one that scrolls, exactly as it is in the shell. */
+#work:fullscreen{display:flex;flex-direction:column;overflow:hidden}
+#optWin:fullscreen{border:0;border-radius:0;resize:none}
+#optWin:fullscreen .ow-h{cursor:default}

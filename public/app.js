@@ -8,6 +8,16 @@ import * as cstyle from '/chart-style.js';
 
 const $ = (id) => document.getElementById(id);
 
+/* ------------------------------------------------------------ P26 popup mode
+   docs/spec/panel-windows-v1.md rows 2 and 3. A popped-out panel is THIS page with one query
+   parameter, not a second HTML file — a new file under public/ is invisible until it has a row
+   in the server's STATIC allow-list, and that failure looks like the whole client dying.
+   The class goes on before anything paints, so the popup never flashes the full terminal. */
+
+export const POP_Q = new URLSearchParams(location.search);
+export const POP_PANEL = ['chart', 'chain', 'opt'].includes(POP_Q.get('pop')) ? POP_Q.get('pop') : null;
+if (POP_PANEL) document.body.classList.add('pop', `pop-${POP_PANEL}`);
+
 /* ------------------------------------------------------------- formatting */
 /* Locked in docs/spec/option-chain-v1.md row 13. */
 
@@ -124,8 +134,12 @@ async function loadInstruments() {
     wrap.appendChild(b);
   });
 
-  const first = state.instruments.find(i => i.resolved) ?? state.instruments[0];
-  if (first) select(first.id);
+  // P26 row 2: a popped-out window carries its chip and expiry in the URL, because nothing
+  // persists the current instrument — without this a popup always booted on NIFTY.
+  const wanted = POP_Q.get('key');
+  const first = (wanted && state.instruments.find(i => i.id === wanted && i.resolved))
+    ?? state.instruments.find(i => i.resolved) ?? state.instruments[0];
+  if (first) select(first.id, wanted === first.id ? (POP_Q.get('expiry') || undefined) : undefined);
 }
 
 function select(id, expiry) {
@@ -211,10 +225,21 @@ function connect() {
   });
 }
 
+let wasOff = false;
+
 function setConn(kind) {
   const el = $('conn');
   el.className = 'conn ' + (kind === 'on' ? 'on' : kind === 'off' ? 'off' : '');
   el.lastElementChild.textContent = kind === 'on' ? 'streaming' : kind === 'off' ? 'disconnected' : 'connecting';
+
+  // panel-windows-v1.md row 10. The stream coming back is a stronger signal than any timer, so
+  // every panel sitting on an error refetches at once instead of serving out its backoff. Only
+  // on the off -> on EDGE: `hello` and `open` both fire on a healthy connect.
+  if (kind === 'on' && wasOff) {
+    uc.onReconnect();
+    document.dispatchEvent(new CustomEvent('backend-back'));
+  }
+  wasOff = kind === 'off';
 }
 
 /* -------------------------------------------------------------- rendering */
@@ -681,6 +706,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 't') $('themeBtn').click();
   if (e.key.toLowerCase() === 'e') $('expiry').focus();
   if (e.key.toLowerCase() === 'c') setChart(document.body.classList.contains('nochart'));
+  // P26 row 5. F and W act on the panel under the pointer (row 6).
+  if (e.key.toLowerCase() === 'f') toggleFullscreen(POP_PANEL ?? hotPanel);
+  if (e.key.toLowerCase() === 'w') popOut(POP_PANEL ?? hotPanel);
   if (e.key === 'Home' && state.snapshot) scrollToAtm();
 });
 
@@ -952,6 +980,26 @@ function drawChart() {
  * and the same chart-tools frame as the tick line, so the axis drag, the crosshair and every P6
  * drawing work unchanged: a drawing is (time, price), and X()/Y() are chart-tools' own.
  */
+/* panel-windows-v1.md row 9 + amendment 16. The countdown rewrites this text every second and
+   drawCandleStrip() runs every frame, so the button is built ONCE and only the words change —
+   a control rebuilt under the pointer loses the click and takes focus to <body> with it (the
+   P19 Chart Style lesson in CLAUDE.md). */
+function ucMsgText(msg, text, showRetry) {
+  if (!msg.firstElementChild) {
+    const span = document.createElement('span');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'retry';
+    b.textContent = 'Retry now';
+    b.addEventListener('click', () => uc.retryNow());
+    msg.textContent = '';
+    msg.append(span, b);
+  }
+  const [span, btn] = msg.children;
+  if (span.textContent !== text) span.textContent = text;
+  btn.hidden = !showRetry;
+}
+
 function drawCandleStrip() {
   const svg = $('chartSvg');
   const box = svg.getBoundingClientRect();
@@ -968,8 +1016,8 @@ function drawCandleStrip() {
   const msg = $('ucMsg');
   msg.hidden = !!view;
   if (!view) {
-    msg.textContent = st.loading ? 'loading candles…'
-      : (st.message ?? `no candles for ${st.label} in the last 5 days`);
+    ucMsgText(msg, st.loading ? 'loading candles…'
+      : (st.message ?? `no candles for ${st.label} in the last 5 days`), !!st.errorText);
   }
   tools.setEnabled(!!view && view.vis.length >= 2);  // chart-tools row 25
   if (!view) { svg.innerHTML = ''; return; }
@@ -1066,6 +1114,101 @@ $('ucInterval').addEventListener('click', (e) => {
   uc.setInterval_(b.dataset.iv);
 });
 $('styleBtn').addEventListener('click', () => cstyle.open());
+
+/* ==========================================================================
+   P26 — panel windows. Spec: docs/spec/panel-windows-v1.md
+   ==========================================================================
+   Three panels, two actions each. Fullscreen is the browser's own API (row 1), so Esc exits it
+   for free and no layout is invented. Pop-out is this same page with `?pop=<panel>` (row 2):
+   the popup opens its own SSE, but on the SAME poller key, so Dhan sees no extra calls. */
+
+const PANELS = {
+  chart: { el: () => $('chartWrap'), name: 'chart' },
+  chain: { el: () => $('work'), name: 'option chain' },
+  opt: { el: () => $('optWin'), name: 'option chart' },
+};
+
+/** Row 6. The panel under the pointer decides what F and W act on; none → the chart. */
+let hotPanel = 'chart';
+document.addEventListener('pointerover', (e) => {
+  const sec = e.target.closest?.('#chartWrap,#work,#optWin');
+  if (!sec) return;
+  hotPanel = sec.id === 'chartWrap' ? 'chart' : sec.id === 'work' ? 'chain' : 'opt';
+}, { passive: true });
+
+/** Row 12 / row 9's sibling: a one-line note in the status rail rather than a silent no-op. */
+function panelNote(text) {
+  const el = $('panelNote');
+  if (!el) return;
+  el.textContent = text;
+  el.hidden = false;
+  clearTimeout(panelNote.t);
+  panelNote.t = setTimeout(() => { el.hidden = true; }, 6000);
+}
+
+function popKey(panel) { return `pop-${panel}`; }
+
+function readPopBox(panel) {
+  try {
+    const b = JSON.parse(localStorage.getItem(popKey(panel)) ?? 'null');
+    if (b && Number.isFinite(b.w) && Number.isFinite(b.h)) return b;
+  } catch { /* private mode */ }
+  return { w: 1280, h: 800, x: null, y: null };      // row 2's defaults
+}
+
+/** Row 1. */
+function toggleFullscreen(panel) {
+  const el = PANELS[panel]?.el();
+  if (!el) return;
+  if (document.fullscreenElement === el) { document.exitFullscreen?.(); return; }
+  if (panel === 'opt' && el.hidden) { panelNote('open a contract first — click a CE or PE cell'); return; }
+  // A collapsed chart has no body to show, so C is undone first rather than showing an empty box.
+  if (panel === 'chart' && document.body.classList.contains('nochart')) setChart(true);
+  el.requestFullscreen?.().catch(err => panelNote(`fullscreen refused — ${err}`));
+}
+
+/** Row 2. One window per panel: a second click re-focuses the one already open (out-of-scope
+ *  line 3). Row 7 restores the size and position the user left it at. */
+const popWindows = new Map();
+
+function popOut(panel) {
+  const open = popWindows.get(panel);
+  if (open && !open.closed) { open.focus(); return; }
+
+  const q = new URLSearchParams({ pop: panel });
+  if (state.current) q.set('key', state.current.id);
+  if (state.expiry) q.set('expiry', state.expiry);
+  if (panel === 'opt') {
+    const sel = window.__candles?.sel?.();
+    if (!sel) { panelNote('open a contract first — click a CE or PE cell'); return; }
+    q.set('strike', String(sel.strike));
+    q.set('side', sel.side);
+  }
+
+  const b = readPopBox(panel);
+  const feat = [`width=${b.w}`, `height=${b.h}`, 'menubar=no', 'toolbar=no', 'location=no']
+    .concat(Number.isFinite(b.x) && Number.isFinite(b.y) ? [`left=${b.x}`, `top=${b.y}`] : []);
+  const w = window.open(`/?${q}`, `dhan-${panel}`, feat.join(','));
+  if (!w) { panelNote('popup blocked — allow popups for this page'); return; }   // row 12
+  popWindows.set(panel, w);
+}
+
+for (const b of document.querySelectorAll('button.pw')) {
+  b.addEventListener('click', () => {
+    (b.id.endsWith('Fs') ? toggleFullscreen : popOut)(b.dataset.panel);
+  });
+}
+
+/* Row 7 — the popup remembers where it was left. Written by the popup about itself. */
+if (POP_PANEL) {
+  window.addEventListener('beforeunload', () => {
+    try {
+      localStorage.setItem(popKey(POP_PANEL), JSON.stringify({
+        w: window.outerWidth, h: window.outerHeight, x: window.screenX, y: window.screenY,
+      }));
+    } catch { /* private mode */ }
+  });
+}
 /* Row 11 — the readout follows the pointer. chart-tools owns the surface's crosshair; this only
    reads the same pointer, it does not compete for it. */
 $('chartSurface').addEventListener('pointermove', (e) => {
