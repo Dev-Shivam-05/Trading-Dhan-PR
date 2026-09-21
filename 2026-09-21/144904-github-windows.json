@@ -1,0 +1,636 @@
+{
+  "meta": {
+    "date": "2026-09-21",
+    "time": "14:49:04",
+    "weekday": "Mon",
+    "runner": "github-windows",
+    "host": "runnervmvmocb",
+    "status": "ok",
+    "note": "NSE data for 2026-09-21"
+  },
+  "result": {
+    "source": "nse",
+    "mode": "live",
+    "at": "2026-09-21T09:19:18.389Z",
+    "n": 20,
+    "reused": false,
+    "market": {
+      "status": "Open",
+      "priceAsOf": "21-Sep-2026 14:49:01",
+      "oiAsOf": "21-Sep-2026 14:48:24",
+      "tradeDate": "2026-09-21",
+      "prevTradingDate": "2026-09-18"
+    },
+    "evidence": [
+      ".cache\\nse\\2026-09-21-144917-fno-securities.json",
+      ".cache\\nse\\2026-09-21-144917-oi-spurts.json"
+    ],
+    "funnel": {
+      "list": 210,
+      "scored": 206,
+      "ranked": 40,
+      "chg": 39,
+      "oi": 7
+    },
+    "long": [
+      {
+        "symbol": "PATANJALI",
+        "name": "Patanjali Foods Limited",
+        "ltp": 397.25,
+        "prevClose": 367,
+        "chgPct": 8.24,
+        "volume": 21141176,
+        "latestOi": 79140,
+        "prevOi": 48010,
+        "oiPct": 64.84
+      },
+      {
+        "symbol": "MANKIND",
+        "name": "Mankind Pharma Limited",
+        "ltp": 2429,
+        "prevClose": 2300.7,
+        "chgPct": 5.58,
+        "volume": 1229479,
+        "latestOi": 28037,
+        "prevOi": 21071,
+        "oiPct": 33.06
+      },
+      {
+        "symbol": "LICHSGFIN",
+        "name": "LIC Housing Finance Limited",
+        "ltp": 572.55,
+        "prevClose": 548.15,
+        "chgPct": 4.45,
+        "volume": 3157988,
+        "latestOi": 67944,
+        "prevOi": 61685,
+        "oiPct": 10.15
+      },
+      {
+        "symbol": "ICICIGI",
+        "name": "ICICI Lombard General Insurance Company Limited",
+        "ltp": 1513.2,
+        "prevClose": 1458.1,
+        "chgPct": 3.78,
+        "volume": 1157741,
+        "latestOi": 37150,
+        "prevOi": 34580,
+        "oiPct": 7.43
+      }
+    ],
+    "short": [
+      {
+        "symbol": "OFSS",
+        "name": "Oracle Financial Services Software Limited",
+        "ltp": 10981,
+        "prevClose": 11896,
+        "chgPct": -7.69,
+        "volume": 481837,
+        "latestOi": 45503,
+        "prevOi": 32224,
+        "oiPct": 41.21
+      },
+      {
+        "symbol": "BSE",
+        "name": "BSE Limited",
+        "ltp": 3162.6,
+        "prevClose": 3266.4,
+        "chgPct": -3.18,
+        "volume": 5871251,
+        "latestOi": 207597,
+        "prevOi": 168154,
+        "oiPct": 23.46
+      },
+      {
+        "symbol": "PAYTM",
+        "name": "One 97 Communications Limited",
+        "ltp": 1811,
+        "prevClose": 1849.9,
+        "chgPct": -2.1,
+        "volume": 4455089,
+        "latestOi": 68953,
+        "prevOi": 63489,
+        "oiPct": 8.61
+      }
+    ],
+    "skipped": [
+      {
+        "symbol": "BAJAJHLDNG",
+        "name": "Bajaj Holdings & Investment Limited",
+        "reason": "NSE figures inconsistent"
+      },
+      {
+        "symbol": "BDL",
+        "name": "Bharat Dynamics Limited",
+        "reason": "NSE figures inconsistent"
+      },
+      {
+        "symbol": "CONCOR",
+        "name": "Container Corporation of India Limited",
+        "reason": "NSE figures inconsistent"
+      },
+      {
+        "symbol": "DIXON",
+        "name": "Dixon Technologies (India) Limited",
+        "reason": "NSE figures inconsistent"
+      }
+    ],
+    "excluded": [],
+    "rejected": {
+      "rank": 166,
+      "chg": 1,
+      "oi": 32
+    },
+    "trace": [
+      {
+        "symbol": "PATANJALI",
+        "side": "gainer",
+        "chgPct": 8.24,
+        "oiPct": 64.84,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MANKIND",
+        "side": "gainer",
+        "chgPct": 5.58,
+        "oiPct": 33.06,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "LICHSGFIN",
+        "side": "gainer",
+        "chgPct": 4.45,
+        "oiPct": 10.15,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "SOLARINDS",
+        "side": "gainer",
+        "chgPct": 4.12,
+        "oiPct": -4.53,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "NAUKRI",
+        "side": "gainer",
+        "chgPct": 3.84,
+        "oiPct": 4.02,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ICICIGI",
+        "side": "gainer",
+        "chgPct": 3.78,
+        "oiPct": 7.43,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "LAURUSLABS",
+        "side": "gainer",
+        "chgPct": 3.31,
+        "oiPct": 3.97,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "KAYNES",
+        "side": "gainer",
+        "chgPct": 3.26,
+        "oiPct": -0.12,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "VOLTAS",
+        "side": "gainer",
+        "chgPct": 3.12,
+        "oiPct": 3.15,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ETERNAL",
+        "side": "gainer",
+        "chgPct": 2.86,
+        "oiPct": 4.66,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "MARICO",
+        "side": "gainer",
+        "chgPct": 2.86,
+        "oiPct": 3.68,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "POLICYBZR",
+        "side": "gainer",
+        "chgPct": 2.83,
+        "oiPct": -2.95,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BIOCON",
+        "side": "gainer",
+        "chgPct": 2.81,
+        "oiPct": 1.53,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PHOENIXLTD",
+        "side": "gainer",
+        "chgPct": 2.77,
+        "oiPct": 4.38,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PRESTIGE",
+        "side": "gainer",
+        "chgPct": 2.63,
+        "oiPct": 1.03,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "HCLTECH",
+        "side": "gainer",
+        "chgPct": 2.58,
+        "oiPct": 2.41,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "side": "gainer",
+        "chgPct": 2.57,
+        "oiPct": -0.91,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "HEROMOTOCO",
+        "side": "gainer",
+        "chgPct": 2.5,
+        "oiPct": 3.06,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BLUESTARCO",
+        "side": "gainer",
+        "chgPct": 2.44,
+        "oiPct": 4.11,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "TORNTPHARM",
+        "side": "gainer",
+        "chgPct": 2.44,
+        "oiPct": 5.57,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "OFSS",
+        "side": "loser",
+        "chgPct": -7.69,
+        "oiPct": 41.21,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "UNOMINDA",
+        "side": "loser",
+        "chgPct": -4.28,
+        "oiPct": 5.47,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "APLAPOLLO",
+        "side": "loser",
+        "chgPct": -3.55,
+        "oiPct": 3.18,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "KFINTECH",
+        "side": "loser",
+        "chgPct": -3.32,
+        "oiPct": 6.17,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BHARTIARTL",
+        "side": "loser",
+        "chgPct": -3.27,
+        "oiPct": 5.91,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BSE",
+        "side": "loser",
+        "chgPct": -3.18,
+        "oiPct": 23.46,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "UPL",
+        "side": "loser",
+        "chgPct": -3.14,
+        "oiPct": 3.14,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "RBLBANK",
+        "side": "loser",
+        "chgPct": -3.1,
+        "oiPct": 0.76,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "VEDL",
+        "side": "loser",
+        "chgPct": -2.8,
+        "oiPct": 1.69,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ATHERENERG",
+        "side": "loser",
+        "chgPct": -2.77,
+        "oiPct": 5.7,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "HYUNDAI",
+        "side": "loser",
+        "chgPct": -2.7,
+        "oiPct": 4.55,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "POWERINDIA",
+        "side": "loser",
+        "chgPct": -2.48,
+        "oiPct": 1.31,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "IREDA",
+        "side": "loser",
+        "chgPct": -2.47,
+        "oiPct": 1.91,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "JUBLFOOD",
+        "side": "loser",
+        "chgPct": -2.4,
+        "oiPct": 1.47,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "TATAPOWER",
+        "side": "loser",
+        "chgPct": -2.2,
+        "oiPct": -0.05,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PAYTM",
+        "side": "loser",
+        "chgPct": -2.1,
+        "oiPct": 8.61,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "ADANIENSOL",
+        "side": "loser",
+        "chgPct": -2.05,
+        "oiPct": 1.17,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ADANIGREEN",
+        "side": "loser",
+        "chgPct": -2.02,
+        "oiPct": 1.24,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "WAAREEENER",
+        "side": "loser",
+        "chgPct": -2,
+        "oiPct": 6.13,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PETRONET",
+        "side": "loser",
+        "chgPct": -1.98,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      }
+    ],
+    "reconciles": true,
+    "elapsedMs": 13084,
+    "error": null
+  },
+  "wider": [
+    {
+      "n": 25,
+      "funnel": {
+        "list": 210,
+        "scored": 206,
+        "ranked": 50,
+        "chg": 44,
+        "oi": 8
+      },
+      "long": [
+        {
+          "symbol": "PATANJALI",
+          "name": "Patanjali Foods Limited",
+          "ltp": 397.25,
+          "prevClose": 367,
+          "chgPct": 8.24,
+          "volume": 21141176,
+          "latestOi": 79140,
+          "prevOi": 48010,
+          "oiPct": 64.84
+        },
+        {
+          "symbol": "MANKIND",
+          "name": "Mankind Pharma Limited",
+          "ltp": 2429,
+          "prevClose": 2300.7,
+          "chgPct": 5.58,
+          "volume": 1229479,
+          "latestOi": 28037,
+          "prevOi": 21071,
+          "oiPct": 33.06
+        },
+        {
+          "symbol": "LICHSGFIN",
+          "name": "LIC Housing Finance Limited",
+          "ltp": 572.55,
+          "prevClose": 548.15,
+          "chgPct": 4.45,
+          "volume": 3157988,
+          "latestOi": 67944,
+          "prevOi": 61685,
+          "oiPct": 10.15
+        },
+        {
+          "symbol": "ICICIGI",
+          "name": "ICICI Lombard General Insurance Company Limited",
+          "ltp": 1513.2,
+          "prevClose": 1458.1,
+          "chgPct": 3.78,
+          "volume": 1157741,
+          "latestOi": 37150,
+          "prevOi": 34580,
+          "oiPct": 7.43
+        },
+        {
+          "symbol": "UNITDSPR",
+          "name": "United Spirits Limited",
+          "ltp": 1404.2,
+          "prevClose": 1371,
+          "chgPct": 2.42,
+          "volume": 575625,
+          "latestOi": 32386,
+          "prevOi": 30115,
+          "oiPct": 7.54
+        }
+      ],
+      "short": [
+        {
+          "symbol": "OFSS",
+          "name": "Oracle Financial Services Software Limited",
+          "ltp": 10981,
+          "prevClose": 11896,
+          "chgPct": -7.69,
+          "volume": 481837,
+          "latestOi": 45503,
+          "prevOi": 32224,
+          "oiPct": 41.21
+        },
+        {
+          "symbol": "BSE",
+          "name": "BSE Limited",
+          "ltp": 3162.6,
+          "prevClose": 3266.4,
+          "chgPct": -3.18,
+          "volume": 5871251,
+          "latestOi": 207597,
+          "prevOi": 168154,
+          "oiPct": 23.46
+        },
+        {
+          "symbol": "PAYTM",
+          "name": "One 97 Communications Limited",
+          "ltp": 1811,
+          "prevClose": 1849.9,
+          "chgPct": -2.1,
+          "volume": 4455089,
+          "latestOi": 68953,
+          "prevOi": 63489,
+          "oiPct": 8.61
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "funnel": {
+        "list": 210,
+        "scored": 206,
+        "ranked": 60,
+        "chg": 48,
+        "oi": 8
+      },
+      "long": [
+        {
+          "symbol": "PATANJALI",
+          "name": "Patanjali Foods Limited",
+          "ltp": 397.25,
+          "prevClose": 367,
+          "chgPct": 8.24,
+          "volume": 21141176,
+          "latestOi": 79140,
+          "prevOi": 48010,
+          "oiPct": 64.84
+        },
+        {
+          "symbol": "MANKIND",
+          "name": "Mankind Pharma Limited",
+          "ltp": 2429,
+          "prevClose": 2300.7,
+          "chgPct": 5.58,
+          "volume": 1229479,
+          "latestOi": 28037,
+          "prevOi": 21071,
+          "oiPct": 33.06
+        },
+        {
+          "symbol": "LICHSGFIN",
+          "name": "LIC Housing Finance Limited",
+          "ltp": 572.55,
+          "prevClose": 548.15,
+          "chgPct": 4.45,
+          "volume": 3157988,
+          "latestOi": 67944,
+          "prevOi": 61685,
+          "oiPct": 10.15
+        },
+        {
+          "symbol": "ICICIGI",
+          "name": "ICICI Lombard General Insurance Company Limited",
+          "ltp": 1513.2,
+          "prevClose": 1458.1,
+          "chgPct": 3.78,
+          "volume": 1157741,
+          "latestOi": 37150,
+          "prevOi": 34580,
+          "oiPct": 7.43
+        },
+        {
+          "symbol": "UNITDSPR",
+          "name": "United Spirits Limited",
+          "ltp": 1404.2,
+          "prevClose": 1371,
+          "chgPct": 2.42,
+          "volume": 575625,
+          "latestOi": 32386,
+          "prevOi": 30115,
+          "oiPct": 7.54
+        }
+      ],
+      "short": [
+        {
+          "symbol": "OFSS",
+          "name": "Oracle Financial Services Software Limited",
+          "ltp": 10981,
+          "prevClose": 11896,
+          "chgPct": -7.69,
+          "volume": 481837,
+          "latestOi": 45503,
+          "prevOi": 32224,
+          "oiPct": 41.21
+        },
+        {
+          "symbol": "BSE",
+          "name": "BSE Limited",
+          "ltp": 3162.6,
+          "prevClose": 3266.4,
+          "chgPct": -3.18,
+          "volume": 5871251,
+          "latestOi": 207597,
+          "prevOi": 168154,
+          "oiPct": 23.46
+        },
+        {
+          "symbol": "PAYTM",
+          "name": "One 97 Communications Limited",
+          "ltp": 1811,
+          "prevClose": 1849.9,
+          "chgPct": -2.1,
+          "volume": 4455089,
+          "latestOi": 68953,
+          "prevOi": 63489,
+          "oiPct": 8.61
+        }
+      ]
+    }
+  ]
+}
