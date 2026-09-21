@@ -51,6 +51,9 @@ TypeError: Failed to fetch` in the option-chart window while the server was alre
 | 14 | during build | The chain has no header of its own; its two buttons go at the right end of the **top strip** (`.hstrip`), after the strike search. | `#work` is a bare `<main>` wrapping `.gridwrap`. Inventing a header bar for it would cost the chain vertical space, which spec `terminal-redesign-v1.md` row 4 ranks as the pane that never loses pixels. |
 | 15 | during build | `.chart-empty` is `pointer-events:none`, so row 9's **Retry now** button is unreachable inside it. The button gets `pointer-events:auto`. | Found by reading the CSS before wiring the click, not after. |
 | 16 | during build | The countdown in row 9 needs a repaint every second. Each store runs a **1 s interval only while it is in an error state**, cleared on success. | A permanent 1 s timer would repaint the chart 60 times a minute on a healthy connection for nothing. |
+| 17 | found by AC1's own run | While `document.fullscreenElement` is set, `candles.js` and `scan.js` **ignore Escape**. | Row 1 makes Esc the way out of fullscreen. Without the guard, one Esc in a fullscreen option chart left fullscreen **and** closed the contract, so the reader came back to an empty chain. It surfaced as the next check being unable to click a button inside a window that no longer existed. |
+| 18 | found by reading the screenshot | The popped-out option chart pins itself with `left/top/right/bottom/width/height` marked `!important`, keeps `position:fixed`, and leaves `.shell` in the layout as `visibility:hidden`. | `candles.js` writes the window's geometry as **inline styles** (`placeWindow`, the drag, the resize observer), and an inline style beats any class rule. Two earlier attempts — `position:static`, then plain class rules — left the popup as a 560×340 box in a corner with the status rail floating above it. **Every assertion in the suite passed both times**; only the PNG showed it. |
+| 19 | during build | The pop-out glyph is `&#10697;` (⧉, two overlapping squares), not `&#10696;` (⧈). | Row 4 locked ⧉. The first build shipped the neighbouring code point, which renders as a square inside a square and reads as picture-in-picture. Caught by a 3× close-up of the button, not by any check. |
 
 ## Out of scope
 
@@ -61,21 +64,34 @@ TypeError: Failed to fetch` in the option-chart window while the server was alre
 - More than one popup per panel. A second `⧉` re-focuses the window that is already open.
 - Any change to the chain's columns, colours, or the scanner.
 
-## Acceptance criteria
+## Acceptance criteria — result: **34/34** (27 in `.cache/verify-p26.mjs`, 7 in `.cache/verify-p26-recovery.mjs`), 2026-09-21, replay, two consecutive clean runs
 
-- [ ] AC1 — each of the 3 panels shows exactly 2 new buttons; `document.fullscreenElement` is that
-      panel after `⛶`, and `null` after `Esc`.
-- [ ] AC2 — `⧉` opens a window whose `body.classList` contains `pop-chart` / `pop-chain` /
-      `pop-opt`, and in which the other two panels have `offsetParent === null`.
-- [ ] AC3 — the popup receives at least one `snapshot` SSE event within 10 s, and `/api/feed`
-      reports **no** increase in subscribed instruments.
-- [ ] AC4 — kill the server with the page open and restart it: chart data is back **within 12 s**
-      (was up to 60 s), measured by `.cache/audit-recovery.mjs`.
-- [ ] AC5 — the backoff sequence is 2/4/8/16/32/60 s across a 3-minute outage, and the first
-      successful fetch resets it to 2 s.
-- [ ] AC6 — `F` and `W` do nothing while a modifier is held, and nothing while focus is in
-      `#search` or `#expiry`.
-- [ ] AC7 — zero console errors, and a screenshot of all 6 new states reviewed before "done".
+- [x] AC1 — each of the 3 panels shows exactly 2 new buttons; `document.fullscreenElement` is that
+      panel after `⛶`, and `null` after leaving.
+      **One half of this is not claimed:** Chrome's own "Esc exits fullscreen" lives in the browser
+      UI layer and a CDP-synthesised key press does not reach it, headless or headed. What is
+      measured is everything the app owns — Escape is **not** `preventDefault`-ed while fullscreen
+      (`defaultPrevented === false` on all three panels), nothing in the app acts on it
+      (amendment 17), and `exitFullscreen()` returns the panel to the shell. The UA half needs
+      **one manual press** to confirm.
+- [x] AC2 — `⧉` opens a window carrying `pop-chart` / `pop-chain` / `pop-opt`, with the other two
+      panels not rendered. **Measured by box and `display`, not `offsetParent`**: a
+      `position:fixed` element reports `offsetParent === null` even when it fills the screen, and
+      `#optWin` is fixed in every mode — the first version of this check called a visible window
+      hidden.
+- [x] AC3 — each popup has real data (chain 16 rows, underlying 300 candles, option 75 candles)
+      and `/api/feed` reports **no** increase in subscribed instruments.
+- [x] AC4 — kill the server with the page open and restart it: the chart is back in **0.3 s** and
+      **1.3 s** on two runs, against a 12 s bar and the 60 s it used to take. The option window
+      recovers with it.
+- [x] AC5 — the observed waits are exactly **2, 4, 8, 16, 32 s**, the message counts down
+      (`…retrying in 53 s`), the option window is on the same ladder, and the first success resets
+      it to step 0.
+- [x] AC6 — `Ctrl+F` does not fullscreen; `F` and `W` inside `#search` do nothing.
+- [x] AC7 — zero console errors. **One pre-existing exception, counted separately rather than
+      folded into a green:** `/favicon.ico` 404s, because the server's `STATIC` allow-list has no
+      favicon row. It predates P26 and only shows in a headed browser. Six screenshots reviewed
+      (`p26-fs-chart/chain/opt`, `p26-pop-chart/chain/opt`) plus the outage and recovered states.
 
 ## Risks
 

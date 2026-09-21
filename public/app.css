@@ -825,12 +825,27 @@ body.pop-opt #chartWrap,body.pop-opt #work{display:none!important}
 /* The chart pane is sized by panes.js in the shell; alone in a window it takes the whole height. */
 body.pop-chart #chartWrap{flex:1;min-height:0}
 body.pop-chart .chart-body{height:auto!important;flex:1;min-height:0}
-/* Row 3 — popped out, the option chart is the window, not a 560x340 box floating in one. */
+/* Row 3 — popped out, the option chart is the window, not a 560x340 box floating in one.
+   It stays `position:fixed`: #optWin is a SIBLING of .shell and sits AFTER the status rail in the
+   DOM, so putting it back into normal flow dropped it below the rail with an empty shell above —
+   seen in the first p26-pop-opt screenshot, and invisible to every assertion in the suite, which
+   only asked whether the other two panels were hidden. The empty shell and the chips go with it;
+   the window is one contract, and #optWin's own header already names it. */
+body.pop-opt .topbar,body.pop-opt .hstrip{display:none}
+/* The !important set is load-bearing, the same way P20's `.chart-body svg` pair is: candles.js
+   writes left/top/width/height as INLINE styles (placeWindow, the drag, the resize observer), and
+   an inline style beats any class rule without it. Without these the popped-out window was still
+   a 560x340 box in the corner — which every assertion in the suite passed, and one screenshot
+   showed immediately. */
 body.pop-opt #optWin{
-  position:static;width:auto;height:auto;flex:1;min-height:0;
+  left:0!important;right:0!important;top:0!important;bottom:26px!important;
+  width:auto!important;height:auto!important;
   border:0;border-radius:0;box-shadow:none;resize:none;
 }
+body.pop-opt.replay #optWin{top:28px!important}      /* the replay line keeps its place */
 body.pop-opt .ow-h{cursor:default}
+/* The shell stays in the layout, empty, so the status rail keeps its place at the bottom. */
+body.pop-opt .shell{visibility:hidden}
 
 /* Row 1 — fullscreen. The element is lifted out of the shell's flex column, so it has to be told
    its own size; without this a 200px chart stays 200px on a 1080px screen. */

@@ -443,6 +443,8 @@ $('scanTopN').addEventListener('change', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  // panel-windows-v1.md amendment 17: while a panel is fullscreen, Esc is the browser's way out.
+  if (document.fullscreenElement) return;
   // Esc leaves the scanner only while it is open, so the drawing tools keep their Esc otherwise.
   if (e.key === 'Escape' && state.open) {
     // Stop here. candles.js has its own Escape handler that leaves option-candle mode, and it is

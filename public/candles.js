@@ -645,6 +645,12 @@ $('candleInterval').addEventListener('click', (e) => {
    drawing is in flight, and the tools are disabled here anyway (row 17). */
 document.addEventListener('keydown', (e) => {
   if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  // panel-windows-v1.md amendment 17. While anything is fullscreen, Esc belongs to the browser:
+  // it is how row 1 says you leave. Without this guard one Esc in a fullscreen option chart both
+  // left fullscreen AND closed the contract, so the user came back to an empty chain — found by
+  // AC1's own run, where the next check could not click a button inside a window that no longer
+  // existed.
+  if (document.fullscreenElement) return;
   if (e.key === 'Escape' && state.active) { back(); return; }
 });
 
