@@ -389,7 +389,11 @@ function windowRows(s) {
 
 /* Read-only test seam: the P20 verification drives windowRows() with synthetic snapshots, because
    replay's chain is always centred and a chain edge never happens on its own. Nothing reads it. */
-window.__grid = { windowRows, WING };
+/* P27: the window is anchored on the SNAPSHOT's spot (3 s), while #uSpot is repainted from the
+   tick feed (10 Hz), so the two legitimately differ between snapshots. Without this, P23's rule
+   is not measurable from the outside at all: a check reading the header's spot reported 58 of 60
+   samples "off-centre" with nothing wrong. Read-only; nothing in the app reads it. */
+window.__grid = { windowRows, WING, spot: () => state.snapshot?.spot ?? null };
 
 function renderGrid(s) {
   buildColgroup();
@@ -1057,7 +1061,7 @@ function drawCandleStrip() {
   const col = cstyle.colours($('chartBody'), style);
   svg.innerHTML = uc.renderSvg(view, {
     W, H, X: tools.X, Y: tools.Y, up: col.up, down: col.down, inr,
-    hover: state.ucHover, clipId: 'ucClipStrip', note: ucNote(),
+    hover: state.ucHover, clipId: 'ucClipStrip', note: ucNote(W - 76),
     drawings: tools.renderDrawings(),               // chart-tools row 26 — above the series…
     crosshair: tools.renderCrosshair(),             // …and the crosshair on top of everything
   });
@@ -1074,17 +1078,18 @@ function renderUcHead() {
 /** Row 21 / amendment 28: the session note, drawn in the plot's top-right corner. In the header it
  *  wrapped the strip to two lines at 1024px. With candles on screen a failed refresh is reported
  *  here too — the candles already drawn are still true. */
-function ucNote() {
+function ucNote(plotW) {
   const st = uc.current();
   const d = st.data;
   // The crosshair's own time label is a filled box on the same axis row, drawn after everything
   // else, so at the right-hand end it paints over this note and leaves "sessi" showing (seen on
   // the live GOLD screen, 2026-09-22). The note is the one that yields: it is standing
   // information, and the label under the pointer is what the user is reading right now.
+  // `plotW` is handed in rather than re-measured: this runs on every frame, and a second
+  // getBoundingClientRect() inside the paint path is exactly the kind of thing that turns up
+  // later as an unexplained p95 (CLAUDE.md's frame-time note).
   const cx = tools.crossX();
-  const svg = $('chartSvg');
-  const plotW = Math.max(1, Math.round(svg.getBoundingClientRect().width) - 76);
-  if (cx !== null && cx > plotW - 190) return '';
+  if (cx !== null && plotW > 0 && cx > plotW - 190) return '';
   if (d && st.message && d.candles?.length) return st.message;
   if (d?.sessionDate) return `session ${dayLabel(d.sessionDate)}${st.openNow ? '' : ' · market closed'}`;
   return '';

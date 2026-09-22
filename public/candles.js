@@ -285,6 +285,17 @@ function failed(error) {
   startCountdown();
 }
 
+/** P27 — see ucandles.refused(). A refusal keeps the ordinary cadence and still says when it
+ *  is coming back; without that the window reads as dead. */
+function refused(error) {
+  succeeded();
+  state.retryStep = 0;
+  state.retryAt = Date.now() + REFRESH_MS;
+  state.errorText = error;
+  state.message = `${error} — retrying in ${Math.round(REFRESH_MS / 1000)} s`;
+  startCountdown();
+}
+
 function succeeded() {
   state.retryStep = 0;
   state.retryAt = 0;
@@ -348,8 +359,10 @@ async function refresh(showLoading) {
     state.loading = false;
     // A 4xx/5xx with a body is the server answering, not a blip: it is reported and not retried,
     // exactly as before. Only an unreachable backend enters the row 8 ladder.
-    if (!res.ok) { succeeded(); state.data = null; state.message = body.error ?? `HTTP ${res.status}`; }
-    else if (body.error) { succeeded(); state.data = null; state.message = body.error; }
+    // P27: same as ucandles.refused() — a refusal keeps the ordinary cadence but must still say
+    // when it is coming back, or the window reads as dead.
+    if (!res.ok) { state.data = null; refused(body.error ?? `HTTP ${res.status}`); }
+    else if (body.error) { state.data = null; refused(body.error); }
     else if (body.note) { succeeded(); state.data = body; state.message = body.note; }
     else { succeeded(); state.data = body; state.message = null; }
   } catch (err) {

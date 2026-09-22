@@ -880,3 +880,12 @@ body.pop-opt .shell{visibility:hidden}
 }
 .chart-reset:hover{color:var(--accent);border-color:var(--accent)}
 .chart-reset[hidden]{display:none!important}
+
+/* P27 — the chart header still wrapped at 1024 after ui-type-v1 row 13 shrank the Style button.
+   Measured 2026-09-22: 12 controls needing ~1025px inside a 992px content box, so `chartPop` and
+   `chartBtn` fell onto a second and third line and the header stood 76px tall instead of ~34px,
+   eating 42px of chart. P22's own suite had been reporting this as a red line and it was being
+   read as a stale expectation. The legend is the item that yields — it is explanatory text, the
+   only thing in the row that names nothing and controls nothing — and it goes at the same 1180px
+   breakpoint the Style button already uses, rather than at a new number. */
+@media (max-width:1180px){ .chart-h .legend{display:none} }

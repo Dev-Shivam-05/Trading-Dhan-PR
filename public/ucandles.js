@@ -124,6 +124,23 @@ function failed(error) {
   startCountdown();
 }
 
+/**
+ * P27 / underlying-candles-v1.md row 21. A REFUSAL is not a blip: the server answered and said
+ * no, so it does not enter P26 row 8's ladder and waits the ordinary REFRESH_MS instead. But the
+ * screen must still say WHEN it will try again — that is what row 21 promised, and P26's
+ * blip-vs-refusal split quietly dropped it, leaving "request failed (DH-904)" on screen with
+ * nothing to say it was coming back. P19's own suite had been reporting that as a red line.
+ */
+function refused(error) {
+  succeeded();
+  store.retryStep = 0;                       // a refusal never advances the blip ladder
+  store.retryAt = Date.now() + REFRESH_MS;
+  store.errorText = error;
+  store.message = `${error} — retrying in ${Math.round(REFRESH_MS / 1000)} s`;
+  schedule(REFRESH_MS);
+  startCountdown();
+}
+
 /** Row 8. Called on every successful fetch. */
 function succeeded() {
   store.retryStep = 0;
@@ -173,7 +190,7 @@ export async function refresh(showLoading) {
     // screen — they are still true, only no longer extending.
     // panel-windows-v1.md row 8: the retry ladder for a blip, REFRESH_MS for a real refusal.
     if (unreachable) { failed(error); }
-    else { succeeded(); store.message = error; schedule(REFRESH_MS); }
+    else { refused(error); }
   } else {
     succeeded();
     store.openNow = !!body.openNow;
