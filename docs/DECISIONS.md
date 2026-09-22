@@ -524,3 +524,44 @@ the 15:25 close with an empty 21,000,000 ms stretch in front of it — while `/a
 returned 76 clean candles. The client drew the gap. The **server** decides the session is open
 now; a tick past the last candle on a shut session asks it (one throttled refresh) instead of
 inventing a bar. Verified live on the open MCX session that this does not block a real one.
+
+## 2026-09-22 — The LTP Calculator rests on one undisclosed primitive (P28)
+The 133-video corpus in `LTP-CALCULATOR/` was read in full (127 V1 files + 35 V2 files) and
+reconstructed in `LTP-CALCULATOR/ANALYSIS/`. The finding that decides whether the section can be
+built at all: **every level the product draws is a selection of one number, the reversal price, per
+strike per side.** Extensions, divergences, EOR+-n/EOS+-n, the four 9:20 lines, the eight AI lines,
+Max Pain, Max Gain, the weekly and monthly range bands and the LTP Swing HOI reversals are all that
+same number chosen from a different strike. Around twenty files state it is "derived from the Option
+Greeks"; V124 lists the manual prototype's exact inputs (spot, call LTP, put LTP, delta, theta, vega,
+gamma), V111 adds rho, implied volatility and futures, and V18 gives the only theory -- that a
+writer commits hardest where time value peaks, and that peak is the reversal price. **No file gives
+the formula.** Recorded as OQ-1 and treated as a blocker rather than guessed at, because a wrong
+approximation would be invisible: it produces plausible levels that are quietly wrong, which is the
+one failure mode this project's verification bar exists to prevent.
+
+## 2026-09-22 — KEY-POINTS-V2 is a second pass, not new material, and neither folder wins (P28)
+`LTP-CALCULATOR/KEY-POINTS-V2/` arrived mid-session and looks like new videos. It is not: all 35 of
+its files are videos already in `KEY-POINTS/`, rebuilt from **English translations** of the same
+transcripts instead of the Hindi ASR captions. Its own `INDEX.md` says so, and the other 92 videos
+were already English and were not redone. The decision was to keep both and cite both rather than
+replace V1. V2 is cleaner on its 35 and resolved four open questions -- the free tier is delayed on
+the **data feed** while the charts are live (OQ-24); Nifty's weekly expiry **moved from Thursday to
+Tuesday**, which explains three "contradictory" range-generation days (OQ-25); the stock lines carry
+**per-line** Max Pain and Max Gain, not shared ones (OQ-28); and LTP Swing's bearish branch wants a
+**breakout**, not a breakdown (OQ-31). But V2 also **loses** detail V1 kept (the five-shade yellow,
+the "even if you personally did not take the trade" pairing clause, the deep-ITM hedge-strike
+substitution) and **introduces one error of its own**: it flags support and resistance sitting on the
+same strike as transcription damage, when the framework teaches that case explicitly as the
+zero-divergence day. Both passes are summaries with their own failure modes; neither is ground truth.
+
+## 2026-09-22 — `/api/health`'s `build` is HEAD at process start, not the code running (P28, cross-session)
+Two sessions were misled by this in one night. `build` reads like a version stamp and is not one: a
+server started at 21:38 reports the HEAD of 21:38 for its whole life, even when `src/server/*.ts`
+files newer than that commit were already on disk and loaded at boot. `dhan-36` concluded from it
+that two running servers predated the P27 fixes and was about to restart them; `dhan-93` pushed back
+and the check was wrong. **To tell what a running server actually has, compare file mtimes against
+the process start time, not `build` against HEAD.** And remember `src/server/index.ts` reads `public/`
+from disk per request, so every running server already serves the current UI whatever `build` says.
+The same shape of trap appeared twice: this session's start-of-conversation git snapshot said branch
+`p26-panel-windows` while `git rev-parse` said `p25-chart-nav`. **Never trust a start-of-session
+snapshot for a value that moves.**

@@ -483,3 +483,45 @@ P19's AC9 (paint p95 < 8 ms at 375 candles) read **9.70 ms** while two verificat
 driving their own Chrome instances, and **4.70 ms** median over five 120-frame runs alone, on the
 same build minutes later. Before believing a frame-time red, re-run it with nothing else going —
 and prefer the median p95 of several samples to a single one. Same family as the max-vs-p95 note.
+
+## `/api/health`'s `build` is HEAD at process START, not the code the process loaded
+It reads like a version stamp. It is not. A server started at 21:38 reports the HEAD of 21:38 for
+its whole life, even when `src/server/*.ts` files newer than that commit were already on disk and
+loaded at boot. On 2026-09-22 this cost two sessions four tool calls: `dhan-36` read 8787 as
+`af535de` against HEAD `9e5593c`, concluded both running servers predated the P27 fixes, and was
+about to restart them; `dhan-93` pushed back and the read was wrong. **To tell what a running server
+actually has, compare file mtimes against the process start time** (`Get-CimInstance Win32_Process
+-Filter "ProcessId = <pid>"` for the start time), not `build` against HEAD. And remember
+`src/server/index.ts` reads `public/` from disk **per request**, so every running server already
+serves the current UI whatever `build` says — a UI-only phase never needs a restart to be live.
+
+Same shape, twice in one night: the **git status block in a session's opening context is frozen at
+session start**. It said branch `p26-panel-windows` while `git rev-parse --abbrev-ref HEAD` said
+`p25-chart-nav`. **Never trust a start-of-session snapshot for a value that moves** — re-read it.
+
+## `LTP-CALCULATOR/` is a read-only source corpus, already fully analysed — do not re-read it
+The folder holds the material for a planned **third workspace** (LTP Calculator, alongside Scanner
+and Option Chain). It is **untracked and not gitignored**, so it sits in the same `??` pile as the
+stray root PNGs — a `git add -A` sweeps it in and a `git clean -fd` destroys it. Warn any peer
+session before it commits.
+
+- `KEY-POINTS/` — 127 video files + INDEX, ~104,000 words, from **Hindi ASR** captions.
+- `KEY-POINTS-V2/` — 36 files. **NOT new videos.** It is 35 of the *same* videos re-extracted from
+  **English translations**; the other 92 were already English and were not redone. Its own
+  `INDEX.md` says so. Neither folder supersedes the other: V2 is cleaner on its 35, V1 keeps detail
+  V2 drops, and V2 introduced one error of its own (it flags same-strike support and resistance as
+  transcription damage, when the framework teaches that case as the zero-divergence day).
+- `ANALYSIS/` — P28's output, 9 documents. **Everything in the corpus is already reconstructed here,
+  with every rule traced to its video number.** Re-reading the 163 source files costs ~150k tokens
+  to learn nothing new. Start at `05-CONSOLIDATED-LOGIC.md`, then `08-V2-DELTA.md` (it overrides
+  parts of `07-OPEN-QUESTIONS.md`).
+
+**The build is blocked on one thing (OQ-1):** every level the product draws — extensions,
+divergences, the four 9:20 lines, the eight AI lines, Max Pain, Max Gain, the weekly/monthly bands,
+the LTP Swing HOI reversals — is the same number, the **reversal price** per strike per side,
+selected from a different strike. ~20 files say it is "derived from the Option Greeks"; **none gives
+the formula.** Do not guess it: a wrong approximation produces plausible levels that are quietly
+wrong, which is exactly the failure this project's verification bar exists to prevent.
+
+**And the terminology trap that will silently corrupt any implementation: in this product
+"Max Pain" means STOP LOSS and "Max Gain" means TARGET.** Neither carries its industry meaning.
