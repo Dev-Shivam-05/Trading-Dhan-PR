@@ -108,6 +108,14 @@ function edgeMs(span) {
 /** P25 row 4 — 5 candles for a candle chart, 5 s for the tick line. Set before each paint. */
 export function setMinSpan(ms) { st.tMin = Math.max(1, ms); }
 
+/** The crosshair's x in plot pixels, or null when the pointer is off the plot. Read by the
+ *  caller so a label it owns can get out of the crosshair's way (ui-type-v1 row 7's note). */
+export function crossX() {
+  if (!st.cross || !st.frame) return null;
+  const { x, y } = st.cross;
+  return (x < 0 || x > plotW() || y < 0 || y > plotH()) ? null : x;
+}
+
 /** P25 rows 10, 12 — is the chart showing the default view? */
 export function fitted() {
   return st.tSpan === null && st.tEnd === null && st.zoom === 1 && st.pShift === 0;

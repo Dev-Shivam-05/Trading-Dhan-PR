@@ -1077,6 +1077,14 @@ function renderUcHead() {
 function ucNote() {
   const st = uc.current();
   const d = st.data;
+  // The crosshair's own time label is a filled box on the same axis row, drawn after everything
+  // else, so at the right-hand end it paints over this note and leaves "sessi" showing (seen on
+  // the live GOLD screen, 2026-09-22). The note is the one that yields: it is standing
+  // information, and the label under the pointer is what the user is reading right now.
+  const cx = tools.crossX();
+  const svg = $('chartSvg');
+  const plotW = Math.max(1, Math.round(svg.getBoundingClientRect().width) - 76);
+  if (cx !== null && cx > plotW - 190) return '';
   if (d && st.message && d.candles?.length) return st.message;
   if (d?.sessionDate) return `session ${dayLabel(d.sessionDate)}${st.openNow ? '' : ' · market closed'}`;
   return '';
