@@ -494,3 +494,33 @@ counts that strike as "above".
 The collapse is persisted in `localStorage.chart`, and a stray `C` sets it, so the user read it as
 "the chart is gone". The collapse itself stays (it is a feature). Collapsed, the toggle reads
 "▸ Show chart" instead of a rotated 24px arrow.
+
+## 2026-09-22 — TradingView-style navigation, and what "same as TradingView" was locked to (P25)
+The request had two undefined terms. `docs/spec/chart-nav-v1.md` fixes them: wheel = time zoom
+about the cursor at **0.85 per notch**, pinch (ctrl+wheel) the same with the page zoom suppressed,
+shift/horizontal wheel and a plot drag = pan, alt+wheel and a wheel over the 76px gutter = price
+zoom at 0.9, double-click or `0` = reset, and a `⟩` button appears the moment the view leaves its
+default. The price scale **auto-fits to the candles inside the window**, because a zoom that keeps
+the whole session's range is decorative. The option window gets the same gestures in **index**
+space, since P9 draws option candles indexed so a halt cannot stretch a bar. The window is never
+persisted: a time range in yesterday's epoch ms, restored onto today's candles, is an empty chart.
+
+## 2026-09-22 — The spot comes from a quote of the underlying, not from the chain payload (P25)
+Dhan's `/v2/optionchain` carries its own `last_price`. On **MCX that number is hours old** while
+the rest of the payload is live — measured with the session open: GOLD's chain returned 151,879
+twice 45 s apart (a 13:20–14:05 print) while `/v2/marketfeed/quote` on the same securityId
+returned 152,396, and 57 of 174 strikes moved LTP/IV/OI across two calls 70 s apart. The header's
+change is `spot − prevClose`, so a frozen spot against a real close printed −1,215 (−0.79%) where
+the truth was −798 (−0.52%). The spot is now the quote of the underlying securityId and `derive()`
+measures the **ATM against it too**, or the spot marker sits four rows from the ATM row. The quote
+is refreshed without blocking the poll, so the 3 s chain cadence is untouched; the first snapshot
+after a subscribe still reads the chain payload and `spotSource` says so on the wire and in the
+header's tooltip. This supersedes the board's "GOLD mixes two contracts" — it does not.
+
+## 2026-09-22 — A shut session may not grow a candle (P25 amendment 21)
+`ucandles.onTick()` used to merge or open a candle from any tick on the session's own date. In
+replay the feed keeps ticking after 15:30, so at 21:15 the chart held one bar **5 h 50 min** after
+the 15:25 close with an empty 21,000,000 ms stretch in front of it — while `/api/ucandles` had
+returned 76 clean candles. The client drew the gap. The **server** decides the session is open
+now; a tick past the last candle on a shut session asks it (one throttled refresh) instead of
+inventing a bar. Verified live on the open MCX session that this does not block a real one.

@@ -403,3 +403,52 @@ for UI work quietly supplied the next live session's peaks, IV baseline and scan
 live on 2026-09-19: all 400 cached 16-Sep peaks were replay's, which shows as `candles: 375`
 (Dhan's real sessions have 385, including 15:30–15:39). Each mode now writes `*.replay.json`.
 **Any new file under `CACHE_DIR` that holds market data picks its name by `isReplay()`.**
+
+## The replay tick feed keeps ticking after 15:30, and the chart believed it
+`ucandles.onTick()` merged or opened a candle from any tick whose IST date matched the session's.
+In replay at 21:15 that produced one candle **5 h 50 min after the 15:25 close** with an empty
+21,000,000 ms stretch in front of it — while `/api/ucandles` had returned 76 clean 5-minute
+candles. The client drew the gap. Anything that takes a ratio of a time window to the data's span
+(P25's zoom, pan and price auto-fit) was being computed against that phantom, and almost every
+session on this project is outside 09:15–15:30. The **server's `openNow`** decides now, not the
+tick. Same shape as the anchored-replay lesson above: a synthetic value that only has to look
+plausible on its own is not the same as one that has to stay consistent with another.
+
+## Dhan's option-chain `last_price` is hours stale on MCX while the rest of the payload is live
+Measured 2026-09-22 with the MCX session open: `/v2/optionchain` for GOLD returned **151,879**
+twice, 45 s apart — a print from 13:20–14:05 — while `/v2/marketfeed/quote` on the very same
+securityId (483079) returned **152,396**. It is not a different contract: no MCX future quotes
+that number and it sits inside 483079's own day range. And the payload is otherwise live: across
+two calls 70 s apart, **57 of 174 strikes** moved LTP, IV or OI. The header's change is
+`spot − prevClose`, so the screen read −1,215 (−0.79%) where the truth was −798 (−0.52%). The spot
+now comes from a quote of the underlying securityId, and `derive()` takes the **ATM** from it too
+— otherwise the spot marker sits four rows from the ATM row on a 500-point ladder. `spotSource`
+says which number is on screen. **NSE agrees today on a shut market; re-check it at 09:15.**
+
+## A second Dhan call inside the poll loop is a cadence bug waiting to happen
+`underlyingSpot()` refreshes its quote **without** being awaited. Awaiting it would put a second
+round trip inside the 3 s chain budget, and with several pollers sharing one 1 req/s gate key the
+queue alone could push the cadence past 3 s — the exact thing `dhanPost`'s gate exists to protect.
+The cost is that the FIRST snapshot after a subscribe falls back to the chain's own number; it
+says so in `spotSource`. Also: while a poller is running it holds the marketfeed slot, so a
+verification script calling `/v2/marketfeed/quote` at the same time gets `805 Too many requests`.
+Take the direct reading BEFORE subscribing.
+
+## "At the edge" in a chart is measured in pixels, never in milliseconds
+P25's window re-pins to the live edge when its right end is within **one pixel** of the newest
+data. With a 0.5 ms tolerance, six wheel notches with the cursor one pixel short of the right edge
+walked the edge inward by 144,450 ms in total — a fraction of a pixel each time, invisible — and
+that was enough to un-pin the chart, so it silently stopped following new candles. The option
+window has the same rule at half a candle. A gap nobody can see must not change behaviour.
+
+## Rounding a stored position throws away every small drag step
+The option window kept its right edge as a rounded candle index. A drag arrives as many small
+`pointermove` steps: eight moves of 0.12 candles each rounded straight back to where they started,
+so a **slow** drag panned nothing while a fast flick worked — which reads as a dropped event, not
+as arithmetic. Store the position fractional; round only where an index is actually needed.
+
+## The chart surface's right edge IS the price gutter's left edge
+`.chart-surface{right:92px}` and `.chart-axis{right:16px;width:76px}` share a boundary, so a
+pointer event at `plot.x + plot.w` lands on the **gutter**. P25's first AC6 run wheeled there 40
+times, zoomed the price scale, and truthfully reported the time window untouched. In a
+verification script, aim at `plotW − 1`.
