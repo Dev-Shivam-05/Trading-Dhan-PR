@@ -92,7 +92,9 @@ function navSet(span, end, n) {
   if (s >= n) { state.nav.iSpan = null; state.nav.iEnd = null; return; }
   state.nav.iSpan = s;
   const e = Math.min(n - 1, Math.max(s - 1, end));
-  state.nav.iEnd = e >= n - 1 ? null : e;
+  // amendment 27, in index space: within half a candle of the newest one counts as pinned,
+  // so a zoom with the cursor at the right edge keeps following new candles.
+  state.nav.iEnd = e >= n - 1 - 0.5 ? null : e;
 }
 
 function navFitted() {

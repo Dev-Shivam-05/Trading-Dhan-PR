@@ -763,6 +763,16 @@ function onFeed(fs) {
   }
 }
 
+/* Read-only test seam for the verification scripts, beside window.__chart / __ucandles /
+   __candles / __telemetry. Nothing in the app reads it. It exists so a live check can tell
+   "the forming candle did not move" apart from "no tick arrived", which are different findings
+   and look identical from the outside. */
+window.__feedTicks = () => ({
+  n: state.ticks.length,
+  last: state.ticks.slice(-40).map(t => t.p),
+  rate: state.tickTimes.length,
+});
+
 function onTicks(batch) {
   const now = Date.now();
   for (const it of batch) {

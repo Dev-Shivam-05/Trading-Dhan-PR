@@ -20,7 +20,12 @@ const P_FACTOR = 0.9;             // row 8 — price-zoom multiplier per notch
 const MIN_CANDLES = 5;            // row 4 — fewest slots a zoom may leave on screen
 const PAN_START_PX = 3;           // row 6 — travel before a plot drag becomes a pan
 const P_SHIFT_MAX = 2;            // row 7 — price pan limit, in visible spans
-const EDGE_MS = 0.5;              // row 15 — within this of the data's end counts as pinned
+/** row 15 / amendment 27 — "at the live edge" is measured in PIXELS, not milliseconds. A wheel
+ *  notch with the cursor one pixel short of the right edge legitimately walks the edge inward by
+ *  a fraction of a pixel; with a 0.5 ms tolerance that fraction un-pinned the chart, so zooming
+ *  near the edge silently stopped it following new candles. A gap nobody can see must not change
+ *  behaviour. Measured on the live MCX session 2026-09-22: six notches drifted 144,450 ms. */
+const EDGE_PX = 1;
 const SNAP_PX = 24;               // row 7  — crosshair snaps to a tick within this
 const MIN_DRAG_PX = 4;            // row 12 — below this a two-point shape is discarded
 const HIT_PX = 6;                 // row 18 — selection tolerance
@@ -91,8 +96,13 @@ export function applyTime(T0, T1) {
   st.tSpan = span;
   let end = st.tEnd === null ? st.dataT1 : st.tEnd;
   end = Math.min(st.dataT1, Math.max(T0 + span, end));
-  st.tEnd = end >= st.dataT1 - EDGE_MS ? null : end;
-  return [end - span, end];
+  st.tEnd = end >= st.dataT1 - edgeMs(span) ? null : end;
+  return st.tEnd === null ? [st.dataT1 - span, st.dataT1] : [end - span, end];
+}
+
+/** One pixel of the current scale, in ms (amendment 27). */
+function edgeMs(span) {
+  return (span / Math.max(1, plotW())) * EDGE_PX;
 }
 
 /** P25 row 4 — 5 candles for a candle chart, 5 s for the tick line. Set before each paint. */
@@ -144,7 +154,7 @@ function setWindow(span, end) {
   if (s >= full) { st.tSpan = null; st.tEnd = null; return; }
   st.tSpan = s;
   const e = Math.min(st.dataT1, Math.max(st.dataT0 + s, end));
-  st.tEnd = e >= st.dataT1 - EDGE_MS ? null : e;
+  st.tEnd = e >= st.dataT1 - edgeMs(s) ? null : e;
 }
 
 /** row 2 — one wheel notch about a plot x. The time under the pointer stays under the pointer:
