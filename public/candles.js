@@ -52,7 +52,101 @@ const state = {
   errorText: null,
   /** Last frame's geometry, so the pointer can be turned back into a candle index. */
   frame: null,
+  /** P25 — chart-nav-v1.md row 13. The view window in INDEX space, because P9 draws option
+   *  candles indexed rather than time-scaled (a halt must not stretch a bar). `null` means
+   *  "all" for the span and "pinned to the newest candle" for the end. */
+  nav: { iSpan: null, iEnd: null, zoom: 1, pShift: 0 },
 };
+
+/** chart-nav-v1.md row 13. */
+const NAV_MIN = 5;
+const NAV_FACTOR = 0.85;
+const NAV_P_FACTOR = 0.9;
+const NAV_ZOOM_MIN = 0.15;
+const NAV_ZOOM_MAX = 12;
+const NAV_PAN_PX = 3;
+const NAV_SHIFT_MAX = 2;
+
+/* ---------------------------------------------- P25 navigation (row 13) */
+
+/**
+ * The window as plain numbers over `n` candles, whatever `null` currently stands for.
+ *
+ * `end` is deliberately FRACTIONAL and only `i1` is rounded. Rounding the stored position
+ * instead loses every drag step shorter than half a candle: an 8-step 90px drag at 5 candles
+ * across a 452px plot is eight moves of 0.12 candles, each of which rounds straight back to
+ * where it started, so a slow drag pans nothing at all. Measured 2026-09-22 (amendment 25).
+ */
+function navWindow(n) {
+  const span = state.nav.iSpan === null ? n : Math.min(n, Math.max(NAV_MIN, state.nav.iSpan));
+  const end = state.nav.iEnd === null ? n - 1 : state.nav.iEnd;
+  const i1 = Math.min(n - 1, Math.max(span - 1, Math.round(end)));
+  return { span, end, i0: i1 - span + 1, i1, n };
+}
+
+/** Collapses "all of it" and "at the newest candle" back to their nulls, so navFitted() and the
+ *  follow-the-live-edge behaviour stay true by construction (chart-nav-v1.md rows 13, 15).
+ *  The span is a candle count and so an integer; the end is kept as written (see navWindow). */
+function navSet(span, end, n) {
+  const s = Math.min(n, Math.max(NAV_MIN, Math.round(span)));
+  if (s >= n) { state.nav.iSpan = null; state.nav.iEnd = null; return; }
+  state.nav.iSpan = s;
+  const e = Math.min(n - 1, Math.max(s - 1, end));
+  state.nav.iEnd = e >= n - 1 ? null : e;
+}
+
+function navFitted() {
+  const v = state.nav;
+  return v.iSpan === null && v.iEnd === null && v.zoom === 1 && v.pShift === 0;
+}
+
+function navReset() {
+  state.nav = { iSpan: null, iEnd: null, zoom: 1, pShift: 0 };
+  navSync();
+  state.dirty = true;
+}
+
+function navSync() {
+  const b = $('optReset');
+  if (b) b.hidden = navFitted() || !state.frame;
+}
+
+function navChanged() { navSync(); state.dirty = true; }
+
+/** Row 2's factor, about the candle under the pointer. */
+function navZoomAt(px, factor) {
+  const f = state.frame;
+  if (!f) return;
+  const w = navWindow(f.n);
+  const frac = Math.min(1, Math.max(0, px / f.plotW));
+  const iAt = w.end - w.span + 1 + frac * w.span;
+  const span = Math.min(f.n, Math.max(NAV_MIN, w.span * factor));
+  navSet(span, iAt + (1 - frac) * span - 1, f.n);
+  navChanged();
+}
+
+function navPan(dxPx) {
+  const f = state.frame;
+  if (!f) return;
+  const w = navWindow(f.n);
+  if (w.span >= f.n) return;
+  navSet(w.span, w.end - (dxPx * w.span) / f.plotW, f.n);
+  navChanged();
+}
+
+function navPanPrice(dyPx) {
+  const f = state.frame;
+  if (!f) return;
+  const next = state.nav.pShift + dyPx / f.plotH;
+  state.nav.pShift = Math.min(NAV_SHIFT_MAX, Math.max(-NAV_SHIFT_MAX, next));
+  navChanged();
+}
+
+function navZoomPrice(deltaY) {
+  const z = state.nav.zoom * NAV_P_FACTOR ** (-deltaY / 100);
+  state.nav.zoom = Math.min(NAV_ZOOM_MAX, Math.max(NAV_ZOOM_MIN, z));
+  navChanged();
+}
 
 /* --------------------------------------------------------------- formatting */
 
@@ -120,6 +214,7 @@ function select(strike, side) {
   state.sel = { strike, side };
   state.data = null;
   state.hover = -1;
+  navReset();                            // chart-nav-v1.md row 14
   hideTip();
   setActive(true);
   // ui-type-v1 row 9: opening, or switching CE <-> PE, puts the window over the other half. Another
@@ -133,6 +228,8 @@ function select(strike, side) {
 function back() {
   state.sel = null;
   state.data = null;
+  state.frame = null;
+  navReset();                            // chart-nav-v1.md rows 13, 14
   setActive(false);
   renderHead();
 }
@@ -145,6 +242,7 @@ function setInterval_(iv) {
   // new payload is in flight.
   state.data = null;
   state.hover = -1;
+  navReset();                            // chart-nav-v1.md row 14
   hideTip();
   renderHead();
   state.dirty = true;
@@ -328,28 +426,36 @@ function drawCandles() {
       + `${inr(state.sel.strike, 0)} ${state.sel.side.toUpperCase()}`
     : (state.message ?? (state.loading ? 'loading candles…' : 'no candles')), !!state.errorText);
 
-  if (!ks.length) { svg.innerHTML = ''; state.frame = null; return; }
+  if (!ks.length) { svg.innerHTML = ''; state.frame = null; navSync(); return; }
 
   const plotW = Math.max(1, W - PAD_R);
   const plotH = Math.max(1, H - PAD_B);
 
+  // chart-nav-v1.md rows 9 and 13 — the window first, then the price range of the candles that
+  // window actually holds. Fitting price to the whole day while showing ten bars of it would
+  // leave those ten as a flat line.
+  const win = navWindow(ks.length);
   let lo = Infinity, hi = -Infinity;
-  for (const k of ks) { if (k.l < lo) lo = k.l; if (k.h > hi) hi = k.h; }
+  for (let i = win.i0; i <= win.i1; i++) { if (ks[i].l < lo) lo = ks[i].l; if (ks[i].h > hi) hi = ks[i].h; }
   const span = hi - lo;
   const pad = span > 0 ? span * 0.08 : Math.max(hi * 0.02, 0.05);
-  const loV = lo - pad, hiV = hi + pad;
+  const mid = (hi + lo) / 2;
+  const half = ((hi - lo) / 2 + pad) * state.nav.zoom;
+  const shift = half * 2 * state.nav.pShift;
+  const loV = mid - half + shift, hiV = mid + half + shift;
   const Y = (p) => plotH - ((p - loV) / (hiV - loV)) * plotH;
 
   // Candles are indexed, not time-scaled: a lunch lull or a halt must not stretch the bars.
-  const slot = plotW / ks.length;
+  const slot = plotW / win.span;
   const bw = Math.max(1, Math.min(15, slot * 0.68));
-  const xc = (i) => (i + 0.5) * slot;
-  state.frame = { W, H, plotW, plotH, slot, n: ks.length, loV, hiV };
+  const xc = (i) => (i - win.i0 + 0.5) * slot;
+  state.frame = { W, H, plotW, plotH, slot, n: ks.length, loV, hiV, i0: win.i0, i1: win.i1, span: win.span };
+  navSync();
 
   const bodies = { up: '', down: '', blue: '', yellow: '' };
   const wicks = { up: '', down: '', blue: '', yellow: '' };
 
-  for (let i = 0; i < ks.length; i++) {
+  for (let i = win.i0; i <= win.i1; i++) {
     const k = ks[i];
     const g = groupOf(k);
     const x = xc(i);
@@ -379,9 +485,9 @@ function drawCandles() {
 
   /* time labels: first, last, and up to three inside */
   let times = '';
-  const steps = Math.min(4, ks.length - 1);
+  const steps = Math.min(4, win.span - 1);
   for (let i = 0; i <= steps; i++) {
-    const idx = Math.round((i * (ks.length - 1)) / Math.max(1, steps));
+    const idx = win.i0 + Math.round((i * (win.span - 1)) / Math.max(1, steps));
     const x = Math.min(plotW, Math.max(0, xc(idx)));
     times += `<text x="${x.toFixed(1)}" y="${H - 3}" fill="var(--fg-faint)" font-family="${MONO}" `
       + `font-size="10" text-anchor="${i === 0 ? 'start' : i === steps ? 'end' : 'middle'}">`
@@ -399,7 +505,7 @@ function drawCandles() {
 
   /* hover guide */
   let cross = '';
-  if (state.hover >= 0 && state.hover < ks.length) {
+  if (state.hover >= win.i0 && state.hover <= win.i1) {
     const x = xc(state.hover);
     cross = `<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${plotH.toFixed(1)}" `
       + `stroke="var(--fg-faint)" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>`;
@@ -621,24 +727,65 @@ $('candleInterval').addEventListener('click', (e) => {
 
 {
   const surface = $('candleSurface');
+  const plotX = (e) => e.clientX - surface.getBoundingClientRect().left;
   const indexAt = (e) => {
     const f = state.frame;
     if (!f) return -1;
-    const r = surface.getBoundingClientRect();
-    const x = e.clientX - r.left;
+    const x = plotX(e);
     if (x < 0 || x > f.plotW) return -1;
-    return Math.min(f.n - 1, Math.max(0, Math.floor(x / f.slot)));
+    // chart-nav-v1.md row 13 — x is an offset into the WINDOW, so the slot it lands in has to
+    // be added to the window's first index, not read as an absolute one.
+    return Math.min(f.i1, Math.max(f.i0, f.i0 + Math.floor(x / f.slot)));
   };
+
+  /** rows 6, 13 — drag pans both axes; it never draws, because the option window has no tools. */
+  let pan = null;
+  surface.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !state.frame) return;
+    pan = { x0: e.clientX, y0: e.clientY, px: e.clientX, py: e.clientY, moved: false };
+    surface.setPointerCapture(e.pointerId);
+  });
   surface.addEventListener('pointermove', (e) => {
+    if (pan) {
+      if (!pan.moved && Math.hypot(e.clientX - pan.x0, e.clientY - pan.y0) < NAV_PAN_PX) return;
+      if (!pan.moved) { pan.moved = true; surface.style.cursor = 'grabbing'; hideTip(); }
+      navPan(e.clientX - pan.px);
+      navPanPrice(e.clientY - pan.py);
+      pan.px = e.clientX;
+      pan.py = e.clientY;
+      return;
+    }
     const i = indexAt(e);
     if (i !== state.hover) { state.hover = i; state.dirty = true; }
     if (i < 0) hideTip(); else showTip(i, e.clientX, e.clientY);
   });
+  const endPan = (e) => {
+    if (!pan) return;
+    if (surface.hasPointerCapture(e.pointerId)) surface.releasePointerCapture(e.pointerId);
+    pan = null;
+    surface.style.cursor = '';
+  };
+  surface.addEventListener('pointerup', endPan);
+  surface.addEventListener('pointercancel', endPan);
   surface.addEventListener('pointerleave', () => {
     state.hover = -1;
     state.dirty = true;
     hideTip();
   });
+
+  /* rows 2, 3, 5, 8, 13 — `passive:false` is what makes preventDefault() legal; without it a
+     trackpad pinch zooms the whole terminal instead of this chart. */
+  surface.addEventListener('wheel', (e) => {
+    if (!state.frame) return;
+    e.preventDefault();
+    if (e.altKey) { navZoomPrice(e.deltaY); return; }
+    if (e.shiftKey) { navPan(-(e.deltaX || e.deltaY)); return; }
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { navPan(-e.deltaX); return; }
+    navZoomAt(plotX(e), NAV_FACTOR ** (-e.deltaY / 100));
+  }, { passive: false });
+
+  surface.addEventListener('dblclick', () => navReset());
+  $('optReset').addEventListener('click', () => navReset());
 }
 
 /* Esc leaves option mode. app.js's handler runs first but tools.onKey() only claims Esc when a
@@ -680,4 +827,12 @@ window.__candles = {
     showTip(i, r.left + 20, r.top + r.height / 2);
   },
   repaint: () => { state.dirty = true; },
+  /** P25 — chart-nav-v1.md row 19. */
+  view: () => {
+    const n = (state.data?.candles ?? []).length;
+    const w = navWindow(Math.max(1, n));
+    return { iSpan: w.span, iEnd: w.i1, i0: w.i0, i1: w.i1, n,
+             zoom: state.nav.zoom, pShift: state.nav.pShift, fitted: navFitted() };
+  },
+  reset: navReset,
 };

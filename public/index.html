@@ -174,7 +174,10 @@
     <div class="chart-empty tickonly lineonly" id="chartEmpty">waiting for the first tick…</div>
     <div class="chart-empty tickonly uconly" id="ucMsg" hidden></div>
     <div class="chart-surface tickonly" id="chartSurface"></div>
-    <div class="chart-axis tickonly" id="chartAxis" title="Drag to compress or expand · double-click to reset"></div>
+    <div class="chart-axis tickonly" id="chartAxis" title="Wheel or drag to compress or expand · double-click to reset"></div>
+    <!-- P25 — chart-nav-v1.md row 12. Hidden at the default view; TradingView's own arrow. -->
+    <button class="chart-reset tickonly" id="chartReset" type="button" hidden
+            title="Back to the latest candle (0)" aria-label="Back to the latest candle">&#10217;</button>
   </div>
   <!-- Splitter #1 — spec row 3. The P5 grip generalised: same element and cursor, now focusable
        and keyboard-driven. panes.js owns the drag. -->
@@ -337,6 +340,9 @@
     <svg id="candleSvg" preserveAspectRatio="none" aria-label="Option candles"></svg>
     <div class="chart-empty" id="candleMsg" hidden></div>
     <div class="chart-surface ow-surface" id="candleSurface"></div>
+    <!-- P25 — chart-nav-v1.md rows 12, 13. -->
+    <button class="chart-reset" id="optReset" type="button" hidden
+            title="Back to the latest candle" aria-label="Back to the latest candle">&#10217;</button>
     <div class="candletip mono" id="candleTip" hidden></div>
   </div>
 </section>

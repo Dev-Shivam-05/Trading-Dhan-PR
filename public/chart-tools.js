@@ -11,6 +11,16 @@ const PAD_B = 16;                 // row 1  — time label strip
 const ZOOM_MIN = 0.15;            // row 3
 const ZOOM_MAX = 12;              // row 3
 const ZOOM_EFOLD = 180;           // row 3  — px of drag per e-fold
+
+/* P25 — chart-nav-v1.md. Time zoom / pan and the wheel gestures. Every constant is a row
+   there. The time window is (tSpan, tEnd) in epoch ms and never in pixels, for the same reason
+   a drawing is (time, price): X() re-derives it every frame, so a resize cannot move it. */
+const T_FACTOR = 0.85;            // row 2 — span multiplier per wheel notch (100 deltaY units)
+const P_FACTOR = 0.9;             // row 8 — price-zoom multiplier per notch
+const MIN_CANDLES = 5;            // row 4 — fewest slots a zoom may leave on screen
+const PAN_START_PX = 3;           // row 6 — travel before a plot drag becomes a pan
+const P_SHIFT_MAX = 2;            // row 7 — price pan limit, in visible spans
+const EDGE_MS = 0.5;              // row 15 — within this of the data's end counts as pinned
 const SNAP_PX = 24;               // row 7  — crosshair snaps to a tick within this
 const MIN_DRAG_PX = 4;            // row 12 — below this a two-point shape is discarded
 const HIT_PX = 6;                 // row 18 — selection tolerance
@@ -25,6 +35,17 @@ const TOOLS = ['cursor', 'trend', 'hline', 'ray', 'rect'];
 
 const st = {
   zoom: 1,
+  /** P25 row 1 — visible ms; null means "fit the data". */
+  tSpan: null,
+  /** P25 row 1 — epoch ms at the right edge; null means "pinned to the newest data" (row 15). */
+  tEnd: null,
+  /** P25 row 1 — vertical pan, as a fraction of the visible price span. */
+  pShift: 0,
+  /** The data's own full range, written by applyTime() every frame. */
+  dataT0: 0,
+  dataT1: 1,
+  /** P25 row 4 — the narrowest window this chart allows; the caller sets it per mode. */
+  tMin: 5000,
   tool: 'cursor',
   shapes: [],
   scopeKey: null,
@@ -46,11 +67,40 @@ const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number.isFinite(z
 /* ------------------------------------------------------------------ scale */
 
 /** row 2 — zoom multiplies the half-span of the auto-fit range about its own midpoint, so the
- *  chart keeps tracking price and only the scale changes. */
+ *  chart keeps tracking price and only the scale changes. P25 row 6 adds `pShift`, a vertical
+ *  pan measured in visible spans so it means the same thing at every zoom. */
 export function applyZoom(loP, hiP) {
   const mid = (hiP + loP) / 2;
   const half = ((hiP - loP) / 2) * st.zoom;
-  return [mid - half, mid + half];
+  const shift = half * 2 * st.pShift;
+  return [mid - half + shift, mid + half + shift];
+}
+
+/**
+ * P25 rows 1, 4, 7, 15 — the time counterpart of applyZoom. The caller hands in the data's own
+ * full range and gets back the window to draw. `tSpan === null` means fit; `tEnd === null` means
+ * pinned to the newest data, which is what makes a zoomed-in chart keep following the live edge.
+ */
+export function applyTime(T0, T1) {
+  st.dataT0 = T0;
+  st.dataT1 = Math.max(T1, T0 + 1);
+  const full = st.dataT1 - T0;
+  if (st.tSpan === null) return [T0, st.dataT1];
+  const span = Math.min(full, Math.max(st.tMin, st.tSpan));
+  if (span >= full) { st.tSpan = null; st.tEnd = null; return [T0, st.dataT1]; }
+  st.tSpan = span;
+  let end = st.tEnd === null ? st.dataT1 : st.tEnd;
+  end = Math.min(st.dataT1, Math.max(T0 + span, end));
+  st.tEnd = end >= st.dataT1 - EDGE_MS ? null : end;
+  return [end - span, end];
+}
+
+/** P25 row 4 — 5 candles for a candle chart, 5 s for the tick line. Set before each paint. */
+export function setMinSpan(ms) { st.tMin = Math.max(1, ms); }
+
+/** P25 rows 10, 12 — is the chart showing the default view? */
+export function fitted() {
+  return st.tSpan === null && st.tEnd === null && st.zoom === 1 && st.pShift === 0;
 }
 
 export function setFrame(f) { st.frame = f; }
@@ -72,6 +122,114 @@ const invY = (y) => {
   const h = f.H - PAD_B;
   return f.lo + ((h - y) / Math.max(1, h)) * (f.hi - f.lo);
 };
+
+/* ----------------------------------------------------------- P25 navigation */
+
+const plotW = () => Math.max(1, (st.frame?.W ?? PAD_R + 1) - PAD_R);
+const plotH = () => Math.max(1, (st.frame?.H ?? PAD_B + 1) - PAD_B);
+
+/** The window as two plain numbers, whatever `null` currently stands for. */
+function windowNow() {
+  const full = Math.max(1, st.dataT1 - st.dataT0);
+  const span = st.tSpan === null ? full : Math.min(full, st.tSpan);
+  const end = st.tEnd === null ? st.dataT1 : st.tEnd;
+  return { full, span, end, t0: end - span };
+}
+
+/** Writes the window back, collapsing "the whole range" and "at the live edge" to their nulls,
+ *  so `fitted()` and row 15's follow-the-edge behaviour stay true by construction. */
+function setWindow(span, end) {
+  const full = Math.max(1, st.dataT1 - st.dataT0);
+  const s = Math.min(full, Math.max(st.tMin, span));
+  if (s >= full) { st.tSpan = null; st.tEnd = null; return; }
+  st.tSpan = s;
+  const e = Math.min(st.dataT1, Math.max(st.dataT0 + s, end));
+  st.tEnd = e >= st.dataT1 - EDGE_MS ? null : e;
+}
+
+/** row 2 — one wheel notch about a plot x. The time under the pointer stays under the pointer:
+ *  that is the whole difference between this and zooming about the middle. */
+function zoomTimeAt(px, factor) {
+  if (!st.frame) return;
+  const w = windowNow();
+  const frac = Math.min(1, Math.max(0, px / plotW()));
+  const tAt = w.t0 + frac * w.span;
+  const full = Math.max(1, st.dataT1 - st.dataT0);
+  const span = Math.min(full, Math.max(st.tMin, w.span * factor));
+  setWindow(span, tAt + (1 - frac) * span);
+  changed();
+}
+
+/** row 11 — the keyboard path zooms about the right edge, where the live candle is. */
+function zoomTimeEdge(factor) {
+  if (!st.frame) return;
+  const w = windowNow();
+  setWindow(w.span * factor, w.end);
+  changed();
+}
+
+/** rows 5, 6 — dx is pointer/scroll movement in px. Dragging right shows earlier data. */
+function panTime(dxPx) {
+  if (!st.frame) return;
+  const w = windowNow();
+  if (w.span >= w.full) return;                     // nothing to pan at the fitted view
+  setWindow(w.span, w.end - dxPx * (w.span / plotW()));
+  changed();
+}
+
+/** row 6 — dy in px. Dragging down shows higher prices, as grabbing the paper would. */
+function panPrice(dyPx) {
+  if (!st.frame) return;
+  const next = st.pShift + dyPx / plotH();
+  st.pShift = Math.min(P_SHIFT_MAX, Math.max(-P_SHIFT_MAX, next));
+  changed();
+}
+
+/** row 8 — the price scale, through P6's own transform so drawings cannot disagree. */
+function zoomPrice(deltaY) {
+  st.zoom = clampZoom(st.zoom * P_FACTOR ** (-deltaY / 100));
+  try { localStorage.setItem('chartZoom', String(st.zoom)); } catch { /* private mode */ }
+  changed();
+}
+
+/** rows 10, 12, 14 — back to the default view. */
+export function resetView() {
+  st.tSpan = null;
+  st.tEnd = null;
+  st.pShift = 0;
+  st.zoom = 1;
+  try { localStorage.setItem('chartZoom', '1'); } catch { /* private mode */ }
+  changed();
+}
+
+/** row 12 — the ⟩ button exists only while there is something to go back from. */
+function syncReset() {
+  if (els.reset) els.reset.hidden = fitted();
+}
+
+function changed() {
+  syncReset();
+  deps.repaint();
+}
+
+/** rows 2, 3, 5, 8 — one wheel event, four gestures. */
+function onWheel(e) {
+  if (!st.enabled || !st.frame) return;
+  e.preventDefault();                               // row 3 — never the browser's page zoom
+  const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  if (e.altKey) { zoomPrice(e.deltaY); return; }                       // row 8
+  if (e.shiftKey) { panTime(-(e.deltaX || e.deltaY)); return; }        // row 5
+  if (horizontal) { panTime(-e.deltaX); return; }                      // row 5
+  const r = els.svg.getBoundingClientRect();
+  zoomTimeAt(e.clientX - r.left, T_FACTOR ** (-e.deltaY / 100));       // rows 2, 3
+}
+
+/** row 8 — a wheel over the 76px gutter is the price scale, as in TradingView. */
+function onAxisWheel(e) {
+  if (!st.enabled) return;
+  e.preventDefault();
+  zoomPrice(e.deltaY);
+}
 
 /* ------------------------------------------------------------ persistence */
 
@@ -430,7 +588,10 @@ function onSurfaceDown(e) {
       st.drag = { kind: 'handle', id: sel.id, handle: hi };
     } else {
       st.selected = hitTest(x, y);
-      st.drag = null;
+      // P25 row 6 — with nothing under the pointer the plot itself is the thing you grab. The
+      // click has already deselected above, so a pan can never swallow a deselect.
+      st.drag = st.selected ? null
+        : { kind: 'pan', x0: e.clientX, y0: e.clientY, px: e.clientX, py: e.clientY, moved: false };
     }
     deps.repaint();
     return;
@@ -446,6 +607,17 @@ function onSurfaceMove(e) {
   if (!st.frame) return;
   const { x, y } = svgXY(e);
   st.cross = { x, y };
+
+  if (st.drag?.kind === 'pan') {                     // P25 row 6
+    const d = st.drag;
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < PAN_START_PX) return;
+    if (!d.moved) { d.moved = true; els.surface.style.cursor = 'grabbing'; }
+    panTime(e.clientX - d.px);
+    panPrice(e.clientY - d.py);
+    d.px = e.clientX;
+    d.py = e.clientY;
+    return;                                          // changed() has already repainted
+  }
 
   if (st.drag?.kind === 'create' && st.draft) {
     st.draft.b = { t: invX(x), p: invY(y) };
@@ -467,6 +639,13 @@ function onSurfaceMove(e) {
 
 function onSurfaceUp(e) {
   if (els.surface.hasPointerCapture(e.pointerId)) els.surface.releasePointerCapture(e.pointerId);
+
+  if (st.drag?.kind === 'pan') {                     // P25 row 6
+    st.drag = null;
+    els.surface.style.cursor = st.tool === 'cursor' ? 'crosshair' : 'copy';
+    deps.repaint();
+    return;
+  }
 
   if (st.drag?.kind === 'handle') {
     st.drag = null;
@@ -507,7 +686,7 @@ function wireAxis() {
   els.axis.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     st.zoom = clampZoom(startZoom * Math.exp((e.clientY - startY) / ZOOM_EFOLD));
-    deps.repaint();
+    changed();
   });
   els.axis.addEventListener('pointerup', (e) => {
     if (!dragging) return;
@@ -515,10 +694,11 @@ function wireAxis() {
     els.axis.releasePointerCapture(e.pointerId);
     localStorage.setItem('chartZoom', String(st.zoom));   // row 5
   });
-  els.axis.addEventListener('dblclick', () => {           // row 4
+  els.axis.addEventListener('dblclick', () => {           // row 4 (P25 row 10: price only)
     st.zoom = 1;
+    st.pShift = 0;
     localStorage.setItem('chartZoom', '1');
-    deps.repaint();
+    changed();
   });
 }
 
@@ -559,6 +739,7 @@ export function init(options) {
     surface: options.surface,
     axis: options.axis,
     tools: options.tools,
+    reset: options.reset ?? null,                    // P25 row 12
   };
 
   pruneKeys();
@@ -577,6 +758,14 @@ export function init(options) {
   els.surface.addEventListener('pointercancel', onSurfaceUp);
   els.surface.addEventListener('pointerleave', onSurfaceLeave);
 
+  /* P25 rows 2, 3, 5, 8, 10, 12. `passive:false` is what makes preventDefault() legal, and
+     without it a trackpad pinch zooms the whole terminal instead of the chart. */
+  els.surface.addEventListener('wheel', onWheel, { passive: false });
+  els.axis.addEventListener('wheel', onAxisWheel, { passive: false });
+  els.surface.addEventListener('dblclick', () => { if (st.enabled) resetView(); });
+  if (els.reset) els.reset.addEventListener('click', resetView);
+  syncReset();
+
   // a reload inside the 250 ms debounce must not lose the shape that was just drawn
   window.addEventListener('pagehide', flushSave);
 
@@ -592,7 +781,16 @@ export function init(options) {
     selected: () => st.selected,
     key: () => st.scopeKey,
     repaint: () => deps.repaint(),
-    X, Y, invY,
+    /** P25 row 19. */
+    view: () => {
+      const w = windowNow();
+      return {
+        tSpan: w.span, tEnd: w.end, t0: w.t0, t1: w.end, full: w.full,
+        dataT0: st.dataT0, dataT1: st.dataT1, tMin: st.tMin,
+        zoom: st.zoom, pShift: st.pShift, fitted: fitted(),
+      };
+    },
+    X, Y, invX, invY,
   };
 }
 
@@ -602,6 +800,10 @@ export function onKey(e) {
   const k = e.key.toLowerCase();
   if (k === 'escape') return cancel();
   if (e.key === 'Delete' || e.key === 'Backspace') return deleteSelected();
+  // P25 row 11 — time zoom and reset from the keyboard, about the live edge.
+  if (st.enabled && (e.key === '+' || e.key === '=')) { zoomTimeEdge(T_FACTOR); return true; }
+  if (st.enabled && (e.key === '-' || e.key === '_')) { zoomTimeEdge(1 / T_FACTOR); return true; }
+  if (st.enabled && e.key === '0') { resetView(); return true; }
   const map = { v: 'cursor', d: 'trend', h: 'hline', r: 'ray', b: 'rect' };
   if (map[k] && st.enabled) { setTool(map[k]); return true; }
   return false;

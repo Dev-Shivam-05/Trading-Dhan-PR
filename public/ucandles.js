@@ -219,7 +219,21 @@ export function mergeTick(candles, sessionStart, tick, ivMs, sessionDate) {
 export function onTick(t, p) {
   const d = store.data;
   if (!d || !d.candles.length || !d.sessionDate) return;
-  const r = mergeTick(d.candles, d.sessionStart, { t, p }, Number(d.interval) * 60_000, d.sessionDate);
+  const ivMs = Number(d.interval) * 60_000;
+
+  // chart-nav-v1.md amendment 21. A SHUT session cannot grow a candle. The replay feed keeps
+  // ticking after 15:30, and without this guard mergeTick opened a lone candle at the wall
+  // clock — measured 2026-09-22 at 21:15 IST as one candle 5 h 50 min after the 15:25 close,
+  // with nothing in between. That empty stretch is real data to every zoom, pan and price-range
+  // rule downstream, and almost every session on this project is outside 09:15-15:30.
+  // The server, not the tick, decides the session is open: one throttled refresh asks it.
+  if (!store.openNow) {
+    if (t >= d.candles[d.candles.length - 1].t + ivMs
+        && Date.now() - store.lastFetch >= REFRESH_MS) refresh(false);
+    return;
+  }
+
+  const r = mergeTick(d.candles, d.sessionStart, { t, p }, ivMs, d.sessionDate);
   if (r !== 'ignored') { changed(); return; }
   // A tick from a later date than the drawn session means a new session has opened since the
   // last fetch. Fetch it, but no more than once a minute however many ticks arrive meanwhile.
@@ -258,7 +272,7 @@ export function niceStep(span, plotH) {
  * minus half an interval to the last open plus half. That keeps the crosshair's snapped time
  * label reading 09:15:00 rather than 09:17:30 without touching chart-tools.
  */
-export function buildView(data, style, zoom = (a, b) => [a, b]) {
+export function buildView(data, style, zoom = (a, b) => [a, b], timeWin = (a, b) => [a, b]) {
   const all = data?.candles ?? [];
   const s = Math.min(data?.sessionStart ?? 0, Math.max(0, all.length - 1));
   const vis = all.slice(s);
@@ -269,15 +283,34 @@ export function buildView(data, style, zoom = (a, b) => [a, b]) {
     color: x.color, period: x.period, vals: smaSeries(all, x.period),
   }));
 
+  // chart-nav-v1.md rows 1 and 9: the time window first, then the price range of what that
+  // window actually contains. Fitting price to the whole session while showing ten minutes of
+  // it would leave the ten minutes as a flat line — the zoom would be decorative.
+  const T0 = vis[0].t - ivMs / 2;
+  const T1 = vis[vis.length - 1].t + ivMs / 2;
+  const [t0, t1] = timeWin(T0, T1);
+  const inWin = (t) => t >= t0 - ivMs / 2 && t <= t1 + ivMs / 2;
+  const whole = t0 <= T0 && t1 >= T1;
+
   let lo = Infinity, hi = -Infinity;
-  for (const k of vis) { if (k.l < lo) lo = k.l; if (k.h > hi) hi = k.h; }
+  for (const k of vis) {
+    if (!whole && !inWin(k.t)) continue;
+    if (k.l < lo) lo = k.l;
+    if (k.h > hi) hi = k.h;
+  }
   for (const m of smas) {
     for (let i = s; i < all.length; i++) {
       const v = m.vals[i];
-      if (v === null) continue;
+      if (v === null || (!whole && !inWin(all[i].t))) continue;
       if (v < lo) lo = v;
       if (v > hi) hi = v;
     }
+  }
+  // A window narrower than one candle's slot can contain no centre at all; fall back rather
+  // than hand the renderer an infinite range.
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    lo = Infinity; hi = -Infinity;
+    for (const k of vis) { if (k.l < lo) lo = k.l; if (k.h > hi) hi = k.h; }
   }
   const span = hi - lo;
   const pad = span > 0 ? span * 0.08 : Math.max(hi * 0.0005, 0.05);   // row 8
@@ -285,8 +318,7 @@ export function buildView(data, style, zoom = (a, b) => [a, b]) {
 
   return {
     all, s, vis, ivMs, smas,
-    t0: vis[0].t - ivMs / 2,
-    t1: vis[vis.length - 1].t + ivMs / 2,
+    t0, t1, T0, T1,
     lo: loV, hi: hiV,
     // the crosshair snaps to these (row 11)
     pts: vis.map(k => ({ t: k.t, p: k.c })),
@@ -415,8 +447,12 @@ export function renderSvg(view, o) {
       + `font-size="10" text-anchor="middle">${esc(k.at)}</text>`;
   }
 
-  /* OHLC readout (row 11): hovered candle, else the last */
-  const hi = o.hover >= 0 && o.hover < vis.length ? o.hover : vis.length - 1;
+  /* OHLC readout (row 11): hovered candle, else the last one INSIDE the window — panned back a
+     session, reading the live candle's OHLC over a chart that does not show it is a lie
+     (chart-nav-v1.md row 9's reasoning applied to the readout). */
+  let lastIn = vis.length - 1;
+  while (lastIn > 0 && vis[lastIn].t > view.t1) lastIn--;
+  const hi = o.hover >= 0 && o.hover < vis.length ? o.hover : lastIn;
   const k = vis[hi];
   const prev = all[s + hi - 1];
   const kc = k.c >= k.o ? up : down;

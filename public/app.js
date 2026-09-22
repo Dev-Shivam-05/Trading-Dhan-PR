@@ -169,6 +169,7 @@ function select(id, expiry) {
   state.chartDirty = true;
   tools.setScope(inst.id, state.expiry);       // drawings never cross an instrument or an expiry
   state.ucHover = -1;
+  tools.resetView();                           // chart-nav-v1.md row 14
   uc.setScope(inst.id, inst.label);            // underlying-candles-v1.md row 2
 
   [...$('chips').children].forEach((b, i) =>
@@ -898,15 +899,22 @@ function drawChart() {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
   const cutoff = state.chartRange ? Date.now() - state.chartRange : 0;
-  const pts = state.ticks.filter(p => p.t >= cutoff);
+  const all = state.ticks.filter(p => p.t >= cutoff);
 
-  $('chartEmpty').style.display = pts.length < 2 ? '' : 'none';
-  tools.setEnabled(pts.length >= 2);                 // chart-tools row 25
-  if (pts.length < 2) { svg.innerHTML = ''; return; }
+  $('chartEmpty').style.display = all.length < 2 ? '' : 'none';
+  tools.setEnabled(all.length >= 2);                 // chart-tools row 25
+  if (all.length < 2) { svg.innerHTML = ''; return; }
 
   const PAD_R = 76, PAD_B = 16;
-  const t0 = pts[0].t;
-  const t1 = Math.max(pts[pts.length - 1].t, t0 + 1);
+  // chart-nav-v1.md rows 1, 4, 9 — the tick line navigates like the candles do: the window
+  // first, then only the prices inside it decide the scale.
+  tools.setMinSpan(5000);
+  const [t0, t1] = tools.applyTime(all[0].t, Math.max(all[all.length - 1].t, all[0].t + 1));
+  const pts = (t0 <= all[0].t && t1 >= all[all.length - 1].t)
+    ? all : all.filter(p => p.t >= t0 && p.t <= t1);
+  // A window can be narrower than the gap between two ticks; one point still draws a dot and a
+  // scale, and blanking the chart under the pointer would read as a crash.
+  if (!pts.length) { svg.innerHTML = ''; return; }
 
   let lo = Infinity, hi = -Infinity;
   for (const p of pts) { if (p.p < lo) lo = p.p; if (p.p > hi) hi = p.p; }
@@ -1009,7 +1017,10 @@ function drawCandleStrip() {
 
   const st = uc.current();
   const style = cstyle.get();
-  const view = uc.buildView(st.data, style, tools.applyZoom);
+  // chart-nav-v1.md row 4 — five candles is the narrowest window this chart allows, so the
+  // floor moves with the interval rather than being a fixed number of minutes.
+  tools.setMinSpan(5 * Number(st.data?.interval ?? 5) * 60_000);
+  const view = uc.buildView(st.data, style, tools.applyZoom, tools.applyTime);
   state.ucView = view;
 
   // Row 21. With candles on screen a failed refresh is reported in the plot's note instead.
@@ -1085,6 +1096,7 @@ tools.init({
   surface: $('chartSurface'),
   axis: $('chartAxis'),
   tools: $('chartTools'),
+  reset: $('chartReset'),                            // P25 — chart-nav-v1.md row 12
   inr,
   repaint: () => { state.chartDirty = true; },
 });
@@ -1095,6 +1107,9 @@ function applyStyle(s) {
   for (const b of $('chartMode').children) b.setAttribute('aria-pressed', String(b.dataset.mode === s.mode));
   cstyle.applyBg($('chartBody'), s);
   state.ucHover = -1;
+  // chart-nav-v1.md row 14 — the tick line and the candles are two different time domains, so
+  // a window measured in one is meaningless in the other.
+  tools.resetView();
   state.chartDirty = true;
 }
 uc.init({
@@ -1111,6 +1126,7 @@ $('ucInterval').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   state.ucHover = -1;
+  tools.resetView();                           // chart-nav-v1.md row 14
   uc.setInterval_(b.dataset.iv);
 });
 $('styleBtn').addEventListener('click', () => cstyle.open());
@@ -1229,6 +1245,7 @@ $('chartRange').addEventListener('click', (e) => {
   state.chartRange = Number(b.dataset.range);
   localStorage.setItem('chartRange', String(state.chartRange));
   [...$('chartRange').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  tools.resetView();                           // chart-nav-v1.md row 14 — a new time domain
   state.chartDirty = true;
 });
 [...$('chartRange').children].forEach(b =>

@@ -860,3 +860,23 @@ body.pop-opt .shell{visibility:hidden}
 #work:fullscreen{display:flex;flex-direction:column;overflow:hidden}
 #optWin:fullscreen{border:0;border-radius:0;resize:none}
 #optWin:fullscreen .ow-h{cursor:default}
+
+/* ======================================================================
+   P25 — chart navigation. Spec: docs/spec/chart-nav-v1.md
+   ====================================================================== */
+
+/* Row 12 — the "back to the latest candle" arrow, bottom-right inside the plot, 8px clear of
+   the 76px price gutter and the 16px time-label row. `[hidden]` needs its own rule: this element
+   carries a `display` of its own, and a CSS display beats the UA's `[hidden]{display:none}` —
+   the same trap that left P8's scanner panel on screen (CLAUDE.md). */
+.chart-reset{
+  position:absolute;right:100px;bottom:26px;z-index:5;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  font:600 12px Inter,system-ui,sans-serif;line-height:1;cursor:pointer;
+  color:var(--fg-muted);background:var(--bg-panel);
+  border:1px solid var(--border-strong);border-radius:50%;
+  box-shadow:var(--shadow-md);
+  transition:color 160ms var(--ease),border-color 160ms var(--ease);
+}
+.chart-reset:hover{color:var(--accent);border-color:var(--accent)}
+.chart-reset[hidden]{display:none!important}
