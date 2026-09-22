@@ -452,3 +452,34 @@ as arithmetic. Store the position fractional; round only where an index is actua
 pointer event at `plot.x + plot.w` lands on the **gutter**. P25's first AC6 run wheeled there 40
 times, zoomed the price scale, and truthfully reported the time window untouched. In a
 verification script, aim at `plotW − 1`.
+
+## A suite that is not re-run is not green, it is unmeasured
+P19 was recorded at **62/62** on 2026-09-19. By 2026-09-22 it was **48/62**, and nobody knew:
+its reds were assumed to be the known environmental ones. Seven of them were P19's own AC1, AC3
+and AC9, red since the replay feed started inventing a candle at the wall clock. Re-baselining
+the other suites (P27) then turned up **two real product defects** hiding behind red lines that
+had been read as stale for weeks — the chart header wrapping to 76px at 1024, and a refusal that
+never said it was retrying. **Re-run the whole set at the end of every phase, and when a line is
+red, find out why before writing it off.** The rewrite rule: replace a superseded constant with
+the value the CURRENT spec states, or with the criterion's own invariant where the spec states no
+number — and say in a comment which spec row superseded it. Never loosen a claim to make it pass.
+
+## Three shapes of measurement bug this project keeps producing
+- **A float compared as a string.** `lastSma.toFixed(2) === seamSma.toFixed(2)` flips at a `.xx5`
+  boundary: two ways of summing the same twenty closes gave 24085.3950 and 24085.3950 that
+  rounded to different strings, while the drawn point was 0.0098px from where it belonged.
+  "To 2 dp" is a numeric claim — make it numerically, `|a − b| <= 0.005`.
+- **Two reads of a moving tape treated as one instant.** `#uSpot` is repainted from the feed at
+  10 Hz; the strike window re-anchors only when a 3 s snapshot lands. Reading them in separate
+  `page.evaluate` calls reported 58 of 60 samples "off-centre" with nothing wrong. Read both in
+  ONE evaluate, and where the app's own state is the truth, put it on a read-only seam
+  (`window.__grid.spot()`) — without that, P23's rule was not measurable from outside at all.
+- **A pixel ceiling standing in for a layout fact.** "The header stays one line" was written as
+  `height <= 32px`. P26 added two 30px icon buttons; the one-line header is 34px. The ceiling now
+  measured the tallest control, not wrapping. Assert the fact: no child sits a row below another.
+
+## Frame-time numbers taken while anything else is running are not measurements
+P19's AC9 (paint p95 < 8 ms at 375 candles) read **9.70 ms** while two verification suites were
+driving their own Chrome instances, and **4.70 ms** median over five 120-frame runs alone, on the
+same build minutes later. Before believing a frame-time red, re-run it with nothing else going —
+and prefer the median p95 of several samples to a single one. Same family as the max-vs-p95 note.
