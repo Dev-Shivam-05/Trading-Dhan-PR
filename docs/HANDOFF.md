@@ -65,9 +65,11 @@
   takes all three plus two more in one command.
 - **One question P25 opened and could not close:** whether NSE's option-chain `last_price` lags
   its own quote the way MCX's does. It agrees on a shut market. `open:checks` asks it at 09:15.
-- **21 red lines across p20, p10a and the P2–P9 re-proof are stale expectations, not failures** —
-  they encode 17 rows and "ATM ±8" where P23 made the chain 16 rows and "Spot ±8", and a 112px
-  chart default where P22 set 200px. All identical on the pre-P25 build. Boarded as **P27**.
+- **The row count at the 1440x900 floor.** In replay only **14 of 16** strike rows are fully on
+  screen (15 live); all 16 fit at 1440x960. No spec row ever promised 16 at 900 — the check had
+  inferred it — so the suites now assert every row reachable with the spine pinned and print the
+  real count. Shrinking the 200px plot would buy the two rows back, and that height is the user's
+  own P22 choice, so it is a decision, not a fix.
 - **P16's two funnel checks stay red** — they compare live NSE numbers with a fixed fixture.
 - A popped-out **chart** window keeps the app header, replay bar and instrument strip above it
   (276px of plot in a 560px window). Measured identical on the pre-P25 build, so it is P26's
@@ -75,13 +77,32 @@
 - `LTP-CALCULATOR/` and `assets/` are untracked empty directories in the working tree. Not mine;
   left alone.
 
+## P27 — done in the same session
+Re-baselining the verification suites onto the current specs. **p19 48/62 -> 62/62, p20 19/29 ->
+30/30, p22 20/22 -> 23/23, p23 18/19 -> 19/19, p10a 32/42 -> 42/42, the P2-P9 re-proof 36/37 ->
+37/37.** Every replacement is a value the current spec states, or the criterion's own invariant
+where the spec states no number, each with a comment naming the row that superseded it.
+
+**Two of the red lines were real defects**, not stale expectations, and had been read as stale for
+weeks: the chart header genuinely wrapped to **76px at 1024** (P22 claimed to have fixed that and
+its own suite had reported the 76px ever since), and P26's blip-vs-refusal split had dropped
+row 21's promise that the error state says when it will retry — a refusal showed
+`request failed (DH-904)` and nothing else while it was coming back in 60 s.
+
+**Three measurement bugs fixed rather than claims loosened:** a `toFixed(2)` string comparison of
+two float means flipping at a `.xx5` boundary; a check reading `#uSpot` (10 Hz) against a window
+that re-anchors on a 3 s snapshot, which made P23's rule unmeasurable from outside until
+`window.__grid.spot()` was added; and "one line" written as a 28px ceiling when P26's icons make
+a one-line header 34px.
+
 ## Next session starts here
 - **First command: `npm run dev`, then `npm run open:checks`** — and do it inside 09:15–15:30 IST
   on a trading day, or it will print five SKIPs and tell you so.
-- Then **P27**: re-baseline the stale suites. The reason is not tidiness. P19 was recorded at
-  62/62, drifted to 48/62 when the phantom candle appeared, and nobody noticed for three weeks
-  because its reds were assumed to be the known ones. **A suite that is not re-run is not green,
-  it is unmeasured.**
+- P27 is done. The lesson it exists for is in CLAUDE.md: P19 sat at 48/62 for three weeks while
+  everyone read its reds as the known ones. **A suite that is not re-run is not green, it is
+  unmeasured** — re-run the whole set at the end of every phase.
+- **One decision waiting:** 14 of 16 strike rows fit at 1440x900 in replay. Shrink the 200px plot
+  to get all 16, or keep the chart and accept the scroll?
 - Watch out for: three servers may be up (8787 live, 8791 replay, 8792 the pre-P25 baseline
   worktree at `D:/Temp/Dhan-p25base`). `git worktree list` first, kill by the PID that owns the
   port, and re-check `/api/health`'s `build` before trusting a number — a regression run earlier
