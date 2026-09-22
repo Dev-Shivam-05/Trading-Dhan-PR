@@ -19,7 +19,9 @@
     "scan:nse": "node --env-file-if-exists=.env scripts/scan-nse.ts",
     "open:checks": "node --env-file-if-exists=.env scripts/open-checks.ts",
     "notify:test": "node --env-file-if-exists=.env scripts/notify-test.ts",
-    "chart:selftest": "node scripts/chart-checks-test.ts"
+    "chart:selftest": "node scripts/chart-checks-test.ts",
+    "oq1:test": "node scripts/oq1-reversal-test.ts",
+    "oq1:live": "node --env-file-if-exists=.env scripts/oq1-live-probe.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
