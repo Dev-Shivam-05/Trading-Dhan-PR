@@ -85,6 +85,10 @@ export type Snapshot = {
   expiries: string[];
   daysToExpiry: number;
   spot: number;
+  /** P25 — where `spot` came from: a fresh quote of the underlying, or the chain payload. */
+  spotSource: 'quote' | 'chain';
+  /** P25 — the chain payload's own `last_price`, kept so the two can be compared on screen. */
+  spotChainLast: number | null;
   spotPrevClose: number | null;
   spotChange: number | null;
   spotChangePct: number | null;
@@ -315,11 +319,18 @@ class ChainPoller {
     }
 
     this.failures = 0;
-    const d = derive(call.data);
+    // P25 / the board's open GOLD item. The chain payload's own `last_price` is HOURS old on MCX
+    // (see underlyingSpot below), and the header's change is spot - prevClose, so a stale spot
+    // against a real previous close prints a wrong number as a live one. The quote of the very
+    // same contract wins, and the ATM is measured against it too - otherwise the spot marker
+    // ends up four rows from the ATM row on a 100-point strike ladder.
+    const quoted = underlyingSpot(this.instrument, this.creds);
+    const d = derive(call.data, quoted);
 
     const baseline = await this.baselines.get(this.key, d.atmIV);
     const prevClose = await underlyingPrevClose(this.instrument, this.creds, session.openNow);
-    const spotChange = prevClose !== null ? d.spot - prevClose : null;
+    const spot = d.spot;
+    const spotChange = prevClose !== null ? spot - prevClose : null;
 
     // P7: enqueue whatever peaks this strike list still needs and read what is already cached.
     // Deliberately NOT awaited - the backfill spends its own 1 req/s budget in the background and
@@ -337,7 +348,9 @@ class ChainPoller {
       expiry: this.expiry,
       expiries: this.instrument.expiries,
       daysToExpiry: daysToExpiry(this.expiry),
-      spot: d.spot,
+      spot,
+      spotSource: quoted !== null ? 'quote' : 'chain',
+      spotChainLast: typeof call.data.data?.last_price === 'number' ? call.data.data.last_price : null,
       spotPrevClose: prevClose,
       spotChange,
       spotChangePct: spotChange !== null && prevClose ? (spotChange / prevClose) * 100 : null,
@@ -443,6 +456,67 @@ async function underlyingPrevClose(
   }
   prevCloseCache.set(inst.id, { value, day: today, sessionDate, at: Date.now() });
   return value;
+}
+
+/**
+ * P25 — the spot the header prints.
+ *
+ * `/v2/optionchain` carries its own `last_price` for the underlying, and on NSE that is the
+ * number to use. On **MCX it is hours old.** Measured live 2026-09-22 at 21:35 IST with the MCX
+ * session open: the chain returned 151,879 for GOLD twice, 45 s apart, while `/v2/marketfeed/quote`
+ * on the very same contract (483079, GOLD OCT FUT - the one the chain is built on) returned
+ * 152,396, and 151,879 last traded between 13:20 and 14:05. It is not a different contract, as
+ * the board guessed: no MCX future quotes that number, and it sits inside 483079's own day range.
+ *
+ * The header's change is `spot - prevClose`, and prevClose comes from 483079's daily candles, so
+ * a stale spot against a real close prints a wrong change as a live one. Where a quote of the
+ * same securityId is available it wins; where it is not, the chain's number is kept and
+ * `spotSource` says which one the screen is showing.
+ *
+ * NSE is left on the quote path too, but only after it agrees: this is re-checked at the open,
+ * and until then `spotSource` makes the answer visible rather than assumed.
+ */
+type SpotEntry = { value: number | null; at: number };
+const spotCache = new Map<string, SpotEntry>();
+const spotInFlight = new Set<string>();
+const SPOT_TTL_MS = 2500;          // just under the 3 s chain cadence: one quote per poll at most
+const SPOT_KEY = 'spot:quote';     // ONE gate key for the fan-out (CLAUDE.md)
+
+/**
+ * Read the cached quote and, if it has gone stale, start a refresh WITHOUT waiting for it.
+ *
+ * Awaiting it instead would put a second Dhan round trip inside the 3 s chain budget, and with
+ * several pollers sharing one 1 req/s gate key that queue alone could push the cadence past
+ * 3 s - the exact thing `dhanPost`'s gate exists to protect. The cost of not waiting is that the
+ * FIRST snapshot after a subscribe falls back to the chain's own `last_price`; the next one,
+ * 3 s later, is the quote, and `spotSource` says which is on screen.
+ */
+function underlyingSpot(inst: ResolvedInstrument, creds: Credentials | null): number | null {
+  // Replay synthesises the chain and its spot together; a quote path there would compare a
+  // number with itself.
+  if (isReplay() || !creds || inst.underlyingScrip === null) return null;
+  const hit = spotCache.get(inst.id);
+  if ((!hit || Date.now() - hit.at >= SPOT_TTL_MS) && !spotInFlight.has(inst.id)) {
+    spotInFlight.add(inst.id);
+    void refreshSpot(inst, creds).finally(() => spotInFlight.delete(inst.id));
+  }
+  return hit?.value ?? null;
+}
+
+async function refreshSpot(inst: ResolvedInstrument, creds: Credentials): Promise<void> {
+  const seg = inst.underlyingSeg;
+  const id = String(inst.underlyingScrip);
+  const res = await dhanPost<Record<string, Record<string, Record<string, unknown>>> & {
+    data?: Record<string, Record<string, Record<string, unknown>>>;
+  }>('/v2/marketfeed/quote', { [seg]: [Number(id)] },
+    { creds, key: SPOT_KEY, cadenceMs: 1000, timeoutMs: 10_000 });
+  // A failed call is not an answer: keep whatever was known rather than blanking the header.
+  if (!res.ok) return;
+  const body = res.data?.data ?? res.data;
+  const row = body?.[seg]?.[id];
+  const px = row?.last_price;
+  const value = typeof px === 'number' && Number.isFinite(px) && px > 0 ? px : null;
+  if (value !== null) spotCache.set(inst.id, { value, at: Date.now() });
 }
 
 /* --------------------------------------------------------- baseline store */

@@ -84,10 +84,19 @@ function side(leg: OptionLeg | undefined): Side {
   };
 }
 
-export function derive(res: OptionChainResponse): Derived {
+/**
+ * P25 — `spotOverride` is a fresher price for the SAME underlying contract, from
+ * `/v2/marketfeed/quote`. Measured live 2026-09-22 with the MCX session open: the GOLD chain's
+ * own `last_price` was frozen at a 13:20-14:05 print (151,879) at 21:35, while the strikes
+ * around it were moving - 57 of 174 changed LTP, IV or OI across two calls 70 s apart. So the
+ * payload is live and only its `last_price` lags, and the ATM has to be measured against the
+ * price that is true now or the spot marker sits four rows from the ATM row.
+ */
+export function derive(res: OptionChainResponse, spotOverride?: number | null): Derived {
   // `?? 0` is kept for the reported spot so the payload shape does not change, but the ATM
   // decision below reads the RAW value: "unknown" and "zero" are not the same question.
-  const rawSpot = n(res.data?.last_price);
+  const rawSpot = (typeof spotOverride === 'number' && Number.isFinite(spotOverride) && spotOverride > 0)
+    ? spotOverride : n(res.data?.last_price);
   const spot = rawSpot ?? 0;
   const oc = res.data?.oc ?? {};
 

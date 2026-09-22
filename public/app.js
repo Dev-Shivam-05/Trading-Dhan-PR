@@ -304,6 +304,16 @@ function renderHeader(s) {
   }
   $('uName').textContent = s.instrument.displayName;
   $('uSpot').textContent = inr(s.spot);
+  // P25: say which number this is. Dhan's option chain carries its own `last_price`, and on MCX
+  // that one is hours old, so the spot comes from a quote of the same contract instead. Where
+  // the two differ the tooltip names both rather than leaving the screen to be trusted blindly.
+  $('uSpot').title = s.spotSource === 'quote' && s.spotChainLast !== null
+      && Math.abs(s.spot - s.spotChainLast) > 0.005
+    ? `${inr(s.spot)} — live quote of ${s.instrument.underlyingScrip} `
+      + `(${s.instrument.underlyingSeg}). Dhan's option-chain payload still reads `
+      + `${inr(s.spotChainLast)}.`
+    : `${inr(s.spot)} — ${s.spotSource === 'quote' ? 'live quote of' : 'option-chain payload for'} `
+      + `${s.instrument.underlyingScrip} (${s.instrument.underlyingSeg})`;
   const chg = $('uChg');
   chg.textContent = s.spotChange === null
     ? 'previous close unavailable'
