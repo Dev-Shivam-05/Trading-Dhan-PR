@@ -1,0 +1,659 @@
+{
+  "meta": {
+    "date": "2026-09-22",
+    "time": "14:20:34",
+    "weekday": "Tue",
+    "runner": "github-windows",
+    "host": "runnervmvmocb",
+    "status": "ok",
+    "note": "NSE data for 2026-09-22"
+  },
+  "result": {
+    "source": "nse",
+    "mode": "live",
+    "at": "2026-09-22T08:50:43.722Z",
+    "n": 20,
+    "reused": false,
+    "market": {
+      "status": "Open",
+      "priceAsOf": "22-Sep-2026 14:20:04",
+      "oiAsOf": "22-Sep-2026 14:20:05",
+      "tradeDate": "2026-09-22",
+      "prevTradingDate": "2026-09-21"
+    },
+    "evidence": [
+      ".cache\\nse\\2026-09-22-142042-fno-securities.json",
+      ".cache\\nse\\2026-09-22-142042-oi-spurts.json"
+    ],
+    "funnel": {
+      "list": 210,
+      "scored": 210,
+      "ranked": 40,
+      "chg": 18,
+      "oi": 9
+    },
+    "long": [
+      {
+        "symbol": "RBLBANK",
+        "name": "RBL Bank Limited",
+        "ltp": 419.8,
+        "prevClose": 402.4,
+        "chgPct": 4.32,
+        "volume": 5504611,
+        "latestOi": 28680,
+        "prevOi": 25110,
+        "oiPct": 14.22
+      },
+      {
+        "symbol": "PAGEIND",
+        "name": "Page Industries Limited",
+        "ltp": 37190,
+        "prevClose": 35950,
+        "chgPct": 3.45,
+        "volume": 30048,
+        "latestOi": 21877,
+        "prevOi": 18783,
+        "oiPct": 16.47
+      },
+      {
+        "symbol": "PIIND",
+        "name": "PI Industries Limited",
+        "ltp": 2392.6,
+        "prevClose": 2321.8,
+        "chgPct": 3.05,
+        "volume": 712873,
+        "latestOi": 55978,
+        "prevOi": 48814,
+        "oiPct": 14.68
+      }
+    ],
+    "short": [
+      {
+        "symbol": "KAYNES",
+        "name": "Kaynes Technology India Limited",
+        "ltp": 3453,
+        "prevClose": 3650,
+        "chgPct": -5.4,
+        "volume": 2500462,
+        "latestOi": 77848,
+        "prevOi": 55858,
+        "oiPct": 39.37
+      },
+      {
+        "symbol": "CONCOR",
+        "name": "Container Corporation of India Limited",
+        "ltp": 468.7,
+        "prevClose": 487.05,
+        "chgPct": -3.77,
+        "volume": 2394586,
+        "latestOi": 37892,
+        "prevOi": 32648,
+        "oiPct": 16.06
+      },
+      {
+        "symbol": "LTM",
+        "name": "LTM Limited",
+        "ltp": 4162,
+        "prevClose": 4280,
+        "chgPct": -2.76,
+        "volume": 816189,
+        "latestOi": 61890,
+        "prevOi": 54883,
+        "oiPct": 12.77
+      },
+      {
+        "symbol": "VOLTAS",
+        "name": "Voltas Limited",
+        "ltp": 1113.6,
+        "prevClose": 1142.1,
+        "chgPct": -2.5,
+        "volume": 814203,
+        "latestOi": 67301,
+        "prevOi": 61534,
+        "oiPct": 9.37
+      },
+      {
+        "symbol": "ATHERENERG",
+        "name": "Ather Energy Limited",
+        "ltp": 1557.8,
+        "prevClose": 1593,
+        "chgPct": -2.21,
+        "volume": 2589542,
+        "latestOi": 45582,
+        "prevOi": 40212,
+        "oiPct": 13.35
+      },
+      {
+        "symbol": "DIXON",
+        "name": "Dixon Technologies (India) Limited",
+        "ltp": 13068,
+        "prevClose": 13350,
+        "chgPct": -2.11,
+        "volume": 322123,
+        "latestOi": 168445,
+        "prevOi": 154709,
+        "oiPct": 8.88
+      }
+    ],
+    "skipped": [],
+    "excluded": [],
+    "rejected": {
+      "rank": 170,
+      "chg": 22,
+      "oi": 9
+    },
+    "trace": [
+      {
+        "symbol": "RBLBANK",
+        "side": "gainer",
+        "chgPct": 4.32,
+        "oiPct": 14.22,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "SOLARINDS",
+        "side": "gainer",
+        "chgPct": 3.71,
+        "oiPct": 1.12,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PAGEIND",
+        "side": "gainer",
+        "chgPct": 3.45,
+        "oiPct": 16.47,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "SWIGGY",
+        "side": "gainer",
+        "chgPct": 3.21,
+        "oiPct": 3.62,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PIIND",
+        "side": "gainer",
+        "chgPct": 3.05,
+        "oiPct": 14.68,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "COALINDIA",
+        "side": "gainer",
+        "chgPct": 2.82,
+        "oiPct": 6.29,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "side": "gainer",
+        "chgPct": 2.66,
+        "oiPct": -0.52,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "IDEA",
+        "side": "gainer",
+        "chgPct": 2.02,
+        "oiPct": 3.25,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "MCX",
+        "side": "gainer",
+        "chgPct": 2.02,
+        "oiPct": -1.2,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BSE",
+        "side": "gainer",
+        "chgPct": 1.95,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "VBL",
+        "side": "gainer",
+        "chgPct": 1.87,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "MANKIND",
+        "side": "gainer",
+        "chgPct": 1.83,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BHARATFORG",
+        "side": "gainer",
+        "chgPct": 1.76,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "PATANJALI",
+        "side": "gainer",
+        "chgPct": 1.72,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "MOTILALOFS",
+        "side": "gainer",
+        "chgPct": 1.71,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ETERNAL",
+        "side": "gainer",
+        "chgPct": 1.64,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "DLF",
+        "side": "gainer",
+        "chgPct": 1.58,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "TITAN",
+        "side": "gainer",
+        "chgPct": 1.51,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "MANAPPURAM",
+        "side": "gainer",
+        "chgPct": 1.43,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "SONACOMS",
+        "side": "gainer",
+        "chgPct": 1.31,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "KAYNES",
+        "side": "loser",
+        "chgPct": -5.4,
+        "oiPct": 39.37,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "CONCOR",
+        "side": "loser",
+        "chgPct": -3.77,
+        "oiPct": 16.06,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "LTM",
+        "side": "loser",
+        "chgPct": -2.76,
+        "oiPct": 12.77,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "VOLTAS",
+        "side": "loser",
+        "chgPct": -2.5,
+        "oiPct": 9.37,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PGEL",
+        "side": "loser",
+        "chgPct": -2.42,
+        "oiPct": 2.22,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PREMIERENE",
+        "side": "loser",
+        "chgPct": -2.32,
+        "oiPct": 5.07,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ATHERENERG",
+        "side": "loser",
+        "chgPct": -2.21,
+        "oiPct": 13.35,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "DIXON",
+        "side": "loser",
+        "chgPct": -2.11,
+        "oiPct": 8.88,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PETRONET",
+        "side": "loser",
+        "chgPct": -2.07,
+        "oiPct": 0.14,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BRITANNIA",
+        "side": "loser",
+        "chgPct": -1.8,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "TATAELXSI",
+        "side": "loser",
+        "chgPct": -1.8,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "OIL",
+        "side": "loser",
+        "chgPct": -1.74,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BLUESTARCO",
+        "side": "loser",
+        "chgPct": -1.69,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "HYUNDAI",
+        "side": "loser",
+        "chgPct": -1.69,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BHEL",
+        "side": "loser",
+        "chgPct": -1.6,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "CUMMINSIND",
+        "side": "loser",
+        "chgPct": -1.57,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "NBCC",
+        "side": "loser",
+        "chgPct": -1.52,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ABB",
+        "side": "loser",
+        "chgPct": -1.48,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ABCAPITAL",
+        "side": "loser",
+        "chgPct": -1.43,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "COLPAL",
+        "side": "loser",
+        "chgPct": -1.41,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      }
+    ],
+    "reconciles": true,
+    "elapsedMs": 9155,
+    "error": null
+  },
+  "wider": [
+    {
+      "n": 25,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 50,
+        "chg": 18,
+        "oi": 9
+      },
+      "long": [
+        {
+          "symbol": "RBLBANK",
+          "name": "RBL Bank Limited",
+          "ltp": 419.8,
+          "prevClose": 402.4,
+          "chgPct": 4.32,
+          "volume": 5504611,
+          "latestOi": 28680,
+          "prevOi": 25110,
+          "oiPct": 14.22
+        },
+        {
+          "symbol": "PAGEIND",
+          "name": "Page Industries Limited",
+          "ltp": 37190,
+          "prevClose": 35950,
+          "chgPct": 3.45,
+          "volume": 30048,
+          "latestOi": 21877,
+          "prevOi": 18783,
+          "oiPct": 16.47
+        },
+        {
+          "symbol": "PIIND",
+          "name": "PI Industries Limited",
+          "ltp": 2392.6,
+          "prevClose": 2321.8,
+          "chgPct": 3.05,
+          "volume": 712873,
+          "latestOi": 55978,
+          "prevOi": 48814,
+          "oiPct": 14.68
+        }
+      ],
+      "short": [
+        {
+          "symbol": "KAYNES",
+          "name": "Kaynes Technology India Limited",
+          "ltp": 3453,
+          "prevClose": 3650,
+          "chgPct": -5.4,
+          "volume": 2500462,
+          "latestOi": 77848,
+          "prevOi": 55858,
+          "oiPct": 39.37
+        },
+        {
+          "symbol": "CONCOR",
+          "name": "Container Corporation of India Limited",
+          "ltp": 468.7,
+          "prevClose": 487.05,
+          "chgPct": -3.77,
+          "volume": 2394586,
+          "latestOi": 37892,
+          "prevOi": 32648,
+          "oiPct": 16.06
+        },
+        {
+          "symbol": "LTM",
+          "name": "LTM Limited",
+          "ltp": 4162,
+          "prevClose": 4280,
+          "chgPct": -2.76,
+          "volume": 816189,
+          "latestOi": 61890,
+          "prevOi": 54883,
+          "oiPct": 12.77
+        },
+        {
+          "symbol": "VOLTAS",
+          "name": "Voltas Limited",
+          "ltp": 1113.6,
+          "prevClose": 1142.1,
+          "chgPct": -2.5,
+          "volume": 814203,
+          "latestOi": 67301,
+          "prevOi": 61534,
+          "oiPct": 9.37
+        },
+        {
+          "symbol": "ATHERENERG",
+          "name": "Ather Energy Limited",
+          "ltp": 1557.8,
+          "prevClose": 1593,
+          "chgPct": -2.21,
+          "volume": 2589542,
+          "latestOi": 45582,
+          "prevOi": 40212,
+          "oiPct": 13.35
+        },
+        {
+          "symbol": "DIXON",
+          "name": "Dixon Technologies (India) Limited",
+          "ltp": 13068,
+          "prevClose": 13350,
+          "chgPct": -2.11,
+          "volume": 322123,
+          "latestOi": 168445,
+          "prevOi": 154709,
+          "oiPct": 8.88
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 60,
+        "chg": 18,
+        "oi": 9
+      },
+      "long": [
+        {
+          "symbol": "RBLBANK",
+          "name": "RBL Bank Limited",
+          "ltp": 419.8,
+          "prevClose": 402.4,
+          "chgPct": 4.32,
+          "volume": 5504611,
+          "latestOi": 28680,
+          "prevOi": 25110,
+          "oiPct": 14.22
+        },
+        {
+          "symbol": "PAGEIND",
+          "name": "Page Industries Limited",
+          "ltp": 37190,
+          "prevClose": 35950,
+          "chgPct": 3.45,
+          "volume": 30048,
+          "latestOi": 21877,
+          "prevOi": 18783,
+          "oiPct": 16.47
+        },
+        {
+          "symbol": "PIIND",
+          "name": "PI Industries Limited",
+          "ltp": 2392.6,
+          "prevClose": 2321.8,
+          "chgPct": 3.05,
+          "volume": 712873,
+          "latestOi": 55978,
+          "prevOi": 48814,
+          "oiPct": 14.68
+        }
+      ],
+      "short": [
+        {
+          "symbol": "KAYNES",
+          "name": "Kaynes Technology India Limited",
+          "ltp": 3453,
+          "prevClose": 3650,
+          "chgPct": -5.4,
+          "volume": 2500462,
+          "latestOi": 77848,
+          "prevOi": 55858,
+          "oiPct": 39.37
+        },
+        {
+          "symbol": "CONCOR",
+          "name": "Container Corporation of India Limited",
+          "ltp": 468.7,
+          "prevClose": 487.05,
+          "chgPct": -3.77,
+          "volume": 2394586,
+          "latestOi": 37892,
+          "prevOi": 32648,
+          "oiPct": 16.06
+        },
+        {
+          "symbol": "LTM",
+          "name": "LTM Limited",
+          "ltp": 4162,
+          "prevClose": 4280,
+          "chgPct": -2.76,
+          "volume": 816189,
+          "latestOi": 61890,
+          "prevOi": 54883,
+          "oiPct": 12.77
+        },
+        {
+          "symbol": "VOLTAS",
+          "name": "Voltas Limited",
+          "ltp": 1113.6,
+          "prevClose": 1142.1,
+          "chgPct": -2.5,
+          "volume": 814203,
+          "latestOi": 67301,
+          "prevOi": 61534,
+          "oiPct": 9.37
+        },
+        {
+          "symbol": "ATHERENERG",
+          "name": "Ather Energy Limited",
+          "ltp": 1557.8,
+          "prevClose": 1593,
+          "chgPct": -2.21,
+          "volume": 2589542,
+          "latestOi": 45582,
+          "prevOi": 40212,
+          "oiPct": 13.35
+        },
+        {
+          "symbol": "DIXON",
+          "name": "Dixon Technologies (India) Limited",
+          "ltp": 13068,
+          "prevClose": 13350,
+          "chgPct": -2.11,
+          "volume": 322123,
+          "latestOi": 168445,
+          "prevOi": 154709,
+          "oiPct": 8.88
+        }
+      ]
+    }
+  ]
+}
