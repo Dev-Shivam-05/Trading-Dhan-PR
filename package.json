@@ -18,7 +18,8 @@
     "live:probe": "node --env-file-if-exists=.env scripts/live-probe.ts",
     "scan:nse": "node --env-file-if-exists=.env scripts/scan-nse.ts",
     "open:checks": "node --env-file-if-exists=.env scripts/open-checks.ts",
-    "notify:test": "node --env-file-if-exists=.env scripts/notify-test.ts"
+    "notify:test": "node --env-file-if-exists=.env scripts/notify-test.ts",
+    "chart:selftest": "node scripts/chart-checks-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",

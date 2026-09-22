@@ -12,11 +12,25 @@
  *   4. P21          — the header's previous close against Dhan, with the session ON
  *   5. P25          — whether NSE's option-chain `last_price` lags its own quote, as MCX's does
  *
+ * The chart criteria (added 2026-09-23) have only ever been taken on an OPEN MCX session, which
+ * is the one session usually on outside NSE hours. They are the same rules, on NSE:
+ *
+ *   6. P19          — the live underlying candles against the feed's own ticks: one interval
+ *                     apart to the millisecond, and the forming candle CONTAINS every tick
+ *   7. P9           — the opening-candle question, measured rather than argued: how many blues
+ *                     the shipped cross-day `median20` fires in 09:15-09:35 against a
+ *                     session-only `median20`. Reported as a decision, never scored as a pass
+ *
  * Exit code 0 only if every criterion that could be measured passed. A criterion that could not
  * be measured is printed as SKIP and named in the summary — never scored as a pass.
  */
 
 import { readFile } from 'node:fs/promises';
+// The chart criteria's arithmetic lives in its own module so it can be driven against real
+// captured payloads before the session opens — `node scripts/chart-checks-test.ts`, 25 checks,
+// each of which is also shown to fail on bad input. On a shut market this script runs only its
+// SKIP branch, and there is one session a day in which to discover a bug in the other one.
+import { containment, openingCounts, spacingErrors, toMs } from './lib/chart-checks.ts';
 
 const BASE = process.env.SERVER ?? 'http://127.0.0.1:8787';
 const KEY = process.env.KEY ?? 'NIFTY';
@@ -96,6 +110,37 @@ async function snapshots(key: string, expiry: string, ms: number): Promise<any[]
   return out;
 }
 
+/**
+ * Every UNDERLYING tick the stream carries inside `ms`. The stream batches at 10 Hz and tags the
+ * underlying with `k: 'u'` (index.ts); `t` is the packet's own LTT, which contract §2.4 records as
+ * IST wall-clock encoded as an epoch, so it is the tick's time and not the time it arrived here.
+ */
+async function underlyingTicks(key: string, expiry: string, ms: number): Promise<{ p: number; t: number }[]> {
+  const res = await fetch(`${BASE}/api/stream?key=${key}&expiry=${expiry}`);
+  if (!res.body) return [];
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  const out: { p: number; t: number }[] = [];
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split('\n\n'); buf = parts.pop() ?? '';
+    for (const p of parts) {
+      if (!/event: ticks/.test(p)) continue;
+      const data = /data: (.*)/s.exec(p)?.[1];
+      if (!data) continue;
+      for (const b of (JSON.parse(data).batch ?? [])) {
+        if (b.k === 'u' && Number.isFinite(b.p)) out.push({ p: b.p, t: toMs(b.t) });
+      }
+    }
+  }
+  await reader.cancel().catch(() => {});
+  return out;
+}
+
 async function main() {
   const c = await creds();
   const health = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null) as any;
@@ -116,6 +161,8 @@ async function main() {
 
   /* ---------------------------------------------------------------- 4 + 5 */
   // Both read one live snapshot, so they are taken first and together.
+  // Check 7 needs the ATM strike off that same snapshot rather than a second subscribe.
+  let atmStrike: number | null = null;
   if (!open) {
     say('P21: previous close against Dhan with the session ON', 'SKIP', 'the session is shut');
     say('P25: the option-chain last_price against its own quote', 'SKIP', 'the session is shut');
@@ -133,6 +180,7 @@ async function main() {
       say('P21: previous close against Dhan with the session ON', 'SKIP', 'no quote or no snapshot');
       say('P25: the option-chain last_price against its own quote', 'SKIP', 'no quote or no snapshot');
     } else {
+      atmStrike = s.atmStrike ?? null;
       // P21: with the session ON, Dhan's ohlc.close IS the previous close. After the close it is
       // that day's own close, which is the whole reason the header reads daily candles instead.
       say('P21: the previous close equals Dhan ohlc.close while the session is on',
@@ -238,6 +286,87 @@ async function main() {
       when ? 'PASS' : 'SKIP',
       when ? `first non-zero at ${when} IST (${last})`
            : `still 0 after ${Math.round(NET_CHANGE_WATCH_MS / 60000)} min — re-run later in the session`);
+  }
+
+  /* -------------------------------------------------------------------- 6 */
+  // P19 on an NSE session. The same three facts were taken on MCX on 2026-09-22 (395 ticks in
+  // 60 s, 12 of 12 closes, each candle 60,000 ms after the last) and never on NSE.
+  //
+  // Both reads are of a MOVING tape, so the only thing asserted across them is an INVARIANT -
+  // a candle's high/low must contain every tick that fell inside its own minute. A pixel- or
+  // price-level equality between two reads taken seconds apart is the measurement bug this
+  // project keeps producing, not a product fact.
+  if (!open) {
+    say('P19: the live candles are one interval apart on NSE', 'SKIP', `the ${KEY} session is shut`);
+    say('P19: the forming candle contains every tick in its minute', 'SKIP', `the ${KEY} session is shut`);
+  } else {
+    const uc = await fetch(`${BASE}/api/ucandles?key=${KEY}&interval=1`).then(r => r.json()).catch(() => null) as any;
+    const all: any[] = uc?.candles ?? [];
+    const day = all.length ? all[all.length - 1].d : null;
+    const today = all.filter(x => x.d === day);
+    if (today.length < 3) {
+      say('P19: the live candles are one interval apart on NSE', 'SKIP',
+        `only ${today.length} candle(s) in ${day ?? 'no session'} yet`);
+    } else {
+      const bad = spacingErrors(today, 60_000);
+      say('P19: every 1-minute candle opens exactly 60,000 ms after the last',
+        bad.length === 0 ? 'PASS' : 'FAIL',
+        `${today.length} candles on ${day}${bad.length ? ` — ${bad.slice(0, 3).join(', ')}` : ''}`);
+    }
+
+    const ticks = await underlyingTicks(KEY, inst.nearestExpiry, 60_000);
+    const after = await fetch(`${BASE}/api/ucandles?key=${KEY}&interval=1`).then(r => r.json()).catch(() => null) as any;
+    const rows: any[] = (after?.candles ?? []).filter((x: any) => x.d === day);
+    if (!ticks.length || !rows.length) {
+      say('P19: the forming candle contains every tick in its minute', 'SKIP',
+        `${ticks.length} underlying ticks in 60 s, ${rows.length} candles — nothing to compare`);
+    } else {
+      const r = containment(rows, ticks, 60_000);
+      say('P19: every judged candle contains every tick that fell inside its minute',
+        r.judged > 0 && r.misses.length === 0 ? 'PASS' : r.judged === 0 ? 'SKIP' : 'FAIL',
+        r.judged === 0
+          ? `${ticks.length} ticks but no candle's whole minute fell inside the 60 s window — re-run`
+          : `${r.contained}/${r.judged} candles contain their ticks${r.misses.length ? ` — ${r.misses[0]}` : ''}`
+          + ` · ${ticks.length} ticks · close equals the last tick in ${r.closeAgrees}/${r.judged}`);
+    }
+  }
+
+  /* -------------------------------------------------------------------- 7 */
+  // P9's opening-candle question, carried on the board since 2026-09-19 as a DECISION, with no
+  // number attached to it. This does not decide it and never scores a pass: it prints the two
+  // counts the user needs to answer it in one word.
+  const afterOpening = () => {
+    const hhmm = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false });
+    return hhmm >= '09:36:00';
+  };
+  if (!open || !atmStrike) {
+    say('P9: median20 across the session boundary — the user\'s decision', 'SKIP',
+      !open ? `the ${KEY} session is shut` : 'no ATM strike on the snapshot');
+  } else if (!afterOpening()) {
+    say('P9: median20 across the session boundary — the user\'s decision', 'SKIP',
+      `it is ${istNow()} IST — the 09:15-09:35 window is not over yet`);
+  } else {
+    const lines: string[] = [];
+    let fired1 = 0, fired2 = 0, all1 = 0;
+    for (const side of ['ce', 'pe'] as const) {
+      const r = await fetch(`${BASE}/api/candles?key=${KEY}&expiry=${inst.nearestExpiry}`
+        + `&strike=${atmStrike}&side=${side}&interval=1`).then(x => x.json()).catch(() => null) as any;
+      const cs: any[] = r?.candles ?? [];
+      if (!cs.length) { lines.push(`  ${atmStrike} ${side.toUpperCase()}: no candles (${r?.note ?? r?.error ?? '—'})`); continue; }
+      const k = openingCounts(cs, 20);
+      fired1 += k.shipped; fired2 += k.sessionOnly; all1 += k.whole;
+      lines.push(`  ${atmStrike} ${side.toUpperCase()}: ${k.shipped} fired in 09:15-09:34 of ${k.whole} all day`
+        + ` · median20 at 09:15 = ${k.firstMedian} (yesterday's tail, ${r.context} context candles)`
+        + ` vs ${k.ownMedian} for today's own first 20`);
+    }
+    console.log(`\n      P9 — what the cross-day median20 costs, measured on ${istNow()} IST:`);
+    for (const l of lines) console.log(`    ${l}`);
+    console.log(`      shipped rule: ${fired1} of ${all1} of the day's signals land in the first 20 min.`
+      + `\n      session-only rule: ${fired2} (the test is unavailable before 20 in-session candles).`
+      + `\n      This is the user's call — neither is scored.\n`);
+    say('P9: median20 across the session boundary — the user\'s decision', 'SKIP',
+      `measured: ${fired1} of ${all1} signals fire in 09:15-09:34 under the shipped rule, `
+      + `${fired2} under a session-only rule`);
   }
 
   const pass = results.filter(r => r.verdict === 'PASS').length;
