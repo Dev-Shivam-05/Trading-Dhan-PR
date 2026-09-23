@@ -404,11 +404,13 @@ export function statusLine(l: Ledger, nowMs: number): string {
       (l.armed ? '' : ' · disarmed — nothing more will be traded');
   }
   if (d?.status === 'no-trades') return d.note ?? 'no trades today';
-  if (!l.armed) return `disarmed — nothing will be traded${still}`;
   if (d?.status === 'waiting' && d.lastError) {
+    // Named even when disarmed: replay's Run now can fail with the toggle off.
+    if (!l.armed) return `scan failed: ${d.lastError} · disarmed, no retry`;
     const next = ist((d.lastAttemptAt ?? nowMs) + RETRY_MS).hms;
     return `scan failed: ${d.lastError} · retrying at ${next}`;
   }
+  if (!l.armed) return `disarmed — nothing will be traded${still}`;
   if (!tradingWeekday(nowMs) || minutes >= ENTRY_UNTIL_MIN) return 'armed · waiting for 09:20 on the next trading day';
   return 'armed · waiting for 09:20';
 }
@@ -532,7 +534,7 @@ export class PaperTrader {
   }
 
   /** Row 3's timer path (checkFresh) and replay's Run now (no freshness, amendment 23). */
-  private async runScan(checkFresh: boolean) {
+  private async runScan(checkFresh: boolean): Promise<ReturnType<typeof applyScan>> {
     this.scanning = true;
     const day = dayOf(this.ledger, ist(this.now()).date);
     day.status = 'scanning';
@@ -541,7 +543,7 @@ export class PaperTrader {
       try { scan = await this.o.scan(); } catch (e) {
         scan = { error: (e as Error).message, long: [], short: [], market: { priceAsOf: '' } } as unknown as NseScanResult;
       }
-      applyScan(this.ledger, scan, this.o.lookup, this.now(), checkFresh);
+      return applyScan(this.ledger, scan, this.o.lookup, this.now(), checkFresh);
     } finally {
       this.scanning = false;
       this.syncWants();
@@ -588,8 +590,8 @@ export class PaperTrader {
     this.ledger.clockOffsetMs = istAt(wall, SCAN_AT_MIN) - wall;
     // Nothing is deleted: a second press on the same date meets row 9 and lists every symbol as
     // "already traded today", which is the rule doing its job, not a bug.
-    await this.runScan(false);
-    return { ok: true };
+    const r = await this.runScan(false);
+    return r.ok ? { ok: true } : { ok: false, error: `scan failed: ${r.reason}` };
   }
 
   view() { return view(this.ledger, this.now()); }
