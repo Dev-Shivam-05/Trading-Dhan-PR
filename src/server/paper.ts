@@ -1,18 +1,21 @@
 /**
  * P32 — auto paper-trading from the front page. `docs/spec/paper-trading-v1.md`.
+ * P33 — its entry and exit replaced by the opening-range breakout and the 9 SMA exit.
+ *       `docs/spec/orb-strategy-v1.md`. Where the two specs disagree, P33 wins.
  *
  * PAPER MEANS PAPER. Nothing in this file places, modifies or cancels a real order, and it imports
  * nothing from `dhan.ts` (spec row 1, AC1 greps for it). A fill is this process writing a number
- * into a JSON file: the LTP of the first feed tick the app's own WebSocket carries for that future.
+ * into a JSON file: the LTP of a feed tick the app's own WebSocket carries for that contract.
  *
  * Two halves:
  *  - the RULES are pure functions of (ledger, event, nowMs). No `Date.now()` in them — spec row 14.
  *    Almost every session on this project is outside 09:15-15:30, and a rule that reads the wall
  *    clock has a criterion nobody can run (CLAUDE.md: "now is an argument, not a clock").
- *  - `PaperTrader` is the I/O shell: the 1 s timer, the ledger file, the feed subscriptions.
+ *  - `PaperTrader` is the I/O shell: the 1 s timer, the ledger file, the feed subscriptions and the
+ *    candle fetches. Candles come in through an injected function, so this file still never talks
+ *    to Dhan itself.
  *
- * Everything the strategy decides is a named constant below, and every one of them is a row of the
- * spec. Rows 3, 4, 5, 7, 8 and 16 are the user-accepted GUESSES — change them there first.
+ * Everything the strategy decides is a named constant below, and every one of them is a spec row.
  */
 
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
@@ -25,27 +28,40 @@ import type { Subscription, Tick } from './feed.ts';
 
 /* ------------------------------------------------------------ spec values */
 
-/** Row 3: the scan fires at 09:20 IST; entries only until 09:30. */
+/** P32 row 3: the scan fires at 09:20 IST and is retried until 09:30 (P33 amendment 14). */
 export const SCAN_AT_MIN = 9 * 60 + 20;
-export const ENTRY_UNTIL_MIN = 9 * 60 + 30;
-/** Row 3: NSE's prices must be stamped today at or after the 09:15 open. */
+export const SCAN_UNTIL_MIN = 9 * 60 + 30;
+/** P32 row 3: NSE's prices must be stamped today at or after the 09:15 open. */
 export const FRESH_FROM_MIN = 9 * 60 + 15;
-/** Row 3 (GUESS): a failed or stale scan is retried this often until 09:30. */
+/** P32 row 3 (GUESS): a failed or stale scan is retried this often. P33 amendment 15 reuses it
+ *  for a failed candle fetch. */
 export const RETRY_MS = 60_000;
-/** Row 5 (GUESS): positions per day, highest |chg%| first. */
+/** P32 row 5 (GUESS): signals taken per day, highest |chg%| first. Option legs do not count. */
 export const MAX_POSITIONS = 10;
-/** Row 7 (GUESS): stop against / target in favour, in % of the entry fill. */
-export const STOP_PCT = 1.0;
-export const TARGET_PCT = 2.0;
-/** Row 8 (GUESS): intraday square-off. */
+/** P33 row 3: the range is the 09:15 and 09:20 five-minute candles, known once 09:25 has passed. */
+export const CANDLE_MS = 5 * 60_000;
+export const RANGE_FROM_MIN = 9 * 60 + 15;
+export const RANGE_READY_MIN = 9 * 60 + 25;
+/** P33 rows 3, 7: candles are fetched this long after a 5-minute boundary. */
+export const FETCH_LAG_MS = 5_000;
+/** P33 row 5 (GUESS): no break by 15:00 → not taken. */
+export const ENTRY_UNTIL_MIN = 15 * 60;
+/** P33 rows 7-9: two consecutive completed closes on the wrong side of the 9-period SMA. */
+export const SMA_PERIOD = 9;
+export const EXIT_CLOSES = 2;
+/** P32 row 8 (GUESS): intraday square-off. */
 export const SQUARE_OFF_MIN = 15 * 60 + 15;
+/** P33 amendment 18: replay's synthetic option walk starts at this fraction of the future. */
+export const REPLAY_OPTION_BASE = 0.02;
 
 const IST_MS = 5.5 * 3600_000;
 
 /* ------------------------------------------------------------------ types */
 
 export type Dir = 'BUY' | 'SELL';
-export type ExitReason = 'target' | 'stop' | 'eod' | 'manual' | 'stale';
+/** `target` / `stop` survive only in P32 ledgers written before P33. */
+export type ExitReason = 'sma' | 'eod' | 'manual' | 'stale' | 'target' | 'stop';
+export type Leg = 'future' | 'option';
 
 /** What the instrument master says about one F&O stock. Injected, so this file never reads it. */
 export type Contract = {
@@ -58,25 +74,50 @@ export type Contract = {
 };
 export type Lookup = (symbol: string) => Contract | undefined;
 
+/** One stock option contract (P33 row 6). Injected, as `Contract` is. */
+export type OptionPick = { strike: number; optionType: 'CE' | 'PE'; securityId: number; lot: number | null; expiry: string };
+export type OptionsFor = (symbol: string) => OptionPick[];
+
+/** A 5-minute candle. `t` is the candle's OPEN time, epoch ms. */
+export type Bar = { t: number; o: number; h: number; l: number; c: number };
+
 export type Position = {
-  /** `${date}-${symbol}` — unique because row 9 allows one trade per symbol per day. */
+  /** Future: `${date}-${symbol}`. Option: `${date}-${symbol}-CE|PE`. */
   id: string;
   date: string;
   symbol: string;
   name: string;
+  /** The SIGNAL's direction. An option leg is always bought, so its own P&L uses `BUY`. */
   side: Dir;
+  /** Missing on P32 ledgers: read as 'future'. */
+  leg?: Leg;
+  parentId?: string | null;
+  optionType?: 'CE' | 'PE' | null;
+  strike?: number | null;
   seg: 'NSE_FNO';
   securityId: number;
   expiry: string;
   lot: number;
-  /** Row 5: one lot, so qty === lot. Kept separate so a later size rule is a one-line change. */
   qty: number;
-  /** What the scan saw. `cashLtp` is the SHARE's price — never the fill (row 6). */
+  /** What the scan saw. `cashLtp` is the SHARE's price — never the fill. */
   signal: { chgPct: number; oiPct: number; cashLtp: number };
   status: 'pending' | 'open' | 'closed' | 'unfilled';
   createdAt: number;
+  /** P33 row 3. Null until the 09:15 and 09:20 candles have been read. */
+  range?: { high: number; low: number } | null;
+  /** Why there is no range yet, in words. Cleared once there is one. */
+  rangeNote?: string | null;
+  /** P33 row 9, as of the last completed candle evaluated. Display only; rules use the exact mean. */
+  sma9?: number | null;
+  /** P33 rows 7/8: consecutive completed closes on the wrong side of SMA9. */
+  against?: number;
+  /** Open time of the last completed candle the exit rule has seen. */
+  lastBarT?: number | null;
+  /** P33 row 7: the exit is decided; the leg closes at its next tick. */
+  exitDue?: boolean;
   entryPx: number | null;
   entryAt: number | null;
+  /** P32 only. Always null on a P33 position. */
   stopPx: number | null;
   targetPx: number | null;
   ltp: number | null;
@@ -86,7 +127,7 @@ export type Position = {
   reason: ExitReason | null;
   /** Realised, gross, rupees, to the paisa. Null until closed. */
   pnl: number | null;
-  /** Row 13: closed at boot because it was still open from an earlier date. */
+  /** P32 row 13: closed at boot because it was still open from an earlier date. */
   stale: boolean;
   note: string | null;
 };
@@ -113,9 +154,8 @@ export type Ledger = {
   armed: boolean;
   armedAt: number | null;
   /**
-   * Amendment row 19: replay's engine clock = wall clock + this. Run now sets it so the press lands
-   * on 09:20:00 IST. Always 0 live. Persisted, so a restart does not jump the clock to 21:00 and
-   * square everything off at once.
+   * Replay's engine clock = wall clock + this. Run now sets it so the press lands on 09:25:00 IST
+   * (P33 amendment 17). Always 0 live. Persisted, so a restart does not jump the clock.
    */
   clockOffsetMs: number;
   days: Record<string, Day>;
@@ -125,6 +165,8 @@ export type Ledger = {
 export function emptyLedger(mode: 'live' | 'replay'): Ledger {
   return { version: 1, mode, armed: false, armedAt: null, clockOffsetMs: 0, days: {}, positions: [] };
 }
+
+const legOf = (p: Position): Leg => p.leg ?? 'future';
 
 /* ------------------------------------------------------------- the clock */
 
@@ -144,48 +186,69 @@ export function istAt(nowMs: number, minutes: number): number {
   return Date.parse(`${date}T00:00:00Z`) - IST_MS + minutes * 60_000;
 }
 
+/** Open time of the 5-minute candle containing `ms`. IST is UTC+05:30, so the grids coincide. */
+export const barOpen = (ms: number) => Math.floor(ms / CANDLE_MS) * CANDLE_MS;
+
 const tradingWeekday = (nowMs: number) => { const w = ist(nowMs).weekday; return w >= 1 && w <= 5; };
 
 /* ---------------------------------------------------------- the arithmetic */
 
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
-/** Row 7 + amendment 21: levels from the fill, rounded to 0.01 so AC3's "0.01 short" is exact. */
-export function levels(side: Dir, entry: number): { stop: number; target: number } {
-  return side === 'BUY'
-    ? { stop: r2(entry * (100 - STOP_PCT) / 100), target: r2(entry * (100 + TARGET_PCT) / 100) }
-    : { stop: r2(entry * (100 + STOP_PCT) / 100), target: r2(entry * (100 - TARGET_PCT) / 100) };
-}
-
 /** Gross rupees, to the paisa. A SELL gains when the price falls. */
 export function pnlOf(side: Dir, entry: number, exit: number, qty: number): number {
   return r2((exit - entry) * qty * (side === 'BUY' ? 1 : -1));
 }
 
-/** Which exit, if any, this LTP triggers. Stop is checked first: a tick cannot be both. */
-export function exitFor(p: Pick<Position, 'side' | 'stopPx' | 'targetPx'>, ltp: number): 'stop' | 'target' | null {
-  if (p.stopPx === null || p.targetPx === null) return null;
-  if (p.side === 'BUY') {
-    if (ltp <= p.stopPx) return 'stop';
-    if (ltp >= p.targetPx) return 'target';
-  } else {
-    if (ltp >= p.stopPx) return 'stop';
-    if (ltp <= p.targetPx) return 'target';
-  }
-  return null;
-}
+/** The direction a leg's own P&L runs in: an option leg is always a bought option. */
+const pnlSide = (p: Position): Dir => (legOf(p) === 'option' ? 'BUY' : p.side);
 
 function close(p: Position, px: number, at: number, reason: ExitReason) {
   p.status = 'closed';
   p.exitPx = px;
   p.exitAt = at;
   p.reason = reason;
-  p.pnl = pnlOf(p.side, p.entryPx!, px, p.qty);
+  p.pnl = pnlOf(pnlSide(p), p.entryPx!, px, p.qty);
+}
+
+/**
+ * P33 row 3. The high and low of the 09:15 and 09:20 candles on `date`. Both candles must be
+ * present — one candle is not "the first two", and a range from it would be a different rule.
+ */
+export function openingRange(bars: Bar[], date: string): { high: number; low: number } | { error: string } {
+  const want = [RANGE_FROM_MIN, RANGE_FROM_MIN + 5];
+  const found = want.map(m => bars.find(b => ist(b.t).date === date && ist(b.t).minutes === m));
+  const missing = want.filter((_, i) => !found[i]).map(m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  if (missing.length) return { error: `no ${missing.join(' / ')} candle for ${date} yet` };
+  return { high: Math.max(found[0]!.h, found[1]!.h), low: Math.min(found[0]!.l, found[1]!.l) };
+}
+
+/** P33 row 9: the mean of the `SMA_PERIOD` completed closes ending at index `i`. Null if fewer. */
+export function smaAt(completed: Bar[], i: number): number | null {
+  if (i + 1 < SMA_PERIOD) return null;
+  let s = 0;
+  for (let k = i - SMA_PERIOD + 1; k <= i; k++) s += completed[k]!.c;
+  return s / SMA_PERIOD;
+}
+
+/**
+ * P33 row 6: the option nearest the future's price. CE for a long, PE for a short. A tie between
+ * two strikes goes to the LOWER one (amendment 16).
+ */
+export function nearestOption(list: OptionPick[], px: number, type: 'CE' | 'PE'): OptionPick | null {
+  let best: OptionPick | null = null;
+  for (const o of list) {
+    if (o.optionType !== type) continue;
+    if (!best) { best = o; continue; }
+    const d = Math.abs(o.strike - px), bd = Math.abs(best.strike - px);
+    if (d < bd || (d === bd && o.strike < best.strike)) best = o;
+  }
+  return best;
 }
 
 /* ------------------------------------------------------------ freshness */
 
-/** NSE stamps its feed `17-Sep-2026 16:00:28`. Row 3: must be today, at or after 09:15. */
+/** NSE stamps its feed `17-Sep-2026 16:00:28`. P32 row 3: must be today, at or after 09:15. */
 export function freshness(priceAsOf: string, nowMs: number): string | null {
   const date = nseDate(priceAsOf);
   const m = /\b(\d{2}):(\d{2})(?::\d{2})?\s*$/.exec(priceAsOf.trim());
@@ -206,7 +269,7 @@ function dayOf(l: Ledger, date: string): Day {
 }
 
 /**
- * Rows 2, 4, 5, 9. Turns one scan into pending positions. Long -> BUY, Short -> SELL, both lists
+ * P32 rows 2, 4, 5, 9. Turns one scan into pending futures. Long -> BUY, Short -> SELL, both lists
  * merged and ranked by |chg%| so the cap keeps the strongest moves whichever side they are on.
  */
 export function planEntries(l: Ledger, scan: NseScanResult, lookup: Lookup, nowMs: number): { added: Position[]; notTaken: NotTaken[] } {
@@ -216,7 +279,7 @@ export function planEntries(l: Ledger, scan: NseScanResult, lookup: Lookup, nowM
     ...scan.short.map(r => ({ r, side: 'SELL' as Dir })),
   ].sort((a, b) => Math.abs(b.r.chgPct) - Math.abs(a.r.chgPct) || a.r.symbol.localeCompare(b.r.symbol));
 
-  const today = l.positions.filter(p => p.date === date);
+  const today = l.positions.filter(p => p.date === date && legOf(p) === 'future');
   let count = today.length;
   const added: Position[] = [];
   const notTaken: NotTaken[] = [];
@@ -238,9 +301,11 @@ export function planEntries(l: Ledger, scan: NseScanResult, lookup: Lookup, nowM
     count++;
     added.push({
       id: `${date}-${r.symbol}`, date, symbol: r.symbol, name: c.name, side,
+      leg: 'future', parentId: null, optionType: null, strike: null,
       seg: 'NSE_FNO', securityId: c.futureId, expiry: c.futureExpiry, lot: c.lot, qty: c.lot,
       signal: { chgPct: r.chgPct, oiPct: r.oiPct, cashLtp: r.ltp },
       status: 'pending', createdAt: nowMs,
+      range: null, rangeNote: null, sma9: null, against: 0, lastBarT: null, exitDue: false,
       entryPx: null, entryAt: null, stopPx: null, targetPx: null, ltp: null, ltpAt: null,
       exitPx: null, exitAt: null, reason: null, pnl: null, stale: false, note: null,
     });
@@ -249,8 +314,8 @@ export function planEntries(l: Ledger, scan: NseScanResult, lookup: Lookup, nowM
 }
 
 /**
- * Applies one scan result to the day. `checkFresh` is false only for replay's Run now (amendment
- * 23): the committed fixture is dated 17-Sep and would always be refused.
+ * Applies one scan result to the day. `checkFresh` is false only for replay's Run now (P32
+ * amendment 23): the committed fixture is dated 17-Sep and would always be refused.
  */
 export function applyScan(
   l: Ledger, scan: NseScanResult, lookup: Lookup, nowMs: number, checkFresh: boolean,
@@ -276,64 +341,160 @@ export function applyScan(
   return { ok: true, added };
 }
 
-/** Row 3: is a timer scan due now? */
+/** P32 row 3: is a timer scan due now? */
 export function scanDue(l: Ledger, nowMs: number): boolean {
   if (!l.armed || !tradingWeekday(nowMs)) return false;
   const { date, minutes } = ist(nowMs);
-  if (minutes < SCAN_AT_MIN || minutes >= ENTRY_UNTIL_MIN) return false;
+  if (minutes < SCAN_AT_MIN || minutes >= SCAN_UNTIL_MIN) return false;
   const d = l.days[date];
   if (!d) return true;
   if (d.status !== 'waiting') return false;
   return d.lastAttemptAt === null || nowMs - d.lastAttemptAt >= RETRY_MS;
 }
 
+/** Does this future need a candle read now: its range (row 3), or a close for the exit (row 7)? */
+export function candlesDue(p: Position, nowMs: number): 'range' | 'exit' | null {
+  if (legOf(p) !== 'future' || p.date !== ist(nowMs).date) return null;
+  const { minutes } = ist(nowMs);
+  if (p.status === 'pending' && !p.range) {
+    if (minutes >= ENTRY_UNTIL_MIN) return null;
+    return nowMs >= istAt(nowMs, RANGE_READY_MIN) + FETCH_LAG_MS ? 'range' : null;
+  }
+  if (p.status === 'open' && !p.exitDue && minutes < SQUARE_OFF_MIN) {
+    // The newest candle that has COMPLETED: its open is one period before the latest boundary.
+    const lastDone = barOpen(nowMs - FETCH_LAG_MS) - CANDLE_MS;
+    return (p.lastBarT ?? -Infinity) < lastDone && lastDone >= barOpen(p.entryAt!) ? 'exit' : null;
+  }
+  return null;
+}
+
 /**
- * One feed tick. Rows 6 and 7: a pending position fills at this LTP (inside the entry window); an
- * open one updates its LTP and exits at THIS LTP if it crossed a level. Returns true when a
- * position changed status, so the caller can persist at once instead of on the next flush.
+ * P33 rows 3, 7-9. Applies one candle payload to one future. Sets the range on a pending future;
+ * on an open one walks every newly COMPLETED candle from the entry candle on, and marks the exit
+ * due on the second consecutive close against SMA9. Returns true if anything changed.
+ *
+ * "Completed" is decided by time (`t + 5 min <= now`), never by position: Dhan may or may not send
+ * the forming candle, and the rule must not care which (spec risk 3).
  */
-export function onTick(l: Ledger, securityId: number, ltp: number, nowMs: number): boolean {
-  if (!(ltp > 0) || !Number.isFinite(ltp)) return false;
-  const { date, minutes } = ist(nowMs);
+export function applyBars(l: Ledger, id: string, bars: Bar[], nowMs: number): boolean {
+  const p = l.positions.find(x => x.id === id);
+  if (!p || legOf(p) !== 'future') return false;
+
+  if (p.status === 'pending' && !p.range) {
+    const r = openingRange(bars, p.date);
+    if ('error' in r) { const changed = p.rangeNote !== r.error; p.rangeNote = r.error; return changed; }
+    p.range = r;
+    p.rangeNote = null;
+    return true;
+  }
+
+  if (p.status !== 'open' || p.exitDue || p.entryAt === null) return false;
+  const completed = bars.filter(b => b.t + CANDLE_MS <= nowMs).sort((a, b) => a.t - b.t);
+  const from = barOpen(p.entryAt);
   let changed = false;
-  for (const p of l.positions) {
-    if (p.securityId !== securityId) continue;
-    if (p.status === 'pending') {
-      if (p.date !== date || minutes >= ENTRY_UNTIL_MIN) continue;   // onClock marks it unfilled
-      const { stop, target } = levels(p.side, ltp);
-      p.status = 'open';
-      p.entryPx = ltp;
-      p.entryAt = nowMs;
-      p.stopPx = stop;
-      p.targetPx = target;
-      p.ltp = ltp;
-      p.ltpAt = nowMs;
-      changed = true;
-    } else if (p.status === 'open') {
-      p.ltp = ltp;
-      p.ltpAt = nowMs;
-      // An open position from an earlier date is onClock's to close as stale, not the tick's.
-      if (p.date !== date) continue;
-      const hit = exitFor(p, ltp);
-      if (hit) { close(p, ltp, nowMs, hit); changed = true; }
+  for (let i = 0; i < completed.length; i++) {
+    const b = completed[i]!;
+    if (b.t < from || (p.lastBarT != null && b.t <= p.lastBarT)) continue;
+    const sma = smaAt(completed, i);
+    p.lastBarT = b.t;
+    changed = true;
+    if (sma === null) { p.sma9 = null; p.against = 0; continue; }
+    p.sma9 = r2(sma);
+    const wrong = p.side === 'BUY' ? b.c < sma : b.c > sma;
+    p.against = wrong ? (p.against ?? 0) + 1 : 0;
+    if (p.against >= EXIT_CLOSES) {
+      p.exitDue = true;
+      p.note = `2 closes ${p.side === 'BUY' ? 'below' : 'above'} SMA9 — last ${ist(b.t).hms.slice(0, 5)} close ${b.c} vs ${p.sma9}`;
+      for (const c of l.positions) if (c.parentId === p.id && (c.status === 'open' || c.status === 'pending')) c.exitDue = true;
+      break;
     }
   }
   return changed;
 }
 
 /**
- * The clock's own rules: 09:30 expires unfilled entries (row 6), 15:15 squares off (row 8), an
- * earlier date's open position is closed as stale (row 13), and a day the window passed without a
- * scan gets a sentence saying why (rows 3 and 10).
+ * One feed tick. A pending future enters on a strict break of its range (P33 rows 4, 5) and opens
+ * its option leg (row 6); a pending option fills at its first tick (row 6); an open leg whose exit
+ * is due closes at THIS tick (row 7). Returns true when a position changed status.
+ */
+export function onTick(l: Ledger, securityId: number, ltp: number, nowMs: number, optionsFor: OptionsFor = () => []): boolean {
+  if (!(ltp > 0) || !Number.isFinite(ltp)) return false;
+  const { date, minutes } = ist(nowMs);
+  let changed = false;
+  const spawned: Position[] = [];
+
+  for (const p of l.positions) {
+    if (p.securityId !== securityId) continue;
+    if (p.status === 'pending') {
+      if (p.date !== date) continue;   // onClock marks it unfilled
+      if (legOf(p) === 'option') {
+        const parent = l.positions.find(x => x.id === p.parentId);
+        if (!parent || parent.status !== 'open' || parent.exitDue || p.exitDue) {
+          p.status = 'unfilled';
+          p.note = 'future exited first';   // amendment 19
+        } else {
+          p.status = 'open';
+          p.entryPx = ltp;
+          p.entryAt = nowMs;
+          p.ltp = ltp;
+          p.ltpAt = nowMs;
+        }
+        changed = true;
+        continue;
+      }
+      p.ltp = ltp;
+      p.ltpAt = nowMs;
+      if (!p.range || minutes < RANGE_READY_MIN || minutes >= ENTRY_UNTIL_MIN) continue;
+      const broke = p.side === 'BUY' ? ltp > p.range.high : ltp < p.range.low;
+      if (!broke) continue;
+      p.status = 'open';
+      p.entryPx = ltp;
+      p.entryAt = nowMs;
+      p.note = null;
+      changed = true;
+      const type = p.side === 'BUY' ? 'CE' : 'PE';
+      const o = nearestOption(optionsFor(p.symbol), ltp, type);
+      if (!o) { p.note = `no ${type} in the instrument master — future leg only`; continue; }
+      const lot = o.lot ?? p.lot;
+      spawned.push({
+        ...p, id: `${p.id}-${type}`, leg: 'option', parentId: p.id, optionType: type, strike: o.strike,
+        securityId: o.securityId, expiry: o.expiry, lot, qty: lot,
+        status: 'pending', createdAt: nowMs, range: null, rangeNote: null, sma9: null, against: 0,
+        lastBarT: null, exitDue: false, entryPx: null, entryAt: null, ltp: null, ltpAt: null, note: null,
+      });
+    } else if (p.status === 'open') {
+      p.ltp = ltp;
+      p.ltpAt = nowMs;
+      // An open position from an earlier date is onClock's to close as stale, not the tick's.
+      if (p.date !== date) continue;
+      if (p.exitDue) { close(p, ltp, nowMs, 'sma'); changed = true; }
+    }
+  }
+  l.positions.push(...spawned);
+  return changed;
+}
+
+/**
+ * The clock's own rules: no break by 15:00 → unfilled (P33 row 5), 15:15 squares off both legs
+ * (P32 row 8), an earlier date's open position is closed as stale (P32 row 13), and a day the scan
+ * window passed without a scan gets a sentence saying why (P32 rows 3 and 10).
  */
 export function onClock(l: Ledger, nowMs: number): boolean {
   const { date, minutes } = ist(nowMs);
   let changed = false;
   for (const p of l.positions) {
-    if (p.status === 'pending' && (p.date < date || minutes >= ENTRY_UNTIL_MIN)) {
-      p.status = 'unfilled';
-      p.note = 'no tick in window';
-      changed = true;
+    if (p.status === 'pending') {
+      const opt = legOf(p) === 'option';
+      const parent = opt ? l.positions.find(x => x.id === p.parentId) : undefined;
+      if (opt && (p.date < date || minutes >= SQUARE_OFF_MIN || !parent || parent.status !== 'open')) {
+        p.status = 'unfilled';
+        p.note = parent && parent.status !== 'open' ? 'future exited first' : 'no tick before 15:15';
+        changed = true;
+      } else if (!opt && (p.date < date || minutes >= ENTRY_UNTIL_MIN)) {
+        p.status = 'unfilled';
+        p.note = p.range ? 'no break by 15:00' : `no range: ${p.rangeNote ?? 'candles never arrived'}`;
+        changed = true;
+      }
     } else if (p.status === 'open' && p.date < date) {
       close(p, p.ltp ?? p.entryPx!, nowMs, 'stale');
       p.stale = true;
@@ -344,34 +505,42 @@ export function onClock(l: Ledger, nowMs: number): boolean {
     }
   }
 
-  if (l.armed && tradingWeekday(nowMs) && minutes >= ENTRY_UNTIL_MIN) {
+  if (l.armed && tradingWeekday(nowMs) && minutes >= SCAN_UNTIL_MIN) {
     const d = l.days[date];
     if (!d || d.status === 'waiting') {
       const day = dayOf(l, date);
       day.status = 'no-trades';
       const armedLate = l.armedAt !== null && ist(l.armedAt).date === date
-        && ist(l.armedAt).minutes >= ENTRY_UNTIL_MIN;
+        && ist(l.armedAt).minutes >= SCAN_UNTIL_MIN;
       day.note = armedLate
-        ? `armed at ${ist(l.armedAt!).hms.slice(0, 5)}, after the 09:20-09:30 window — trading starts on the next trading day`
+        ? `armed at ${ist(l.armedAt!).hms.slice(0, 5)}, after the 09:20-09:30 scan window — trading starts on the next trading day`
         : day.attempts > 0
           ? `no trades today: ${day.lastError ?? 'the scan never succeeded'}`
-          : 'no trades today: missed the 09:20-09:30 window — the server was not running or the machine was asleep';
+          : 'no trades today: missed the 09:20-09:30 scan window — the server was not running or the machine was asleep';
       changed = true;
     }
   }
   return changed;
 }
 
-/** Row 11: manual exit at the last LTP. A position still pending is cancelled instead. */
+/**
+ * P32 row 11: manual exit at the last LTP; a pending leg is cancelled instead. Exiting a FUTURE
+ * takes its option leg with it — they are one signal, and an option left behind would be a trade
+ * with no rule to close it but 15:15.
+ */
 export function exitByHand(l: Ledger, id: string, nowMs: number): Position | null {
   const p = l.positions.find(x => x.id === id);
   if (!p) return null;
-  if (p.status === 'open') close(p, p.ltp ?? p.entryPx!, nowMs, 'manual');
-  else if (p.status === 'pending') { p.status = 'unfilled'; p.note = 'cancelled by hand'; }
+  const one = (x: Position) => {
+    if (x.status === 'open') close(x, x.ltp ?? x.entryPx!, nowMs, 'manual');
+    else if (x.status === 'pending') { x.status = 'unfilled'; x.note = 'cancelled by hand'; }
+  };
+  one(p);
+  if (legOf(p) === 'future') for (const c of l.positions) if (c.parentId === p.id) one(c);
   return p;
 }
 
-/** Row 10. Arming stamps the time, so a late arm can be named at 09:30 rather than guessed. */
+/** P32 row 10. Arming stamps the time, so a late arm can be named rather than guessed. */
 export function arm(l: Ledger, armed: boolean, nowMs: number) {
   if (l.armed === armed) return;
   l.armed = armed;
@@ -387,8 +556,9 @@ export function markOf(p: Position): { pnl: number | null; pnlPct: number | null
   if (p.entryPx === null) return { pnl: null, pnlPct: null };
   const px = p.status === 'closed' ? p.exitPx : p.ltp;
   if (px === null) return { pnl: null, pnlPct: null };
-  const dir = p.side === 'BUY' ? 1 : -1;
-  return { pnl: pnlOf(p.side, p.entryPx, px, p.qty), pnlPct: r2(((px - p.entryPx) / p.entryPx) * 100 * dir) };
+  const side = pnlSide(p);
+  const dir = side === 'BUY' ? 1 : -1;
+  return { pnl: pnlOf(side, p.entryPx, px, p.qty), pnlPct: r2(((px - p.entryPx) / p.entryPx) * 100 * dir) };
 }
 
 export function statusLine(l: Ledger, nowMs: number): string {
@@ -399,8 +569,11 @@ export function statusLine(l: Ledger, nowMs: number): string {
 
   if (d?.status === 'scanning') return `scanning NSE… (attempt ${d.attempts + 1})`;
   if (d?.status === 'done') {
-    const taken = l.positions.filter(p => p.date === date).length;
-    return `scanned ${ist(d.scannedAt!).hms} · ${d.signals} signal${d.signals === 1 ? '' : 's'} · ${taken} taken` +
+    const futs = l.positions.filter(p => p.date === date && legOf(p) === 'future');
+    const waiting = futs.filter(p => p.status === 'pending').length;
+    const phase = minutes < RANGE_READY_MIN ? ' · range forms 09:15–09:25'
+      : waiting ? ` · ${waiting} waiting for a break` : '';
+    return `scanned ${ist(d.scannedAt!).hms} · ${d.signals} signal${d.signals === 1 ? '' : 's'} · ${futs.length} taken${phase}` +
       (l.armed ? '' : ' · disarmed — nothing more will be traded');
   }
   if (d?.status === 'waiting' && d.lastError) {
@@ -412,14 +585,17 @@ export function statusLine(l: Ledger, nowMs: number): string {
   // Disarmed outranks the day's no-trades note: "armed at 20:36 …" must not survive a disarm.
   if (!l.armed) return `disarmed — nothing will be traded${still}`;
   if (d?.status === 'no-trades') return d.note ?? 'no trades today';
-  if (!tradingWeekday(nowMs) || minutes >= ENTRY_UNTIL_MIN) return 'armed · waiting for 09:20 on the next trading day';
+  if (!tradingWeekday(nowMs) || minutes >= SCAN_UNTIL_MIN) return 'armed · waiting for 09:20 on the next trading day';
   return 'armed · waiting for 09:20';
 }
 
 export function view(l: Ledger, nowMs: number) {
   const { date, hms } = ist(nowMs);
-  const withMark = (p: Position) => ({ ...p, ...markOf(p) });
-  const open = l.positions.filter(live).map(withMark);
+  const withMark = (p: Position) => ({ ...p, leg: legOf(p), ...markOf(p) });
+  const liveRows = l.positions.filter(live).map(withMark);
+  // P33 row 12: a future still waiting for its break is not a position yet.
+  const waiting = liveRows.filter(p => p.leg === 'future' && p.status === 'pending');
+  const open = liveRows.filter(p => !(p.leg === 'future' && p.status === 'pending'));
   const closed = l.positions
     .filter(p => p.date === date && (p.status === 'closed' || p.status === 'unfilled'))
     .sort((a, b) => (b.exitAt ?? b.createdAt) - (a.exitAt ?? a.createdAt))
@@ -450,13 +626,16 @@ export function view(l: Ledger, nowMs: number) {
     replayClock: l.clockOffsetMs !== 0,
     status: statusLine(l, nowMs),
     day: l.days[date] ?? null,
+    waiting,
     open,
     closed,
     history,
     dayPnl: { realised, unrealised, total: r2(realised + unrealised) },
     rules: {
-      scanAt: '09:20', entryUntil: '09:30', squareOffAt: '15:15',
-      stopPct: STOP_PCT, targetPct: TARGET_PCT, maxPositions: MAX_POSITIONS, size: '1 lot',
+      strategy: 'orb-sma9',
+      scanAt: '09:20', rangeFrom: '09:15', rangeReady: '09:25', entryUntil: '15:00', squareOffAt: '15:15',
+      smaPeriod: SMA_PERIOD, exitCloses: EXIT_CLOSES, maxPositions: MAX_POSITIONS, size: '1 lot',
+      legs: 'future + nearest CE/PE',
     },
     canRunNow: l.mode === 'replay',
   };
@@ -464,17 +643,25 @@ export function view(l: Ledger, nowMs: number) {
 
 /* --------------------------------------------------------- the I/O shell */
 
-/** Row 13. Each mode has its own file — replay's synthetic fills must never reach the live P&L. */
+/** P32 row 13. Each mode has its own file — replay's synthetic fills must never reach the live P&L. */
 export function ledgerPath(replay = isReplay()): string {
   return path.join(CACHE_DIR, replay ? 'paper-ledger.replay.json' : 'paper-ledger.json');
 }
+
+/** What the shell asks for when it needs a future's 5-minute candles. */
+export type CandleAsk = { symbol: string; side: Dir; securityId: number; base: number };
+export type CandleAnswer = { bars: Bar[]; why: string | null };
 
 type TraderOpts = {
   file: string;
   mode: 'live' | 'replay';
   lookup: Lookup;
   scan: () => Promise<NseScanResult>;
-  /** Called with the futures this trader needs ticks for; an empty list releases them. */
+  /** P33 rows 3, 7: the future's 5-minute candles, previous session included. */
+  candles: (ask: CandleAsk, nowMs: number) => Promise<CandleAnswer>;
+  /** P33 row 6: the symbol's near-month stock options. */
+  options: OptionsFor;
+  /** Called with the contracts this trader needs ticks for; an empty list releases them. */
   onWants: (subs: Subscription[]) => void;
   wall?: () => number;
 };
@@ -488,6 +675,9 @@ export class PaperTrader {
   private saving: Promise<void> = Promise.resolve();
   private wantsKey = '';
   private scanning = false;
+  private fetching = false;
+  /** Amendment 15: a failed candle fetch is not retried before this time. In memory only. */
+  private retryAt = new Map<string, number>();
 
   constructor(o: TraderOpts) {
     this.o = o;
@@ -514,7 +704,7 @@ export class PaperTrader {
     }
     // A process that died mid-scan left the day at 'scanning', which scanDue() never retries.
     for (const d of Object.values(this.ledger.days)) if (d.status === 'scanning') d.status = 'waiting';
-    // Row 13: an earlier date's open position is closed as stale before anything else happens.
+    // P32 row 13: an earlier date's open position is closed as stale before anything else happens.
     if (onClock(this.ledger, this.now())) this.dirty = true;
     this.syncWants();
     await this.flush(true);
@@ -527,14 +717,48 @@ export class PaperTrader {
 
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
 
-  private async step() {
+  /** One pass of the clock. Exposed for the unit test, which drives it with an injected wall. */
+  async step() {
     const now = this.now();
     if (onClock(this.ledger, now)) { this.dirty = true; this.syncWants(); await this.flush(true); }
     if (!this.scanning && scanDue(this.ledger, now)) await this.runScan(true);
+    if (!this.fetching) await this.readCandles();
     await this.flush(false);
   }
 
-  /** Row 3's timer path (checkFresh) and replay's Run now (no freshness, amendment 23). */
+  /**
+   * P33 rows 3 and 7. Serial on purpose: every call shares one gate key in dhan.ts anyway, so
+   * firing them together would only queue them there.
+   */
+  private async readCandles() {
+    this.fetching = true;
+    try {
+      for (const p of this.ledger.positions) {
+        const now = this.now();
+        if (!candlesDue(p, now) || (this.retryAt.get(p.id) ?? 0) > now) continue;
+        let ans: CandleAnswer;
+        try {
+          ans = await this.o.candles({ symbol: p.symbol, side: p.side, securityId: p.securityId, base: p.signal.cashLtp }, now);
+        } catch (e) { ans = { bars: [], why: (e as Error).message }; }
+        const after = this.now();
+        if (ans.why) {
+          this.retryAt.set(p.id, after + RETRY_MS);
+          if (p.status === 'pending' && p.rangeNote !== ans.why) { p.rangeNote = ans.why; this.dirty = true; }
+          continue;
+        }
+        const changed = applyBars(this.ledger, p.id, ans.bars, after);
+        // Still due after a successful read means Dhan has not published the candle yet — the
+        // 09:20 one for the range, or the one that just closed. Wait, rather than re-ask each second.
+        if (candlesDue(p, after)) this.retryAt.set(p.id, after + RETRY_MS);
+        else this.retryAt.delete(p.id);
+        if (changed) { this.syncWants(); await this.flush(true); }
+      }
+    } finally {
+      this.fetching = false;
+    }
+  }
+
+  /** P32 row 3's timer path (checkFresh) and replay's Run now (no freshness, P32 amendment 23). */
   private async runScan(checkFresh: boolean): Promise<ReturnType<typeof applyScan>> {
     this.scanning = true;
     const day = dayOf(this.ledger, ist(this.now()).date);
@@ -556,9 +780,9 @@ export class PaperTrader {
     if (t.seg !== 'NSE_FNO' || t.ltp === null) return;
     if (!this.ledger.positions.some(p => p.securityId === t.securityId && live(p))) return;
     // The feed decodes a float32: 1259.24 arrives as 1259.2399902…, which would miss a 1259.24
-    // target by a hair. Exchange prices are whole paise, so round the decoding noise away here.
+    // level by a hair. Exchange prices are whole paise, so round the decoding noise away here.
     const ltp = Math.round(t.ltp * 100) / 100;
-    if (onTick(this.ledger, t.securityId, ltp, this.now())) {
+    if (onTick(this.ledger, t.securityId, ltp, this.now(), this.o.options)) {
       this.syncWants();
       void this.flush(true);
     } else this.dirty = true;
@@ -583,12 +807,13 @@ export class PaperTrader {
     return ids.length;
   }
 
-  /** Replay only (row 11; the route refuses live). Amendments 19 and 20. */
+  /** Replay only (P32 row 11; the route refuses live). P33 amendment 17, P32 amendment 20. */
   async runNow(): Promise<{ ok: true } | { ok: false; error: string }> {
     if (this.ledger.positions.some(live)) return { ok: false, error: 'square off first — positions are still pending or open' };
     if (this.scanning) return { ok: false, error: 'a scan is already running' };
     const wall = this.wall();
-    this.ledger.clockOffsetMs = istAt(wall, SCAN_AT_MIN) - wall;
+    this.ledger.clockOffsetMs = istAt(wall, RANGE_READY_MIN) - wall;
+    this.retryAt.clear();
     // Nothing is deleted: a second press on the same date meets row 9 and lists every symbol as
     // "already traded today", which is the rule doing its job, not a bug.
     const r = await this.runScan(false);
@@ -597,16 +822,20 @@ export class PaperTrader {
 
   view() { return view(this.ledger, this.now()); }
 
-  /** Row 12: one feed entry for everything pending or open; empty once nothing is. */
+  /** P32 row 12: one feed entry for everything pending or open; empty once nothing is. */
   private syncWants() {
     const subs = new Map<number, Subscription>();
     for (const p of this.ledger.positions) {
       if (!live(p)) continue;
+      const parent = legOf(p) === 'option' ? this.ledger.positions.find(x => x.id === p.parentId) : undefined;
       subs.set(p.securityId, {
         seg: p.seg, securityId: p.securityId, mode: 'quote',
-        // Replay: the synthetic walk starts at the share's own price, so the future does not
-        // print 24,000 for a 1,400 stock. Ignored on the live feed.
-        base: this.o.mode === 'replay' ? p.signal.cashLtp : undefined,
+        // Replay: the synthetic walk starts at the share's own price, so the future does not print
+        // 24,000 for a 1,400 stock; an option starts at a fraction of its future (amendment 18).
+        // Ignored on the live feed.
+        base: this.o.mode !== 'replay' ? undefined
+          : parent ? r2((parent.entryPx ?? parent.signal.cashLtp) * REPLAY_OPTION_BASE)
+          : p.signal.cashLtp,
       });
     }
     const key = [...subs.keys()].sort().join(',');

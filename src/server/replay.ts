@@ -560,6 +560,58 @@ export function replayUnderlyingCandles(key: string, intervalMin: number, dates:
   return { open, high, low, close, volume, timestamp, open_interest: [] };
 }
 
+/* --------------------------------------- opening-range candles (P33) */
+
+/**
+ * orb-strategy-v1.md row 13: the seeded replay day must make every rule reject something. With
+ * the P14 fixture (Long MFSL; Short POLICYBZR, PNBHOUSING, FEDERALBNK) this gives: MFSL breaks up
+ * and holds, POLICYBZR breaks down and holds, PNBHOUSING never breaks, FEDERALBNK breaks down and
+ * then exits on two closes above SMA9. Any other symbol holds.
+ *
+ * Anchored, not free-floating (CLAUDE.md, P7): every price is a multiple of `base`, which is the
+ * SAME share price the replay feed starts that future's tick walk from, so the range the ticks
+ * have to break sits where the ticks actually are. Nothing here says "this one exits": the closes
+ * are placed, and `applyBars()` has to compute its own SMA9 to reach the exit.
+ */
+export const REPLAY_ORB_PLAN: Record<string, 'hold' | 'never' | 'sma-exit'> = {
+  PNBHOUSING: 'never', FEDERALBNK: 'sma-exit',
+};
+/** The range is base ±0.05%: the feed walk crosses it within seconds. `never` spans ±50%. */
+export const REPLAY_ORB_EDGE = 0.0005;
+/** Every candle after the range closes 0.4% away from base, which clears SMA9 on either side. */
+export const REPLAY_ORB_DRIFT = 0.004;
+
+export function replayOrbCandles(symbol: string, side: 'BUY' | 'SELL', base: number, nowMs: number): Candles {
+  const plan = REPLAY_ORB_PLAN[symbol] ?? 'hold';
+  const today = new Date(nowMs + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const prev = replaySessionDates(today, 7).filter(d => d < today).pop()!;
+  const r = (x: number) => Math.round(x * 100) / 100;
+  const out: Candles = { open: [], high: [], low: [], close: [], volume: [], timestamp: [], open_interest: [] };
+  const push = (date: string, i: number, o: number, h: number, l: number, c: number) => {
+    out.timestamp!.push(istEpochSeconds(date, i * 5));
+    out.open!.push(r(o)); out.high!.push(r(h)); out.low!.push(r(l)); out.close!.push(r(c));
+    out.volume!.push(10_000);
+  };
+
+  // The previous session is flat at base, so SMA9 starts the day at base.
+  for (let i = 0; i < SESSION_MINUTES / 5; i++) push(prev, i, base, base * 1.001, base * 0.999, base);
+
+  const wide = plan === 'never' ? 1000 : 1;   // x1000 turns ±0.05% into ±50%
+  const fav = side === 'BUY' ? 1 : -1;
+  const dir = plan === 'sma-exit' ? -fav : fav;
+  for (let i = 0; i < SESSION_MINUTES / 5; i++) {
+    const t = istEpochSeconds(today, i * 5) * 1000;
+    if (t > nowMs) break;   // up to and including the forming candle, as the live endpoint may send it
+    if (i === 0) push(today, i, base, base * (1 + REPLAY_ORB_EDGE * wide), base * (1 - REPLAY_ORB_EDGE * 0.4 * wide), base);
+    else if (i === 1) push(today, i, base, base * (1 + REPLAY_ORB_EDGE * 0.4 * wide), base * (1 - REPLAY_ORB_EDGE * wide), base);
+    else {
+      const c = base * (1 + dir * REPLAY_ORB_DRIFT);
+      push(today, i, base, Math.max(base, c) * 1.001, Math.min(base, c) * 0.999, c);
+    }
+  }
+  return out;
+}
+
 /** Plausible network latency so the panel's percentiles and waterfall have real spread. */
 export async function replayLatency(): Promise<number> {
   const base = 120 + Math.random() * 140;

@@ -8,16 +8,17 @@ import Fastify from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
-  resolveRegistry, optionContracts, sessionState, withLiveSession, fnoUniverse, todayIso,
+  resolveRegistry, optionContracts, sessionState, withLiveSession, fnoUniverse, stockOptions, todayIso,
   type Registry, type ResolvedInstrument,
 } from './instruments.ts';
-import { readCredentials } from './dhan.ts';
+import { readCredentials, CADENCE_MS } from './dhan.ts';
 import { Scanner, scanCsv } from './scanner.ts';
 import { NseScanner, nseScanCsv, TOP_N_CHOICES, DEFAULT_TOP_N, type TopN } from './scanner-nse.ts';
 import { CandleService, INTERVALS, type Interval } from './candles.ts';
-import { UnderlyingCandleService } from './ucandles.ts';
+import { UnderlyingCandleService, toUCandles } from './ucandles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
-import { isReplay, replayBasePrice } from './replay.ts';
+import { isReplay, replayBasePrice, replayOrbCandles } from './replay.ts';
+import { fetchIntraday } from './peakoi.ts';
 import { readChain } from './ltp.ts';
 import { PaperTrader, ledgerPath } from './paper.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
@@ -78,6 +79,18 @@ const paper = new PaperTrader({
   mode: isReplay() ? 'replay' : 'live',
   lookup: (symbol) => fnoUniverse(todayIso()).find(s => s.symbol === symbol),
   scan: () => nseScanner.run(DEFAULT_TOP_N),
+  // orb-strategy-v1.md rows 3, 7: the future's own 5-minute candles, with a week behind them so
+  // SMA9 exists at 09:25. Every paper fetch shares ONE gate key - dhan.ts gates per key.
+  candles: async (ask, nowMs) => {
+    if (isReplay()) return { bars: toUCandles(replayOrbCandles(ask.symbol, ask.side, ask.base, nowMs)), why: null };
+    const res = await fetchIntraday(creds, {
+      securityId: String(ask.securityId), seg: 'NSE_FNO', instrument: 'FUTSTK', interval: '5', oi: false,
+      fromDate: new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10), toDate: todayIso(),
+      key: 'paper:candles', cadenceMs: CADENCE_MS,
+    });
+    return res.why ? { bars: [], why: res.why } : { bars: toUCandles(res.candles), why: null };
+  },
+  options: (symbol) => stockOptions(symbol, todayIso()),
   onWants: (subs) => {
     if (subs.length) feedWants.set(PAPER_CONN, subs);
     else feedWants.delete(PAPER_CONN);

@@ -316,6 +316,31 @@ export type FnoStock = {
   problem: string | null;
 };
 
+const stockOptionsCache = new Map<string, StockOption[]>();
+
+export type StockOption = { strike: number; optionType: 'CE' | 'PE'; securityId: number; lot: number | null; expiry: string };
+
+/**
+ * P33 (orb-strategy-v1.md row 6): one F&O stock's NEAR-MONTH options on NSE — the earliest OPTSTK
+ * expiry that has not passed. Memoised per (symbol, day); the master scan is ~170k rows.
+ */
+export function stockOptions(symbol: string, today = todayIso()): StockOption[] {
+  const key = `${today}|${symbol}`;
+  const hit = stockOptionsCache.get(key);
+  if (hit) return hit;
+  const rows = cachedRows.filter(r =>
+    r.instrument === 'OPTSTK' && r.exchId === 'NSE' && r.underlyingSymbol === symbol &&
+    r.expiry !== null && r.expiry >= today && (r.optionType === 'CE' || r.optionType === 'PE') &&
+    r.strike !== null && r.securityId > 0);
+  const near = rows.reduce<string | null>((m, r) => (m === null || r.expiry! < m ? r.expiry! : m), null);
+  const out = rows.filter(r => r.expiry === near).map(r => ({
+    strike: r.strike!, optionType: r.optionType as 'CE' | 'PE', securityId: r.securityId,
+    lot: r.lotSize ?? null, expiry: r.expiry!,
+  }));
+  stockOptionsCache.set(key, out);
+  return out;
+}
+
 const fnoUniverseCache = new Map<string, FnoStock[]>();
 
 /**
