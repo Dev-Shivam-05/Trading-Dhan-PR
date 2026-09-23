@@ -499,6 +499,15 @@ Same shape, twice in one night: the **git status block in a session's opening co
 session start**. It said branch `p26-panel-windows` while `git rev-parse --abbrev-ref HEAD` said
 `p25-chart-nav`. **Never trust a start-of-session snapshot for a value that moves** — re-read it.
 
+## The registry is memoised at boot — any field in it that depends on the clock is frozen
+`resolveRegistry()` runs once, so the `session` it carries was the state **at boot**. On 23 Sep a
+server started at 06:10 said `pre-open, opens 09:15 IST` on `/api/health` until 15:00. The armed
+open-session run trusted that field and never ran, and the chip rail's open dot never lit. The
+poller was fine because it calls `sessionState()` itself. Routes now go through
+`withLiveSession()` (P30, `npm run session:test`). **Any new clock-dependent field that reaches a
+route through the registry must be re-derived per request.** Also, a waiter armed in the evening
+must wait for a **date**: `"19:15" >= "15:00"` gives up at once.
+
 ## `LTP-CALCULATOR/` is a read-only source corpus, already fully analysed — do not re-read it
 The folder holds the material for a planned **third workspace** (LTP Calculator, alongside Scanner
 and Option Chain). It is **untracked and not gitignored**, so it sits in the same `??` pile as the
