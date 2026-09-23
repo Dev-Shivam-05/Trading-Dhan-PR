@@ -124,6 +124,39 @@ That covers every remaining open-session criterion on the board:
 
 **Read `.cache/p29-open-run.log` first in the next session.**
 
+### 8. The LTP Calculator is BUILT — engine, API and the third workspace
+
+The user answered OQ-1 with `GO` on 2026-09-23, so the break-even is implemented behind
+`reversalPrice()` in `src/server/ltp.ts` — the one function that knows the formula.
+
+- **Engine** — pure, no I/O and no clock (spec row 24). Imaginary line, time-value ATM, the outward
+  scan with its closer-to-the-line tie-break, the 75% grading with the double-factor asymmetry, the
+  reversal ladder, and the chain's own implied forward and basis.
+- **`/api/ltp`** — reads the poller's last snapshot. A second READING, not a second subscription.
+- **`public/ltp.js`** — the third workspace, `ws=ltp`, on the 48px nav beside Scanner and Option
+  chain. `L` opens it, `Esc` closes it.
+- **`npm run ltp:test` 29/29**, every filter shown rejecting as well as accepting.
+  **`.cache/p29-ltp-ui.js` 17/17.** **10/10** against an independent recompute of the same snapshot
+  (`.cache/ltp-recompute.js`).
+
+**Three findings worth keeping:**
+
+1. **A class collision that every DOM assertion passed.** The chain grid already puts `class="ltp"`
+   on every last-traded-price cell (`app.js:470`, `td.ltp` in app.css), so a workspace rule
+   `.ltp{position:fixed;z-index:40}` matched all of them, pulled them out of the table and stacked
+   them in the top-right corner. 16/16 green — **visible only in the screenshot.** The class is
+   `.ltpw` now, and there is a regression check asserting no `td.ltp` is ever `position:fixed`.
+2. **V111's "support never more than one strike ITM" is EMERGENT**, not an independent filter: the
+   scan starts at `pair.upper`, the first strike above spot, so support cannot be deeper than one
+   step. AC8 sweeps 176 spot positions rather than testing a branch real input cannot reach.
+3. **A re-entrant workspace event, caught before it shipped.** If `close()` announced as well as
+   `open()`, opening the LTP workspace would have closed the Scanner, which would have announced,
+   which would have closed the LTP workspace — the tab would have looked dead.
+
+**Still left on the LTP Calculator:** layers **L4–L10** (pressure, the nine scenarios, the line
+sets, the filters, entry/stop/target). They need accumulated intraday history the server does not
+keep, and they are where most of the remaining open questions live. Boarded as P30+.
+
 ## Blocked on you — nothing here can be finished without a word from you
 
 1. **Spec row 12 (OQ-1)** — `go` / `theoretical` / `api` / `hold`. Then the rest of the spec with
