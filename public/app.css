@@ -889,3 +889,88 @@ body.pop-opt .shell{visibility:hidden}
    only thing in the row that names nothing and controls nothing — and it goes at the same 1180px
    breakpoint the Style button already uses, rather than at a new number. */
 @media (max-width:1180px){ .chart-h .legend{display:none} }
+
+/* ---------------------------------------------------------- P29 LTP Calculator
+   ltp-calculator-v1.md rows 23-26. Same fixed overlay as .scan and for the same reason (a route
+   change would tear down the chain poll this screen reads). `.ltpw[hidden]` needs its OWN rule:
+   this element sets a `display`, and a CSS layout rule outranks the UA stylesheet's
+   `[hidden]{display:none}` - the trap that once kept the scanner panel on screen from page load
+   with neither Esc nor its close button able to dismiss it. */
+.ltpw{
+  position:fixed;left:0;right:0;top:48px;bottom:26px;z-index:40;overflow:auto;
+  background:var(--bg-base);animation:wsfade 120ms var(--ease);
+}
+body.replay .ltpw{top:76px}
+.ltpw[hidden]{display:none!important}
+/* The floating option-chart window must not sit over this workspace, the same way it does not sit
+   over the Scanner. Without this it stays on top at z-index 150. */
+body:has(#ltp:not([hidden])) .optwin{display:none!important}
+.ltp-box{max-width:1280px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:20px}
+.ltp-h h2{margin:0 0 6px;font-size:22px;font-weight:600;letter-spacing:-.01em;color:var(--fg-base)}
+.ltp-lead{margin:0;max-width:70ch;font-size:13px;line-height:1.5;color:var(--fg-muted)}
+
+.ltp-msg{padding:28px;border:1px solid var(--line);border-radius:10px;background:var(--bg-inset);
+  font-size:13px;color:var(--fg-muted);line-height:1.6}
+.ltp-msg b{display:block;margin-bottom:6px;font-size:14px;color:var(--fg-base)}
+.ltp-msg p{margin:6px 0 0}
+.ltp-hint{color:var(--fg-faint);font-size:12px}
+.ltp-refuse{border-left:3px solid var(--warn,#d08700)}
+
+/* The four headline numbers. */
+.ltp-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ltp-top>div{display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--bg-inset)}
+.ltp-lab{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
+.ltp-lab em{font-style:normal;color:var(--accent);text-transform:none;letter-spacing:0}
+.ltp-top b{font-size:20px;font-weight:600;color:var(--fg-base);letter-spacing:-.01em}
+.ltp-src{font-size:11px;color:var(--fg-faint)}
+.ltp-tie{display:inline-block;padding:1px 6px;border-radius:4px;background:var(--warn,#d08700);
+  color:#000;font-size:10px;font-weight:600;letter-spacing:.04em}
+
+/* Support and resistance, side by side. */
+.ltp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.ltp-card{border:1px solid var(--line);border-radius:10px;padding:18px;background:var(--bg-inset);
+  display:flex;flex-direction:column;gap:10px}
+.ltp-card h3{margin:0;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
+.ltp-res{border-top:2px solid var(--down,#e5484d)}
+.ltp-sup{border-top:2px solid var(--up,#30a46c)}
+.ltp-strike{font-size:30px;font-weight:600;letter-spacing:-.02em;color:var(--fg-base);
+  display:flex;align-items:baseline;gap:8px}
+.ltp-unit{font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint)}
+.ltp-grade{align-self:flex-start;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:600;
+  letter-spacing:.03em}
+.ltp-g-strong{background:color-mix(in srgb,var(--up,#30a46c) 18%,transparent);color:var(--up,#30a46c)}
+.ltp-g-wtt,.ltp-g-wtb{background:color-mix(in srgb,var(--warn,#d08700) 20%,transparent);color:var(--warn,#d08700)}
+.ltp-facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:12px}
+.ltp-facts dt{color:var(--fg-faint)}
+.ltp-facts dd{margin:0;color:var(--fg-base);font-variant-numeric:tabular-nums}
+.ltp-rev{font-weight:600;color:var(--accent)}
+.ltp-q{color:var(--fg-faint);font-size:11px}
+.ltp-why{margin:0;padding-top:10px;border-top:1px solid var(--line);font-size:11px;
+  line-height:1.5;color:var(--fg-muted)}
+.ltp-none{margin:0;font-size:12px;line-height:1.5;color:var(--fg-muted)}
+
+/* The ladder. */
+.ltp-ladder h3{margin:0 0 4px;font-size:13px;font-weight:600;color:var(--fg-base)}
+.ltp-sub{font-weight:400;font-size:11px;color:var(--fg-faint)}
+/* Capped rather than full-width: three numeric columns stretched across 1280px put the call and
+   put reversals 800px apart, so the eye cannot compare a strike with its own two levels. */
+.ltp-tab{width:100%;max-width:620px;border-collapse:separate;border-spacing:0;font-size:12px;margin-top:10px}
+.ltp-tab th{padding:7px 12px;text-align:right;font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fg-faint);border-bottom:1px solid var(--line)}
+.ltp-tab th:nth-child(2){text-align:center}
+.ltp-tab td{padding:6px 12px;text-align:right;border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums;color:var(--fg-base)}
+.ltp-tab td.strike{text-align:center;font-weight:600;background:var(--bg-inset)}
+.ltp-tab tr.atm td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.ltp-tag{display:inline-block;margin-left:6px;padding:0 5px;border-radius:3px;font-size:10px;font-weight:700}
+.ltp-tag.r{background:var(--down,#e5484d);color:#fff}
+.ltp-tag.s{background:var(--up,#30a46c);color:#fff}
+.ltp-foot{margin:10px 0 0;font-size:11px;line-height:1.5;color:var(--fg-faint);max-width:80ch}
+.ltp-prov{margin:0;font-size:11px;color:var(--fg-faint)}
+.ltp-prov code{font-size:11px}
+
+@media (max-width:900px){
+  .ltp-box{padding:16px}
+  .ltp-strike{font-size:24px}
+}

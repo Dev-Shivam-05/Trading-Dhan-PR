@@ -1,7 +1,8 @@
 # SPEC LOCK — P29 LTP Calculator, layer 0 to layer 6
 
 Status: **LOCKED** 2026-09-23 — approved by the user with `GO` on row 12 (OQ-1) and on the table.
-Implemented in `src/server/ltp.ts` (pure engine) and `/api/ltp`. `npm run ltp:test` — 29 checks.
+Implemented in `src/server/ltp.ts` (pure engine), `/api/ltp`, and `public/ltp.js` (the third
+workspace, `ws=ltp`). `npm run ltp:test` — 29 checks. Browser: `.cache/p29-ltp-ui.js` — 17 checks.
 
 A future session with no memory of the approving conversation must be able to build the identical
 thing from this file. Implementation may not introduce a value that is not in this table.

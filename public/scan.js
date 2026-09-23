@@ -80,6 +80,7 @@ function open({ focus = true } = {}) {
   $('scan').hidden = false;
   setTabs();
   saveWs('scanner');
+  document.dispatchEvent(new CustomEvent('ws', { detail: 'scanner' }));
   if (focus) $('scanRerun').focus({ preventScroll: true });
 }
 
@@ -407,6 +408,9 @@ async function runScan({ reuse = false } = {}) {
 /* ------------------------------------------------------------------ wiring */
 
 // P16 row 3: the nav tabs switch workspace; they never start a scan on their own.
+// P29: another workspace opened - stand down. Mirrors ltp.js; neither imports the other.
+document.addEventListener('ws', (e) => { if (e.detail !== 'scanner') close(); });
+
 $('scanBtn').addEventListener('click', () => open());
 $('chainTab').addEventListener('click', close);
 $('scanRerun').addEventListener('click', () => runScan());

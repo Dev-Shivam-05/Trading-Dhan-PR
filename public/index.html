@@ -22,6 +22,8 @@
             title="Scanner - press S to run a scan">Scanner<kbd>S</kbd></button>
     <button class="wstab" id="chainTab" type="button" role="tab" aria-selected="true"
             title="Option chain - Esc from the scanner">Option chain<kbd>Esc</kbd></button>
+    <button class="wstab" id="ltpTab" type="button" role="tab" aria-selected="false"
+            title="LTP Calculator - press L">LTP Calculator<kbd>L</kbd></button>
   </nav>
   <span class="navr">
     <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">&#9680;</button>
@@ -71,6 +73,29 @@
           title="Fullscreen the option chain (F)" aria-label="Fullscreen the option chain">&#9974;</button>
   <button class="icon pw" id="chainPop" type="button" data-panel="chain"
           title="Open the option chain in a new window (W)" aria-label="Open the option chain in a new window">&#10697;</button>
+</section>
+
+<!-- P29: the LTP Calculator workspace - ltp-calculator-v1.md rows 23-26, layers L0-L3 and L6.
+     Same position:fixed overlay as the Scanner and for the same reason: a route change would tear
+     down the chain poll and the tick feed, and this screen READS that chain's snapshot. `hidden`
+     needs its own CSS rule (.ltpw[hidden]) because .ltpw sets a display of its own - a CSS layout
+     rule outranks the UA stylesheet's [hidden]{display:none}, which is what once left the scanner
+     panel on screen from page load with no way to dismiss it.
+
+     The class is .ltpw and NOT .ltp: the chain grid already puts class="ltp" on every last-traded-
+     price cell (app.js:470, td.ltp in app.css). A bare .ltp{position:fixed;z-index:40} matched all
+     536 of them and stacked them in the top-right corner. Every DOM assertion still passed - it
+     was visible only in the screenshot. ltp.js owns everything below. -->
+<section class="ltpw" id="ltp" hidden role="region" aria-labelledby="ltpTitle">
+  <div class="ltp-box">
+    <header class="ltp-h">
+      <h2 id="ltpTitle">LTP Calculator</h2>
+      <p class="ltp-lead">The imaginary line, the time-value ATM, support and resistance by the
+        outward scan, and the reversal-price ladder. Reads the option chain's own snapshot -
+        it makes no request of its own.</p>
+    </header>
+    <div id="ltpBody"></div>
+  </div>
 </section>
 
 <!-- P16 rows 3 and 16: the Scanner workspace. Opaque and full width between the nav and the rail,
@@ -404,6 +429,7 @@
 
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
+<script type="module" src="/ltp.js"></script>
 <script type="module" src="/candles.js"></script>
 <!-- last: panes.js dispatches `greeks` on load, and app.js has to have registered its listener
      by then. Module scripts run in document order, so being last is the whole guarantee. -->

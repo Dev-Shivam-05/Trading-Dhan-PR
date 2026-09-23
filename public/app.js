@@ -393,7 +393,16 @@ function windowRows(s) {
    tick feed (10 Hz), so the two legitimately differ between snapshots. Without this, P23's rule
    is not measurable from the outside at all: a check reading the header's spot reported 58 of 60
    samples "off-centre" with nothing wrong. Read-only; nothing in the app reads it. */
-window.__grid = { windowRows, WING, spot: () => state.snapshot?.spot ?? null };
+// `key`/`expiry` are here so a workspace that opens LATER can find out what the chain is on
+// without a second source of truth. `chain-scope` fires on every chip change, but a module that
+// attaches its listener after app.js has already dispatched the first one would otherwise have
+// nothing to read until the user touched a chip.
+window.__grid = {
+  windowRows, WING,
+  spot: () => state.snapshot?.spot ?? null,
+  key: () => state.current?.id ?? null,
+  expiry: () => state.expiry ?? null,
+};
 
 function renderGrid(s) {
   buildColgroup();
