@@ -8,7 +8,8 @@ import Fastify from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
-  resolveRegistry, optionContracts, sessionState, withLiveSession, type Registry, type ResolvedInstrument,
+  resolveRegistry, optionContracts, sessionState, withLiveSession, fnoUniverse, todayIso,
+  type Registry, type ResolvedInstrument,
 } from './instruments.ts';
 import { readCredentials } from './dhan.ts';
 import { Scanner, scanCsv } from './scanner.ts';
@@ -18,6 +19,7 @@ import { UnderlyingCandleService } from './ucandles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
 import { readChain } from './ltp.ts';
+import { PaperTrader, ledgerPath } from './paper.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
@@ -65,11 +67,30 @@ function refreshFeedSubscriptions() {
   else feed.setSubscriptions([...union.values()]);
 }
 
+/**
+ * P32 (paper-trading-v1.md row 12): the paper trader's futures ride the SAME feed union under one
+ * reserved key, so they stream whether or not a browser tab is open, and no second socket or REST
+ * poll exists. Paper means paper: this object never reaches an order endpoint - it has none.
+ */
+const PAPER_CONN = -1;
+const paper = new PaperTrader({
+  file: ledgerPath(),
+  mode: isReplay() ? 'replay' : 'live',
+  lookup: (symbol) => fnoUniverse(todayIso()).find(s => s.symbol === symbol),
+  scan: () => nseScanner.run(DEFAULT_TOP_N),
+  onWants: (subs) => {
+    if (subs.length) feedWants.set(PAPER_CONN, subs);
+    else feedWants.delete(PAPER_CONN);
+    refreshFeedSubscriptions();
+  },
+});
+
 /** Underlying ticks feed the chart, so they are kept in a ring buffer per instrument. */
 const underlyingOf = new Map<string, string>();   // "SEG:securityId" -> instrument id
 feed.on('tick', (t: Tick) => {
   const id = underlyingOf.get(`${t.seg}:${t.securityId}`);
   if (id && t.ltp !== null) history.push(id, t.at, t.ltp);
+  paper.onFeedTick(t);
 });
 
 let registry: Registry;
@@ -127,6 +148,7 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/ucandles.js': { file: 'ucandles.js', type: 'text/javascript; charset=utf-8' },
   '/chart-style.js': { file: 'chart-style.js', type: 'text/javascript; charset=utf-8' },
   '/ltp.js': { file: 'ltp.js', type: 'text/javascript; charset=utf-8' },
+  '/paper.js': { file: 'paper.js', type: 'text/javascript; charset=utf-8' },
 };
 
 for (const [route, { file, type }] of Object.entries(STATIC)) {
@@ -390,6 +412,52 @@ app.get('/api/ltp', async (req, reply) => {
   };
 });
 
+/* ------------------------------------------------ paper trading (P32) */
+
+/**
+ * paper-trading-v1.md row 17. The body is the only user input, so each route accepts exactly the
+ * fields it names and nothing else - an unknown field is a 400, not something quietly ignored.
+ */
+function bodyWith(b: unknown, keys: string[]): Record<string, unknown> | null {
+  if (b === undefined || b === null) return keys.length === 0 ? {} : null;
+  if (typeof b !== 'object' || Array.isArray(b)) return null;
+  const got = Object.keys(b as object);
+  if (got.length !== keys.length || !got.every(k => keys.includes(k))) return null;
+  return b as Record<string, unknown>;
+}
+
+app.get('/api/paper', async () => paper.view());
+
+app.post('/api/paper/arm', async (req, reply) => {
+  const b = bodyWith(req.body, ['armed']);
+  if (!b || typeof b.armed !== 'boolean') return reply.code(400).send({ error: 'body must be {"armed": true|false}' });
+  await paper.setArmed(b.armed);
+  return paper.view();
+});
+
+app.post('/api/paper/exit', async (req, reply) => {
+  const b = bodyWith(req.body, ['id']);
+  if (!b || typeof b.id !== 'string' || b.id.length > 64) return reply.code(400).send({ error: 'body must be {"id": "<position id>"}' });
+  const p = await paper.exit(b.id);
+  if (!p) return reply.code(404).send({ error: `no position ${b.id}` });
+  return paper.view();
+});
+
+app.post('/api/paper/exit-all', async (req, reply) => {
+  if (!bodyWith(req.body, [])) return reply.code(400).send({ error: 'this route takes no fields' });
+  await paper.exitAll();
+  return paper.view();
+});
+
+/** Row 11: replay only. Live trades only on the 09:20 timer - the strategy's own window. */
+app.post('/api/paper/run', async (req, reply) => {
+  if (!bodyWith(req.body, [])) return reply.code(400).send({ error: 'this route takes no fields' });
+  if (!isReplay()) return reply.code(409).send({ error: 'Run now exists in replay only - live trades on the 09:20 timer' });
+  const r = await paper.runNow();
+  if (!r.ok) return reply.code(409).send({ error: r.error });
+  return paper.view();
+});
+
 /* ----------------------------------------------------------------- SSE */
 
 app.get('/api/stream', (req, reply) => {
@@ -546,6 +614,9 @@ app.get('/api/stream', (req, reply) => {
 
 const start = async () => {
   registry = await resolveRegistry({ creds });
+  // After the registry: the paper trader's lookup reads the master that resolveRegistry loads.
+  await paper.load();
+  paper.start();
 
   const mode = isReplay() ? 'REPLAY (synthetic data)' : 'LIVE (Dhan API)';
   const lines = registry.instruments.map(i =>
