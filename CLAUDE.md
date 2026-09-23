@@ -559,6 +559,13 @@ Also: the replay ledger keeps today's trades, so a second Run now re-enters noth
 today", by design) — move `paper-ledger.replay.json` aside **and restart** before a fresh run; the
 server holds the ledger in memory.
 
+## Square off Paper before running the P2–P9 re-proof
+P5's check is `subscriptions === 2 × strikes + 1`. The Paper trader's open and pending legs ride the
+same feed union (P32 row 12), so a replay server with Paper positions open reads 88 against 83 and
+looks like a chain orphan bug. `POST /api/paper/exit-all` on that server first. Also: when every
+"zero console errors" check goes red at once, curl `fonts.googleapis.com` before suspecting the
+build. On 23 Sep it was unreachable and the whole sweep's reds were that one stylesheet.
+
 ## A feed LTP is a float32 — round it before comparing with a 2-dp level
 `parsePackets` decodes prices with `readFloatLE`, so 1259.24 arrives as 1259.2399902… and misses a
 1259.24 target by a hair. Exchange prices are whole paise; `PaperTrader.onFeedTick` rounds to 0.01
