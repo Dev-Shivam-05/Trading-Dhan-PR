@@ -565,3 +565,10 @@ from disk per request, so every running server already serves the current UI wha
 The same shape of trap appeared twice: this session's start-of-conversation git snapshot said branch
 `p26-panel-windows` while `git rev-parse` said `p25-chart-nav`. **Never trust a start-of-session
 snapshot for a value that moves.**
+
+## 2026-09-23 — P30: session state is re-derived per request, at the route
+The registry is memoised at boot, so its `session` field was the state at boot. The fix is
+`withLiveSession()` at `/api/health` and `/api/instruments`, not re-resolving the registry: that
+would re-download the master and re-run the GOLD spike to refresh one clock-derived field. The
+armed open-session runner now waits for a date as well as a time, and keeps re-checking a replay
+or stopped server until 15:00 rather than exiting.

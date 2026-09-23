@@ -39,6 +39,8 @@ absorbing the work.
 | P14 | 9:20 scanner on NSE data | The user's 14-09 voice notes (P8's scanner restated, naming "NSE spurt") plus a second recording (manual Run button, top 20 "ya 25 ya 30", cross-verify against a pre-defined F&O list). A new source for the existing panel: an off-screen headed Chrome reads NSE's "Securities in F&O" price feed and OI Spurts; `data/fno-list.txt` (210, validated) gates the universe; top N gainers + N losers → abs(chg) ≥ 2% → OI chg ≥ +7%. P8's Dhan path kept as Source `Dhan` | 7 code | Fixture funnels 210→40→26→4 / 210→50→31→4 / 210→60→36→4 with Long MFSL, Short POLICYBZR, PNBHOUSING, FEDERALBNK, agreed by a second implementation; broken fixtures fail as specified; one real NSE scan reconciles; browser checks in both themes | **done (live NSE, market closed)** 2026-09-17 — spec `docs/spec/scanner-nse-v1.md`, server **31/31**, browser **35/35**, P8 10/10 + 22/22, P2–P9 37/37, P10a 41/41, P10b 30/30. Real NSE scans: 5.4 s and 9.1 s. **Open: a scan pressed at 09:20 IST on a trading day** — whether NSE's feeds are fresh by then is unmeasured |
 
 ## Now
+**P30 done (2026-09-23): `/api/health` reported the BOOT-time session, so P29's armed open-session run never fired on 23 Sep.** Fixed per request (`npm run session:test` 11/11), pushed on `p30-health-session`. Re-armed as PID 24376 for **Thu 24 Sep 09:36** -> `.cache/p30-open-run.log`. It needs a **live** server built from P30 or later on 8787; at 19:12 on 23 Sep, 8787 was a replay server this session did not start.
+
 **P28 done (2026-09-22): the LTP Calculator transcript corpus is fully analysed. No code written.**
 All 163 source files read end to end - 127 in `LTP-CALCULATOR/KEY-POINTS/` and 35 in
 `LTP-CALCULATOR/KEY-POINTS-V2/`, which is **a cleaner re-cut of 35 videos already in V1, rebuilt from
@@ -148,6 +150,11 @@ run lost 6 of 10 contracts to `DH-904` and would have concluded from the 4 that 
 paced now.
 
 ## Next 3
+*(Updated at P30. The list below it is P29's and is kept for the record.)*
+1. **Thu 24 Sep, before 09:36:** make sure 8787 is a live `npm run dev` built from P30 or later. Then read `.cache/p30-open-run.log` and close the open-session criteria (P8 AC5, P12b, P19/P9 on NSE, P21, NSE `last_price` lag).
+2. **P9's opening-candle decision:** 2 of 36 signals fell in 09:15-09:34 on 22 Sep. Add 24 Sep's count, then decide or close.
+3. **Merge the stacked branches in order** (p6 -> ... -> p25 -> p29 -> p30), then spec L4-L10 of the LTP Calculator.
+
 1. **Answer spec row 12 (OQ-1) in one word** — `go` / `theoretical` / `api` / `hold` — and the
    rest of `docs/spec/ltp-calculator-v1.md` with one `go`. Then build L0–L3 + L6.
    *(Superseded item, kept for the record: "Decide OQ-1, OQ-35 and OQ-33 - then, and only then,
