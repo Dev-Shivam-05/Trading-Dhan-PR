@@ -1011,6 +1011,13 @@ body:has(#paper:not([hidden])) .optwin{display:none!important}
 .pp-side.buy{color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)}
 .pp-side.sell{color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)}
 .pp-exit{height:26px;padding:0 10px;font-size:11px}
+/* orb-strategy-v1.md row 12: an option leg sits under its future, indented, without repeating the symbol. */
+.pp-t tr.pp-leg td{height:36px}
+/* No rule between a future and its option leg, so the two read as one signal. */
+.pp-t tr:has(+ tr.pp-leg) td{border-bottom-color:transparent}
+.pp-t tr.pp-leg td.l:first-child{padding-left:28px}
+.pp-ag{font-variant-numeric:tabular-nums;color:var(--fg-muted)}
+.pp-ag.warn{color:var(--warn);font-weight:600}
 .pp-nt{border-top:1px solid var(--border);padding:0 16px}
 .pp-nt summary{cursor:pointer;height:36px;display:flex;align-items:center;font-size:12px;color:var(--fg-muted)}
 .pp-nt ul{margin:0 0 12px;padding:0 0 0 16px;font-size:12px;color:var(--fg-muted);line-height:1.7}

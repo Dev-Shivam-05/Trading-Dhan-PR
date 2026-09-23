@@ -1,5 +1,7 @@
 /**
- * The Paper workspace — `docs/spec/paper-trading-v1.md` rows 10, 11, 15, 16, 18.
+ * The Paper workspace — `docs/spec/paper-trading-v1.md` rows 10, 11, 15, 16, 18, with P33's
+ * opening-range breakout (`docs/spec/orb-strategy-v1.md` row 12): a Waiting-for-break table, and
+ * an Open table that shows each future's range, SMA9 and closes-against count, its option leg under it.
  *
  * PAPER MEANS PAPER. This screen arms, disarms and exits SIMULATED positions held by the server's
  * `PaperTrader`. Nothing here, and nothing behind `/api/paper*`, can reach a Dhan order endpoint.
@@ -44,7 +46,24 @@ const dirClass = (v) => (typeof v !== 'number' || v === 0 ? 'flat' : v > 0 ? 'up
 
 const hms = (ms) => (ms ? new Date(ms + 5.5 * 3600_000).toISOString().slice(11, 19) : '—');
 
-const REASON = { target: 'Target', stop: 'Stop', eod: '15:15 square-off', manual: 'Exited by hand', stale: 'Stale — closed at boot' };
+const REASON = {
+  sma: '2 closes against SMA9', eod: '15:15 square-off', manual: 'Exited by hand',
+  stale: 'Stale — closed at boot', target: 'Target', stop: 'Stop',
+};
+
+/** `FUT 2026-09-29` or `1560 CE 2026-09-29`. A P32 row has no `leg` and is a future. */
+const contractLabel = (p) => (p.leg === 'option'
+  ? `${num(p.strike, p.strike % 1 ? 2 : 0)} ${p.optionType} ${p.expiry}` : `FUT ${p.expiry}`);
+
+/** Option legs sit directly under their future (row 12). */
+function grouped(rows) {
+  const futs = rows.filter((p) => p.leg !== 'option');
+  const out = [];
+  for (const f of futs) out.push(f, ...rows.filter((o) => o.parentId === f.id));
+  // An option whose future is no longer live (it exited first) still has to be seen.
+  for (const o of rows) if (o.leg === 'option' && !out.includes(o)) out.push(o);
+  return out;
+}
 
 /* ------------------------------------------------------- workspace switch */
 
@@ -127,18 +146,46 @@ function sideCell(side) {
   return `<td class="l"><span class="pp-side ${side === 'BUY' ? 'buy' : 'sell'}">${side}</span></td>`;
 }
 
+function waitingTable(rows) {
+  if (!rows.length) return '';
+  const body = rows.map((p) => `<tr data-id="${esc(p.id)}" class="pending">
+      <td class="l"><b>${esc(p.symbol)}</b><span class="nm">${esc(contractLabel(p))}</span></td>
+      ${sideCell(p.side)}
+      <td>${num(p.range?.high)}</td>
+      <td>${num(p.range?.low)}</td>
+      <td>${num(p.ltp)}</td>
+      <td class="l dim">${p.range
+        ? `waiting for a ${p.side === 'BUY' ? 'break above' : 'break below'} ${num(p.side === 'BUY' ? p.range.high : p.range.low)}`
+        : esc(p.rangeNote ?? 'range forms from the 09:15 and 09:20 candles')}</td>
+      <td><button class="tog pp-exit" type="button" data-exit="${esc(p.id)}" ${state.busy ? 'disabled' : ''}>Cancel</button></td>
+    </tr>`).join('');
+  return `<section class="card scan-sec pp-sec"><h3>Waiting for break <span>${rows.length}</span></h3>
+    <table class="scan-t pp-t">
+    <colgroup><col style="width:17%"><col style="width:8%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col><col style="width:9%"></colgroup>
+    <thead><tr><th class="l">Symbol</th><th class="l">Side</th><th>Range high</th><th>Range low</th><th>LTP</th>
+      <th class="l">Waiting for</th><th></th></tr></thead>
+    <tbody>${body}</tbody></table></section>`;
+}
+
 function openTable(rows) {
   if (!rows.length) return '<p class="scan-none">No open positions.</p>';
-  const body = rows.map((p) => {
+  const body = grouped(rows).map((p) => {
     const pending = p.status === 'pending';
-    return `<tr data-id="${esc(p.id)}" class="${pending ? 'pending' : ''}">
-      <td class="l"><b>${esc(p.symbol)}</b><span class="nm">FUT ${esc(p.expiry)}</span></td>
-      ${sideCell(p.side)}
+    const opt = p.leg === 'option';
+    // An option leg is always a BOUGHT option, whichever way its signal points.
+    const side = opt ? '<td class="l"><span class="pp-side buy">BUY</span></td>' : sideCell(p.side);
+    const rng = !opt && p.range ? `${num(p.range.high)} – ${num(p.range.low)}` : '';
+    const against = !opt && typeof p.against === 'number'
+      ? `<span class="pp-ag${p.against ? ' warn' : ''}">${p.against} / 2</span>` : '';
+    return `<tr data-id="${esc(p.id)}" class="${pending ? 'pending' : ''}${opt ? ' pp-leg' : ''}">
+      <td class="l">${opt ? '' : `<b>${esc(p.symbol)}</b>`}<span class="nm">${esc(contractLabel(p))}</span></td>
+      ${side}
       <td>${int(p.qty)}</td>
       <td>${pending ? '<span class="pp-wait">first tick…</span>' : num(p.entryPx)}</td>
       <td>${num(p.ltp)}</td>
-      <td class="dim">${num(p.stopPx)}</td>
-      <td class="dim">${num(p.targetPx)}</td>
+      <td class="dim">${rng}</td>
+      <td class="dim">${opt ? '' : num(p.sma9)}</td>
+      <td>${against}${p.exitDue ? '<span class="pp-wait"> exit at next tick</span>' : ''}</td>
       <td class="${dirClass(p.pnl)}">${signed(p.pnl)}</td>
       <td class="${dirClass(p.pnlPct)}">${p.pnlPct === null ? '—' : signed(p.pnlPct) + '%'}</td>
       <td><button class="tog pp-exit" type="button" data-exit="${esc(p.id)}"
@@ -146,18 +193,18 @@ function openTable(rows) {
     </tr>`;
   }).join('');
   return `<table class="scan-t pp-t">
-    <colgroup><col style="width:15%"><col style="width:8%"><col style="width:8%"><col><col><col><col>
-      <col style="width:11%"><col style="width:9%"><col style="width:10%"></colgroup>
+    <colgroup><col style="width:15%"><col style="width:7%"><col style="width:6%"><col><col><col style="width:15%"><col>
+      <col style="width:12%"><col style="width:9%"><col style="width:7%"><col style="width:8%"></colgroup>
     <thead><tr><th class="l">Symbol</th><th class="l">Side</th><th>Qty</th><th>Entry</th><th>LTP</th>
-      <th>Stop</th><th>Target</th><th>P&amp;L ₹</th><th>P&amp;L %</th><th></th></tr></thead>
+      <th>Range H – L</th><th>SMA9</th><th>Closes against</th><th>P&amp;L ₹</th><th>P&amp;L %</th><th></th></tr></thead>
     <tbody>${body}</tbody></table>`;
 }
 
 function closedTable(rows) {
   if (!rows.length) return '<p class="scan-none">Nothing closed today.</p>';
   const body = rows.map((p) => `<tr data-id="${esc(p.id)}">
-      <td class="l"><b>${esc(p.symbol)}</b><span class="nm">${hms(p.exitAt ?? p.createdAt)}</span></td>
-      ${sideCell(p.side)}
+      <td class="l"><b>${esc(p.symbol)}</b><span class="nm">${p.leg === 'option' ? esc(`${p.strike} ${p.optionType}`) + ' · ' : ''}${hms(p.exitAt ?? p.createdAt)}</span></td>
+      ${p.leg === 'option' ? '<td class="l"><span class="pp-side buy">BUY</span></td>' : sideCell(p.side)}
       <td>${num(p.entryPx)}</td>
       <td>${num(p.exitPx)}</td>
       <td class="l dim">${p.status === 'unfilled' ? `Not filled — ${esc(p.note)}` : esc(REASON[p.reason] ?? p.reason)}</td>
@@ -213,25 +260,31 @@ function render() {
   armBtn.setAttribute('aria-pressed', String(v.armed));
   armBtn.textContent = v.armed ? 'Armed · auto 09:20' : 'Arm auto-trading';
   armBtn.title = v.armed
-    ? 'Disarm: no new trades. Positions already open stay open until their stop, target or 15:15.'
-    : 'Arm: the server scans NSE at 09:20 IST and paper-trades the Long / Short lists until 09:30.';
+    ? 'Disarm: no new trades. Positions already open stay open until their exit rule, 15:15 or Exit.'
+    : 'Arm: the server scans NSE at 09:20 IST, reads the 09:15-09:25 range, and paper-trades each break until 15:00.';
   armBtn.disabled = state.busy;
-  $('ppExitAll').disabled = state.busy || v.open.length === 0;
+  const live = v.open.length + (v.waiting?.length ?? 0);
+  $('ppExitAll').disabled = state.busy || live === 0;
   const run = $('ppRun');
   run.hidden = !v.canRunNow;
-  run.disabled = state.busy || v.open.length > 0;
-  run.title = v.open.length > 0 ? 'Square off first — positions are still pending or open' : 'Replay only: run the scan now, with the engine clock set to 09:20:00';
+  run.disabled = state.busy || live > 0;
+  run.title = live > 0 ? 'Square off first — positions are still pending or open'
+    : `Replay only: run the scan now, with the engine clock set to ${v.rules.strategy === 'orb-sma9' ? '09:25:00' : '09:20:00'}`;
   $('ppMode').textContent = v.mode === 'replay' ? 'REPLAY' : 'LIVE';
   $('ppMode').className = `statechip ${v.mode === 'replay' ? 'warn' : 'flat'}`;
 
   const r = v.rules;
-  $('ppRules').textContent = `Scan ${r.scanAt} · entries until ${r.entryUntil} · stop ${r.stopPct}% · target ${r.targetPct}% · ${r.size} · max ${r.maxPositions} a day · square-off ${r.squareOffAt} · P&L is gross, before charges`;
+  $('ppRules').textContent = r.strategy === 'orb-sma9'
+    ? `Scan ${r.scanAt} · range = high / low of the ${r.rangeFrom} and 09:20 candles · enter on a break ${r.rangeReady}–${r.entryUntil} · exit on ${r.exitCloses} closes against SMA${r.smaPeriod} (5 min) or ${r.squareOffAt} · ${r.legs}, ${r.size} each · max ${r.maxPositions} signals · P&L is gross, before charges`
+    // A server started before P33 still runs P32's rules; public/ is read per request, so this
+    // file reaches it first.
+    : `Scan ${r.scanAt} · entries until ${r.entryUntil} · stop ${r.stopPct}% · target ${r.targetPct}% · ${r.size} · max ${r.maxPositions} a day · square-off ${r.squareOffAt} · P&L is gross, before charges`;
 
   const notice = state.notice ? `<div class="pp-notice" role="alert">${esc(state.notice)}</div>` : '';
   const disarmedOpen = !v.armed && v.open.length
-    ? `<p class="pp-hint">Disarmed. The ${v.open.length} position${v.open.length === 1 ? '' : 's'} below stay open until stop, target, 15:15 or Exit.</p>` : '';
+    ? `<p class="pp-hint">Disarmed. The ${v.open.length} position${v.open.length === 1 ? '' : 's'} below stay open until their exit rule, 15:15 or Exit.</p>` : '';
 
-  body.innerHTML = `${notice}${disarmedOpen}
+  body.innerHTML = `${notice}${disarmedOpen}${waitingTable(v.waiting ?? [])}
     <section class="card scan-sec pp-sec"><h3>Open <span>${v.open.length}</span></h3>${openTable(v.open)}${notTaken(v.day)}</section>
     <div class="pp-two">
       <section class="card scan-sec pp-sec"><h3>Closed today <span>${v.closed.length}</span></h3>${closedTable(v.closed)}</section>
@@ -262,6 +315,7 @@ window.__paper = {
   open: () => state.open,
   state: () => state.view,
   positions: () => state.view?.open ?? [],
+  waiting: () => state.view?.waiting ?? [],
   closed: () => state.view?.closed ?? [],
   notice: () => state.notice,
   reload: load,
