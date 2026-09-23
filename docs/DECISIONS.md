@@ -583,3 +583,17 @@ server was killed by PID only after `ListAgents` showed no live peer session.
 User's direction. No Dhan order endpoint is called; fills are simulated from the LTP the app already
 streams. Strategy, exit, size, instruments and UI are unspecified and go through `spec-lock` first.
 Replay and live keep separate ledgers (same rule as every other persisted cache here).
+
+## 2026-09-23 — P32 spec locked: the recording's 9:20 list, traded as near-month futures
+The only part of the strategy the user ever wrote down is the entry — the 14-Sep voice note's
+three-filter list "for trade entry between 9:20 and 9:30". Exit (stop 1% / target 2% / 15:15),
+instrument (the near-month future the scanner already measures OI on), size (1 lot, max 10) and the
+60 s retry are GUESS rows the user accepted with one `go` and can veto one at a time. The trader
+lives in the server, not the browser, so the 09:20 scan happens with no tab open; it rides the
+existing feed under one reserved `feedWants` key and never polls REST.
+
+## 2026-09-23 — Replay's Run now moves the paper engine's clock, not the rules
+A Run now pressed at 21:00 would meet the 15:15 square-off in the same second. The alternative —
+exempting replay positions from the clock rules — would have left the 09:30 and 15:15 branches
+untested in replay. So the press is mapped to 09:20:00 IST and the offset is persisted in the replay
+ledger (a restart must not jump the clock to 21:00). Live's offset is always 0; live has no Run now.

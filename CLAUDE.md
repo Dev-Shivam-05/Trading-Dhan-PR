@@ -540,3 +540,17 @@ wrong, which is exactly the failure this project's verification bar exists to pr
 and 15:45 IST. So if replay holds 8787 overnight, nothing renews: on 23 Sep the token would have
 expired at 05:43 IST, before a 09:36 armed run. **Anything that needs live data at the open needs a
 live `npm run dev` running the evening before.** It renews as soon as it starts.
+
+## A workspace saves `ws` AFTER it announces itself, or the scanner overwrites it
+Every workspace shares `localStorage.ws` and switches through one `ws` CustomEvent. The scanner's
+`close()` writes `ws=chain`, so a workspace that saved `ws` and **then** dispatched had its value
+overwritten in the same tick — and `scan.js` also mapped every non-`chain` value to `scanner` at
+boot. Neither the LTP Calculator (P29) nor Paper (P32) ever survived a reload, and P29's suite never
+reloaded. A new workspace: dispatch `ws`, then save, then mark tabs; add its name to nothing in
+`scan.js` (it only claims a first visit or `scanner`); and put a reload in its verification.
+
+## A feed LTP is a float32 — round it before comparing with a 2-dp level
+`parsePackets` decodes prices with `readFloatLE`, so 1259.24 arrives as 1259.2399902… and misses a
+1259.24 target by a hair. Exchange prices are whole paise; `PaperTrader.onFeedTick` rounds to 0.01
+before any rule sees the tick. Anything new that compares a feed price with an exact level must do
+the same, or "the tick at the target" silently does not fire.
