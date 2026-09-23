@@ -34,6 +34,7 @@ absorbing the work.
 | P16 | Total redesign (v2) | Two workspaces (Scanner, Option chain) under a 48px nav; Geist + Geist Mono; violet accent on near-black; ATM row as the single focal point; OI butterfly bars; scanner as a full screen with funnel tiles, side-by-side Long/Short and the per-stock trace. Spec `docs/spec/redesign-v2.md`, 18 rows + amendments 19–22 | 5 code | Stage A mock approved; ≥ 19 / ≥ 24 chain rows; scanner without scroll; 2 fonts, 8 sizes; contrast ≥ 4.5:1; every earlier suite green | **done (replay + NSE fixture)** 2026-09-17 — spec locked with `go`, then the Stage A mock approved with a second `go`. Stage B **37/37** at 1440x900 and 1024x800, both themes: 19 chain rows with the chart (23 collapsed in replay, 24 live), a 64px instrument bar even on GOLD, exactly Geist + Geist Mono with every size in the scale, the scanner fitting without scroll, 60 s soaks with zero console errors. **Every earlier suite re-run green**: P10a 42/42, P10b 30/30, P2–P9 37/37, P8 22/22 + 10/10, P14 35/35, server 31/31. Eight amendment rows (19–26), three of them defects the checks missed and the screenshots showed. `docs/shots/` re-baselined once — the first attempt was wrong and thrown away because `shots.ts` did not know about workspaces |
 | P15 | Daily 9:20 scan + logs + portable run | `npm run scan:nse` (one scan, logs as JSON + Markdown + CSV, per-stock trace of why each ranked stock passed or failed, top 20/25/30 from one fetch); GitHub Actions `nse-scan.yml` on Ubuntu **and** Windows runners at 09:20 and 09:25 IST Mon–Fri, logs committed to the `scan-logs` branch; README steps for running on another computer from a ZIP; optional `scripts/schedule-windows.ps1` for this PC | 6 | The workflow runs from `main`, reaches NSE, and commits a log; a GitHub ZIP of the branch runs the CLI and the app on a clean folder | **done, except the first scheduled morning** 2026-09-17 — PR #2 merged to `main` with the user's explicit approval (fast-forward of P6–P15). Test runs 35249540540 (branch push) and 35250220510 (`workflow_dispatch` on `main`): both runners reached NSE and pushed logs, 8.9–15.8 s. ZIP of the branch in an empty folder: `npm ci`, `npm run scan:nse`, and the app on port 8790 with a real browser scan all worked. **The Windows task on this PC is NOT installed** — running the script with `-ExecutionPolicy Bypass` was denied in this session. **Open: the first scheduled run, Fri 18 Sep 09:20 IST** |
 | P28 | LTP Calculator source analysis | The user's ~133-video transcript corpus for a **third workspace** (LTP Calculator, alongside Scanner and Option Chain), read in full and reconstructed. **127/127 files in `LTP-CALCULATOR/KEY-POINTS/` plus 35/35 in `LTP-CALCULATOR/KEY-POINTS-V2/`** - the latter is **not new videos**, it is the same 35 videos re-extracted from **English translations** instead of Hindi ASR. Output is `LTP-CALCULATOR/ANALYSIS/`: per-file notes for all 127, one consolidated logic document, a glossary + traceability matrix, 39 numbered open questions, and a V2 delta | 9 docs, 0 code | Every source file read end to end, every rule traced to its video number, every contradiction recorded rather than resolved silently | **done (analysis only)** 2026-09-22. **The build is BLOCKED on OQ-1:** the entire product rests on one number, the **reversal price** per strike per side - extensions, divergences, the four 9:20 lines, the eight AI lines, Max Pain, Max Gain, the weekly/monthly bands and the LTP Swing HOI reversals are all that same number selected from a different strike. ~20 files say it is "derived from the Option Greeks"; **none gives the formula.** V2 resolved OQ-24 (the free tier's *data feed* is delayed, the charts are live), OQ-25 (Nifty's weekly expiry **moved Thursday to Tuesday**, which explains three "contradictory" range-generation days), OQ-28 (stock lines carry **per-line** Max Pain/Max Gain) and OQ-31 (LTP Swing bearish wants a **breakout**). It made **OQ-35 worse**: V75 calls a support shift from 25,000 to 24,900 a "bottom-to-top shift", which is only coherent if top/bottom labels are **screen**-relative on a smallest-strike-at-top display - and if so, every WTT/WTB label and the five-state table may be screen-relative too. **No code written; `src/`, `public/`, `scripts/`, `test/` untouched.** `LTP-CALCULATOR/` is untracked and deliberately uncommitted |
+| P29 | LTP Calculator spec + the chart criteria made measurable | **(a)** `docs/spec/ltp-calculator-v1.md` — 26 rows, 14 acceptance criteria, locking L0–L3 and L6 (imaginary line, ATM by highest time value, S/R by the outward scan, the 75% grading, the reversal-price ladder). L4–L5 and L7–L10 need accumulated intraday history and are boarded separately. **(b)** OQ-1 attacked by measurement: `npm run oq1:test` / `npm run oq1:live`. **(c)** The chart criteria that had only ever been taken on MCX, added to `open:checks` and to `.cache/p29-chart-live.js`, with their arithmetic proven before the session in `npm run chart:selftest` | 9 | The spec is locked with one `go`; `oq1:test` 5/5; `chart:selftest` 25/25; `open:checks` and the browser suite green on an open NSE session | **spec proposed, awaiting `go`** 2026-09-23. **OQ-35 CLOSED, OQ-33 reduced, OQ-1 has a tested candidate.** `oq1:test` **5/5** · `oq1:live` **3/3** · `chart:selftest` **25/25** · `.cache/p29-chart-live.js` **6 pass / 0 fail / 4 skip** pre-session. The four skips and `open:checks`'s eight need 09:15–15:30 |
 | P14 | 9:20 scanner on NSE data | The user's 14-09 voice notes (P8's scanner restated, naming "NSE spurt") plus a second recording (manual Run button, top 20 "ya 25 ya 30", cross-verify against a pre-defined F&O list). A new source for the existing panel: an off-screen headed Chrome reads NSE's "Securities in F&O" price feed and OI Spurts; `data/fno-list.txt` (210, validated) gates the universe; top N gainers + N losers → abs(chg) ≥ 2% → OI chg ≥ +7%. P8's Dhan path kept as Source `Dhan` | 7 code | Fixture funnels 210→40→26→4 / 210→50→31→4 / 210→60→36→4 with Long MFSL, Short POLICYBZR, PNBHOUSING, FEDERALBNK, agreed by a second implementation; broken fixtures fail as specified; one real NSE scan reconciles; browser checks in both themes | **done (live NSE, market closed)** 2026-09-17 — spec `docs/spec/scanner-nse-v1.md`, server **31/31**, browser **35/35**, P8 10/10 + 22/22, P2–P9 37/37, P10a 41/41, P10b 30/30. Real NSE scans: 5.4 s and 9.1 s. **Open: a scan pressed at 09:20 IST on a trading day** — whether NSE's feeds are fresh by then is unmeasured |
 
 ## Now
@@ -93,8 +94,53 @@ one command and prints SKIP, never a pass, for anything it cannot reach. Run ton
 p6 → … → p20 → p21 → p22 → p23 → p24 → p26 → p25), P18's transport, P9's opening-candle question,
 `gh secret set NTFY_TOPIC`, and a Telegram bot.
 
+## P29, 2026-09-23 — two of the three blockers closed by reading, the third reduced to one word
+
+**OQ-35 is CLOSED.** The arrow convention is not a contradiction. §3.2 defines *top of the chain*
+as the **highest strike** while the chain prints **smallest strike first**, so V112 ("smaller to
+larger strike is bullish") is strike space and V121 ("an upward arrow means bearish") is screen
+space on that display — up the screen is towards smaller strikes. V45 says so outright and V13's
+"support drawn above" follows. **All four are one fact.** Spec row 5 puts every rule in strike
+space and derives the screen direction in one function, so the trap cannot recur. Our own grid
+already sorts ascending (`derive.ts:106`) — the same orientation as every video.
+
+**OQ-1 has a tested candidate, and is still open.** `reversal(K,call) = K + callLTP`,
+`reversal(K,put) = K − putLTP` — the writer's break-even. The corpus's **17 worked (strike →
+reversal) pairs** had never been treated as a validation set. The falsifiable test is put-call
+parity, which the candidate never mentions: `F = revCall + revPut − K` recovers a spot the
+candidate was never shown, on three separate passages, to **+8 / +12 / −6 points**. On the expired
+22-Sep chain every ITM reversal lands on spot (23,328.4–23,329.6 vs 23,329) and every OTM one
+collapses onto its own strike — the corpus's *"at expiry all reversal prices converge to intrinsic
+value"*, reproduced numerically. That line also eliminates three rivals, including a **literal**
+reading of V18: "the spot at which time value peaks" is *exactly the strike* under Black-Scholes,
+since `dTV/dS` is `delta` below the strike and `delta − 1` above it.
+**It is not shipped.** It sits behind one function so any answer is a one-function change.
+
+**A red line that was mine, not the data's.** The live parity pre-check read a median 80.45 on a
+6-day chain and 0.45 on an expired one. Parity is `c − p = F − K` and it was being compared against
+**spot** — so it was measuring the basis, which is zero at expiry. Rearranged to an invariant
+needing no futures price: `c − p + K` is the chain's own implied forward and every strike must
+agree. 13 strikes agree to **7.3 points**, basis **+80.5 (34 bp)**. This *strengthens* OQ-1 — the
+corpus residuals are the carry, and two of three have the right sign.
+
+**The chart criteria, which had only ever been taken on MCX.** `open:checks` gains P19 on NSE
+(1-minute candles exactly 60,000 ms apart; the forming candle contains every tick in its minute)
+and P9's opening-candle question **measured** rather than argued. Their arithmetic moved to
+`scripts/lib/chart-checks.ts` and is driven by `npm run chart:selftest` against real captured
+payloads — **25 checks, each also shown to FAIL on broken input** — because on a shut market
+`open:checks` runs only its SKIP branch and there is one session a day to find a bug in the other.
+It caught two off-by-one errors in its own expectations. `.cache/p29-chart-live.js` does the
+browser half: **6 pass / 0 fail / 4 skip** pre-session, and three of its first four reds were the
+script's own (a 14px Style-button icon matched instead of the chart surface; `invX` fed a page
+coordinate instead of a chart-local one; a pan asserted on a fully-fitted view, where row 7
+correctly clamps it to a no-op).
+
 ## Next 3
-1. **Decide OQ-1, OQ-35 and OQ-33 - then, and only then, P29: lock the LTP Calculator spec.**
+1. **Answer spec row 12 (OQ-1) in one word** — `go` / `theoretical` / `api` / `hold` — and the
+   rest of `docs/spec/ltp-calculator-v1.md` with one `go`. Then build L0–L3 + L6.
+   *(Superseded item, kept for the record: "Decide OQ-1, OQ-35 and OQ-33 - then, and only then,
+   P29: lock the LTP Calculator spec." OQ-35 is closed and OQ-33 is deferred to L10 with a
+   recommendation; the spec is written.)*
    OQ-1 is the reversal-price formula: either the app's API exposes it, or it is reconstructed from
    V18's hypothesis (the spot level at which a strike's time value peaks) and validated against the
    dozens of worked strike-to-reversal pairs in the notes, or it ships as a documented pluggable
