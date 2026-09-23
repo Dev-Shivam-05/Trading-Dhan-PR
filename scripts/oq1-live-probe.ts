@@ -92,20 +92,30 @@ async function main() {
     say('OQ-1 pre-check: Dhan\'s chain satisfies put-call parity', 'SKIP',
       `only ${nearAtm.length} strikes quote both sides`);
   } else {
-    const devs = nearAtm.map(r => (r.ce.ltp - r.pe.ltp) - (spot - r.strike));
-    const absd = devs.map(Math.abs).sort((a, b) => a - b);
-    const med = absd[absd.length >> 1]!;
-    const worst = absd[absd.length - 1]!;
-    // The tolerance is the instrument's own tick/spread scale, not a number invented here: one
-    // strike step is the chain's own unit, and parity on a live tape is good to a small fraction
-    // of it. Stated as the median so one stale wing cannot decide the verdict — this project's
-    // p95-not-max rule in another dress.
-    const step = Math.abs((nearAtm[1]!.strike - nearAtm[0]!.strike)) || 50;
+    // Parity is  c - p = F - K,  where F is the FORWARD, not spot. Testing it against spot is
+    // testing the basis: the first version of this check did exactly that and read a median 80.45
+    // on a 6-day NIFTY chain while reading 0.45 on an expired one — which is not a data fault, it
+    // is the carry, and at expiry the carry is zero. Measured 2026-09-23.
+    //
+    // So the test is rearranged to need no external futures price at all: c - p + K is the chain's
+    // own IMPLIED FORWARD, and parity holds exactly when every strike agrees on it. That is an
+    // internal-consistency invariant, and it cannot be passed by a wrong reference price.
+    const fwd = nearAtm.map(r => r.ce.ltp - r.pe.ltp + r.strike);
+    const lo = Math.min(...fwd), hi = Math.max(...fwd);
+    const spread = hi - lo;
+    const mid = fwd.slice().sort((a, b) => a - b)[fwd.length >> 1]!;
+    // The tolerance is the chain's own unit, not a number invented here: a fifth of one strike
+    // step. Stated as the spread across strikes, since a constant offset IS the basis and must
+    // not count against the chain.
+    const step = Math.abs(nearAtm[1]!.strike - nearAtm[0]!.strike) || 50;
     const tol = step * 0.2;
-    say('OQ-1 pre-check: Dhan\'s chain satisfies put-call parity near the money',
-      med <= tol ? 'PASS' : 'FAIL',
-      `median |c-p-(S-K)| = ${med.toFixed(2)} over ${nearAtm.length} strikes `
-      + `(worst ${worst.toFixed(2)}, tolerance ${tol.toFixed(2)} = 20% of the ${step}-point step)`);
+    say('OQ-1 pre-check: every strike implies the same forward (put-call parity holds)',
+      spread <= tol ? 'PASS' : 'FAIL',
+      `implied forward ${mid.toFixed(1)} · spread ${spread.toFixed(2)} across ${nearAtm.length} strikes `
+      + `(tolerance ${tol.toFixed(2)} = 20% of the ${step}-point step)`);
+    console.log(`      basis: forward ${mid.toFixed(1)} - spot ${spot} = ${(mid - spot).toFixed(1)} `
+      + `(${((mid - spot) / spot * 10_000).toFixed(0)} bp). This is why the parity recovery of a`);
+    console.log('      spot in the corpus lands a few points HIGH — the residual is the carry, not error.');
   }
 
   /* -------------------------------------------------------------------- 2 */

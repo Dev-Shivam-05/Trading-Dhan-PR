@@ -149,18 +149,21 @@ if (signBad.length === 1) {
 /* ------------------------------------------------------------------ test 2 */
 // The real test. Recover SPOT from the two reversal prices by put-call parity and compare it
 // against the spot the same passage states independently. Nothing in the candidate knows the spot.
-console.log('2. PARITY — S = revCall + revPut - K, checked against the spot the passage states');
-console.log('   separately. The candidate was built without ever looking at these spots.\n');
+console.log('2. PARITY — F = revCall + revPut - K, checked against the spot the passage states');
+console.log('   separately. The candidate was built without ever looking at these spots.');
+console.log('   Note it recovers the FORWARD, not spot, so the residual is the basis (carry) and is');
+console.log('   EXPECTED to be small and usually positive. Measured live on 2026-09-23, a 6-day');
+console.log('   NIFTY chain carried +80.5 points (34 bp) of basis and an expired one carried 0.\n');
 const withBoth = PAIRS.filter(p => p.revCall !== undefined && p.revPut !== undefined && p.spot !== null);
 const errs: number[] = [];
 for (const p of withBoth) {
   const implied = p.revCall! + p.revPut! - p.strike;
   const err = implied - p.spot!;
   errs.push(Math.abs(err));
-  const bp = (Math.abs(err) / p.spot!) * 10_000;
+  const bp = (err / p.spot!) * 10_000;
   console.log(`   ${p.instrument} K=${p.strike}${p.strikeAssumed ? '*' : ' '}  `
     + `${p.revCall} + ${p.revPut} - ${p.strike} = ${implied.toFixed(0)}  vs stated ${p.spot}  `
-    + `-> ${err > 0 ? '+' : ''}${err.toFixed(0)} pts (${bp.toFixed(0)} bp)`);
+    + `-> implied basis ${err > 0 ? '+' : ''}${err.toFixed(0)} pts (${bp > 0 ? '+' : ''}${bp.toFixed(0)} bp)`);
   console.log(`      [${p.src}] ${p.note}`);
 }
 const worst = Math.max(...errs);

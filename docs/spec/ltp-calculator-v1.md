@@ -101,9 +101,16 @@ and one is reduced to a single question.
   **not scored as a pass**.
 - **Parity — the test that could have falsified it.** Fitting a premium to one reversal price is
   trivial. Put-call parity is not, and the candidate never mentions it:
-  `S = revCall + revPut − K`. On the three passages that give **both** sides and state the spot
-  separately, the recovered spot lands at **+8, +12 and −6 points** (3, 5 and 2 basis points) of a
-  number the candidate was never shown.
+  `F = revCall + revPut − K`. On the three passages that give **both** sides and state the spot
+  separately, the recovery lands at **+8, +12 and −6 points** (+3, +5, −2 basis points) of a number
+  the candidate was never shown.
+  **Note the recovery yields the FORWARD, not spot, so that residual is the carry and is expected
+  to be small and usually positive** — which is the sign two of the three have. Measured live on
+  2026-09-23: a 6-day NIFTY chain carries **+80.5 points (34 bp)** of basis, and an expired one
+  carries **zero**. The first version of this check compared against spot and read a median
+  deviation of 80.45 — not a data fault, the carry. It now tests the invariant that needs no
+  external futures price at all: **every strike must imply the same forward**, `c − p + K`.
+  Live, 13 strikes agree to **7.3 points** against a tolerance of one fifth of the strike step.
 - **Expiry.** *"At expiry all reversal prices converge to intrinsic value"* (V-C:81). `npm run
   oq1:live` on the just-expired 22-Sep NIFTY chain: **every in-the-money reversal lands on spot**
   (23,328.4 – 23,329.6 against spot 23,329) and **every out-of-the-money one collapses onto its own
@@ -169,6 +176,7 @@ Each is binary, and each is measurable **outside** market hours unless it says o
 | AC2 | Spot exactly on a strike returns `null` and says so | Unit: feed `spot === strike`; the reading is null, the screen shows the words, and no level is drawn |
 | AC3 | `ltpAtm` is the higher-total-time-value strike of the pair, not the nearer one | Unit, on a fixture where they **differ** — if no such fixture exists the criterion is unmeasurable, not passed |
 | AC4 | The reversal ladder obeys its sign rule on a live chain | `npm run oq1:live` — every call reversal ≥ its strike, every put reversal ≤ its strike |
+| AC4b | Every strike implies the same forward | `npm run oq1:live` — `c − p + K` agrees across the near-ATM strikes to within a fifth of the strike step. Tested as a spread, never against spot: a constant offset **is** the basis and must not count against the chain |
 | AC5 | The reversal ladder converges at expiry | `npm run oq1:live` on an expiring contract: ITM reversals land on spot, OTM on their own strike |
 | AC6 | The corpus's 17 worked pairs still reproduce | `npm run oq1:test` — 5/5, with the Sensex counter-example still present and still not scored |
 | AC7 | Resistance and support are found by the scan rule, not by the highlight | Fixture with the highest-volume strike **deep ITM** and a nearer qualifying strike: the nearer one wins. Both of V111/V112's counter-examples are in the fixture |
