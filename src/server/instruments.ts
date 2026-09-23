@@ -151,6 +151,15 @@ export function sessionState(id: SessionId, at = new Date()): SessionState {
   return { id, window, openNow: true, reason: `open (${hhmm} IST)` };
 }
 
+/**
+ * The registry is resolved once at boot and memoised, so the `session` it carries is the state
+ * at BOOT. A server started at 06:10 reported "pre-open" on /api/health all through 23 Sep and
+ * the chip rail never lit its open dot. Every route that hands `session` out re-derives it here.
+ */
+export function withLiveSession<T extends { session: SessionState }>(list: T[], at = new Date()): T[] {
+  return list.map(i => ({ ...i, session: sessionState(i.session.id, at) }));
+}
+
 function fmt(mins: number): string {
   return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 }

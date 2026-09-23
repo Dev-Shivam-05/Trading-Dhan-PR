@@ -8,7 +8,7 @@ import Fastify from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
-  resolveRegistry, optionContracts, sessionState, type Registry, type ResolvedInstrument,
+  resolveRegistry, optionContracts, sessionState, withLiveSession, type Registry, type ResolvedInstrument,
 } from './instruments.ts';
 import { readCredentials } from './dhan.ts';
 import { Scanner, scanCsv } from './scanner.ts';
@@ -156,13 +156,13 @@ app.get('/api/health', async (req) => {
     },
     master: registry.meta,
     allResolved: registry.allResolved,
-    instruments: registry.instruments,
+    instruments: withLiveSession(registry.instruments),
   };
 });
 
 app.get('/api/instruments', async () => ({
   mode: isReplay() ? 'replay' : 'live',
-  instruments: registry.instruments.map(i => ({
+  instruments: withLiveSession(registry.instruments).map(i => ({
     id: i.id, label: i.label, displayName: i.displayName, lot: i.lot,
     underlyingScrip: i.underlyingScrip, underlyingSeg: i.underlyingSeg,
     nearestExpiry: i.nearestExpiry, expiries: i.expiries,
