@@ -403,14 +403,15 @@ export function statusLine(l: Ledger, nowMs: number): string {
     return `scanned ${ist(d.scannedAt!).hms} · ${d.signals} signal${d.signals === 1 ? '' : 's'} · ${taken} taken` +
       (l.armed ? '' : ' · disarmed — nothing more will be traded');
   }
-  if (d?.status === 'no-trades') return d.note ?? 'no trades today';
   if (d?.status === 'waiting' && d.lastError) {
     // Named even when disarmed: replay's Run now can fail with the toggle off.
     if (!l.armed) return `scan failed: ${d.lastError} · disarmed, no retry`;
     const next = ist((d.lastAttemptAt ?? nowMs) + RETRY_MS).hms;
     return `scan failed: ${d.lastError} · retrying at ${next}`;
   }
+  // Disarmed outranks the day's no-trades note: "armed at 20:36 …" must not survive a disarm.
   if (!l.armed) return `disarmed — nothing will be traded${still}`;
+  if (d?.status === 'no-trades') return d.note ?? 'no trades today';
   if (!tradingWeekday(nowMs) || minutes >= ENTRY_UNTIL_MIN) return 'armed · waiting for 09:20 on the next trading day';
   return 'armed · waiting for 09:20';
 }

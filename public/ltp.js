@@ -83,9 +83,11 @@ function open() {
   state.open = true;
   $('ltp').hidden = false;
   setTabs();
-  saveWs('ltp');
   // Announce, so the scanner (and anything added later) closes itself. One event, one direction.
+  // P32: announce BEFORE saving — the scanner's close() writes `ws=chain`, which used to overwrite
+  // this value, so the LTP Calculator never survived a reload.
   document.dispatchEvent(new CustomEvent('ws', { detail: 'ltp' }));
+  saveWs('ltp');
   load();
   // The chain polls every 3 s; matching it would re-render on every snapshot for no gain, because
   // levels move far more slowly than LTP. 5 s is a readable cadence that cannot outrun the source.

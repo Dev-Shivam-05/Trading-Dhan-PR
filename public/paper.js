@@ -62,8 +62,10 @@ function open() {
   state.open = true;
   $('paper').hidden = false;
   setTabs();
-  saveWs('paper');
+  // Announce FIRST, then save: the scanner's close() writes `ws=chain`, and saving before the
+  // announcement let it overwrite this value, so the workspace never survived a reload.
   document.dispatchEvent(new CustomEvent('ws', { detail: 'paper' }));
+  saveWs('paper');
   load();
   state.timer = setInterval(load, 1000);   // row 16
   $('paperTab').focus({ preventScroll: true });

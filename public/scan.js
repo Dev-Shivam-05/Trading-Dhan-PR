@@ -470,8 +470,11 @@ syncControls();
 refreshStatus();
 renderIdle();
 // Row 3: open on the workspace the viewer last used, Scanner the first time.
+// P32: only a first visit (no value) or the scanner's own value opens it. `ltp` and `paper` open
+// themselves from this same key a moment later — mapping every non-'chain' value to 'scanner'
+// overwrote theirs before they could read it, so neither workspace ever survived a reload.
 let startWs = 'scanner';
-try { startWs = localStorage.getItem(WS_KEY) === 'chain' ? 'chain' : 'scanner'; } catch { /* default */ }
+try { startWs = localStorage.getItem(WS_KEY) ?? 'scanner'; } catch { /* default */ }
 if (startWs === 'scanner') open({ focus: false });
 setTabs();
 // The session can open or close while the page is left running overnight, which is the normal
