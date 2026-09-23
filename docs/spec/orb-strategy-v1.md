@@ -80,3 +80,12 @@ then we will switch it to real money"*). That switch is **P35** and is not built
 | 17 | during build | Replay's `Run now` maps the press to **09:25:00 IST** (P32 amendment 19 said 09:20) | The range needs the 09:20 candle closed; at 09:20 the replay run would wait 5 real minutes before anything could happen |
 | 18 | during build | Replay option ticks start at **2% of the future's price** | Synthetic only; without a base the replay feed walks a stock option at 24,000 |
 | 19 | during build | An option leg whose future has already exited before the option's first tick → `unfilled: future exited first` | A leg that would open after its signal ended would be a new trade, not the same one |
+
+## Open question for the user (found measuring, not changed)
+
+Dhan's 5-minute `FUTSTK` series carries **77 candles a day, 09:15 to 15:35** — the 15:30 and 15:35
+candles are the post-close session (CLAUDE.md: Dhan's sessions have 385 one-minute candles,
+including 15:30–15:39). Row 9's SMA9 at 09:25 therefore reaches back into them (measured on MFSL,
+23 Sep: the window starts at 22 Sep 15:10). A chart that shows only 09:15–15:30 would compute a
+slightly different SMA for the first ~45 minutes. **Row 9 is built as written; say `exclude` to drop
+candles opening at or after 15:30.**

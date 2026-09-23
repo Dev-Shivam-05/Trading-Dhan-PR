@@ -549,6 +549,16 @@ boot. Neither the LTP Calculator (P29) nor Paper (P32) ever survived a reload, a
 reloaded. A new workspace: dispatch `ws`, then save, then mark tabs; add its name to nothing in
 `scan.js` (it only claims a first visit or `scanner`); and put a reload in its verification.
 
+## A replay server for Paper verification needs `NSE_FIXTURE`, or it scans live NSE
+`REPLAY=1` makes the chain synthetic but **not** the scanner: without
+`NSE_FIXTURE=test/fixtures/nse-2026-09-17` the Paper trader's Run now opens a headed Chrome on
+nseindia.com and trades whatever NSE says tonight (10 real signals on 23 Sep), so every seeded
+outcome keyed to the fixture's MFSL / POLICYBZR / PNBHOUSING / FEDERALBNK silently never happens.
+Start it as `PORT=8791 REPLAY=1 NSE_FIXTURE=test/fixtures/nse-2026-09-17 node src/server/index.ts`.
+Also: the replay ledger keeps today's trades, so a second Run now re-enters nothing ("already traded
+today", by design) — move `paper-ledger.replay.json` aside **and restart** before a fresh run; the
+server holds the ledger in memory.
+
 ## A feed LTP is a float32 — round it before comparing with a 2-dp level
 `parsePackets` decodes prices with `readFloatLE`, so 1259.24 arrives as 1259.2399902… and misses a
 1259.24 target by a hair. Exchange prices are whole paise; `PaperTrader.onFeedTick` rounds to 0.01

@@ -604,3 +604,32 @@ telemetry drawer (terminal-redesign-v1) and P29's `ltp.js:290` binds the same ke
 workspace, with no spec row giving it one. Both fire, the overlay covers the drawer grip. Choosing
 which feature keeps `L` changes a documented shortcut, so it is the user's call; the check was not
 loosened.
+
+## 2026-09-23 — P33 replaces P32's entry and exit; P32's stop/target are gone
+The user's two voice notes define the F&O strategy completely: range = the 09:15 and 09:20
+five-minute candles; enter on a strict break (long list above the high, short list below the low);
+exit on two consecutive completed closes against SMA9. P32's 1% stop / 2% target were GUESS rows
+with no source, so they were removed rather than kept alongside (spec row 10). Risk recorded: there
+is no price stop between candle closes; `change 10` adds the opposite side of the range as one.
+
+## 2026-09-23 — Candles and fills come from the FUTURE, not the cash stock
+The recordings say "the stock breaks". The range, SMA9 and fills are taken from the near-month
+future's own candles and ticks so that every P&L is recomputable from one price series; mixing a
+cash trigger with a futures fill would put the basis inside every number. Offered to the user as the
+row to change (row 2); accepted with the table.
+
+## 2026-09-23 — Each break trades two paper legs: the future and the nearest option
+"future & Options" and "call-side entry": a long break also BUYS the near-month stock CE nearest
+the future's price, a short break the PE. Ties go to the lower strike. The option exits on the
+future's signal. Option legs do not count against the 10-signal cap.
+
+## 2026-09-23 — The live 8787 server was moved to P33 the same night
+Armed under P32 at 21:51, then restarted on P33 at 22:40 so Thursday's 09:20 run trades the rules
+the user just gave. P32's AC10 is therefore superseded, not measured. The live candle path was
+checked first with one read-only call (MFSL future, 23 Sep): range and SMA9 equal a hand
+recomputation.
+
+## 2026-09-23 — Real money is a separate phase (P35), gated by name
+The user wants paper results first and then "switch it to real money, try it once". That needs an
+account seam, a loss cap, a kill switch and Dhan's order API verified — none built. Until the user
+asks for P35 by name, `src/` contains no order endpoint (P32 row 1, grepped by `paper:test`).
