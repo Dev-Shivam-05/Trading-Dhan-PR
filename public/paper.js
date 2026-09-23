@@ -61,11 +61,12 @@ function open() {
   if (state.open) return;
   state.open = true;
   $('paper').hidden = false;
-  setTabs();
-  // Announce FIRST, then save: the scanner's close() writes `ws=chain`, and saving before the
-  // announcement let it overwrite this value, so the workspace never survived a reload.
+  // Announce FIRST, then save and mark the tabs: the scanner's close() writes `ws=chain` and sets
+  // the Option chain tab selected. Doing either before the announcement let it overwrite ours —
+  // the workspace never survived a reload, and two tabs read as selected (seen in the screenshot).
   document.dispatchEvent(new CustomEvent('ws', { detail: 'paper' }));
   saveWs('paper');
+  setTabs();
   load();
   state.timer = setInterval(load, 1000);   // row 16
   $('paperTab').focus({ preventScroll: true });
@@ -175,6 +176,7 @@ function historyTable(rows) {
       <td class="l">${esc(d.date)}</td><td>${int(d.trades)}</td><td>${int(d.wins)}</td>
       <td class="${dirClass(d.pnl)}">${signed(d.pnl)}</td></tr>`).join('');
   return `<table class="scan-t pp-t pp-hist">
+    <colgroup><col style="width:36%"><col style="width:18%"><col style="width:16%"><col style="width:30%"></colgroup>
     <thead><tr><th class="l">Date</th><th>Trades</th><th>Wins</th><th>P&amp;L ₹</th></tr></thead>
     <tbody>${body}</tbody></table>`;
 }
