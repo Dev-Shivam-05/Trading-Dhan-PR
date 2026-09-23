@@ -24,6 +24,9 @@
             title="Option chain - Esc from the scanner">Option chain<kbd>Esc</kbd></button>
     <button class="wstab" id="ltpTab" type="button" role="tab" aria-selected="false"
             title="LTP Calculator - press L">LTP Calculator<kbd>L</kbd></button>
+    <!-- P32: no single-key shortcut - P is already the breach toggle (paper-trading-v1.md row 22). -->
+    <button class="wstab" id="paperTab" type="button" role="tab" aria-selected="false"
+            title="Paper trading - simulated fills, no real orders">Paper</button>
   </nav>
   <span class="navr">
     <button class="icon" id="themeBtn" type="button" title="Toggle theme (T)" aria-label="Toggle theme">&#9680;</button>
@@ -95,6 +98,36 @@
         it makes no request of its own.</p>
     </header>
     <div id="ltpBody"></div>
+  </div>
+</section>
+
+<!-- P32: the Paper workspace - paper-trading-v1.md row 15. The same fixed overlay as the Scanner
+     and the LTP Calculator; `.paperw[hidden]` has its own CSS rule for the same reason theirs do.
+     PAPER MEANS PAPER: every fill on this screen is simulated by the server from the feed's LTP.
+     paper.js owns everything below. -->
+<section class="paperw" id="paper" hidden role="region" aria-labelledby="paperTitle">
+  <div class="pp-box">
+    <header class="scan-h pp-h">
+      <div class="scan-title">
+        <h2 id="paperTitle">Paper trading</h2>
+        <div class="scan-sub">
+          <span class="statechip warn pp-badge">PAPER · no real orders</span>
+          <span class="statechip flat" id="ppMode"></span>
+          <span class="scan-meta" id="ppStatus">Loading…</span>
+        </div>
+      </div>
+      <span class="grow"></span>
+      <div class="pp-pnl">
+        <span class="pp-lab">Day P&amp;L · gross</span>
+        <b class="pp-num" id="ppPnl">—</b>
+        <span class="pp-sub" id="ppPnlSub"></span>
+      </div>
+      <button class="tog" id="ppArm" type="button" aria-pressed="false">Arm auto-trading</button>
+      <button class="tog" id="ppExitAll" type="button">Square off all</button>
+      <button class="tog primary" id="ppRun" type="button" hidden>Run now</button>
+    </header>
+    <p class="pp-rules" id="ppRules"></p>
+    <div class="pp-body" id="ppBody"></div>
   </div>
 </section>
 
@@ -430,6 +463,7 @@
 <script type="module" src="/app.js"></script>
 <script type="module" src="/scan.js"></script>
 <script type="module" src="/ltp.js"></script>
+<script type="module" src="/paper.js"></script>
 <script type="module" src="/candles.js"></script>
 <!-- last: panes.js dispatches `greeks` on load, and app.js has to have registered its listener
      by then. Module scripts run in document order, so being last is the whole guarantee. -->
