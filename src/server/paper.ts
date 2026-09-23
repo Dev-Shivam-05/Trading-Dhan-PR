@@ -552,7 +552,10 @@ export class PaperTrader {
   onFeedTick(t: Tick) {
     if (t.seg !== 'NSE_FNO' || t.ltp === null) return;
     if (!this.ledger.positions.some(p => p.securityId === t.securityId && live(p))) return;
-    if (onTick(this.ledger, t.securityId, t.ltp, this.now())) {
+    // The feed decodes a float32: 1259.24 arrives as 1259.2399902…, which would miss a 1259.24
+    // target by a hair. Exchange prices are whole paise, so round the decoding noise away here.
+    const ltp = Math.round(t.ltp * 100) / 100;
+    if (onTick(this.ledger, t.securityId, ltp, this.now())) {
       this.syncWants();
       void this.flush(true);
     } else this.dirty = true;
