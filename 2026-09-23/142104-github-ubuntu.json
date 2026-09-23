@@ -1,0 +1,769 @@
+{
+  "meta": {
+    "date": "2026-09-23",
+    "time": "14:21:04",
+    "weekday": "Wed",
+    "runner": "github-ubuntu",
+    "host": "runnervmlun5p",
+    "status": "ok",
+    "note": "NSE data for 2026-09-23"
+  },
+  "result": {
+    "source": "nse",
+    "mode": "live",
+    "at": "2026-09-23T08:51:29.778Z",
+    "n": 20,
+    "reused": false,
+    "market": {
+      "status": "Open",
+      "priceAsOf": "23-Sep-2026 14:21:27",
+      "oiAsOf": "23-Sep-2026 14:20:01",
+      "tradeDate": "2026-09-23",
+      "prevTradingDate": "2026-09-22"
+    },
+    "evidence": [
+      ".cache/nse/2026-09-23-142127-fno-securities.json",
+      ".cache/nse/2026-09-23-142127-oi-spurts.json"
+    ],
+    "funnel": {
+      "list": 210,
+      "scored": 210,
+      "ranked": 40,
+      "chg": 24,
+      "oi": 11
+    },
+    "long": [
+      {
+        "symbol": "POLICYBZR",
+        "name": "PB Fintech Limited",
+        "ltp": 1891.6,
+        "prevClose": 1805,
+        "chgPct": 4.8,
+        "volume": 1461887,
+        "latestOi": 47936,
+        "prevOi": 38644,
+        "oiPct": 24.05
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "name": "Bandhan Bank Limited",
+        "ltp": 192.15,
+        "prevClose": 184.7,
+        "chgPct": 4.03,
+        "volume": 38035541,
+        "latestOi": 63767,
+        "prevOi": 44302,
+        "oiPct": 43.94
+      },
+      {
+        "symbol": "MOTILALOFS",
+        "name": "Motilal Oswal Financial Services Limited",
+        "ltp": 1046,
+        "prevClose": 1007,
+        "chgPct": 3.87,
+        "volume": 1819880,
+        "latestOi": 16979,
+        "prevOi": 13608,
+        "oiPct": 24.77
+      },
+      {
+        "symbol": "360ONE",
+        "name": "360 ONE WAM LIMITED",
+        "ltp": 1114.9,
+        "prevClose": 1073.5,
+        "chgPct": 3.86,
+        "volume": 2937988,
+        "latestOi": 22434,
+        "prevOi": 16512,
+        "oiPct": 35.86
+      },
+      {
+        "symbol": "RADICO",
+        "name": "Radico Khaitan Limited",
+        "ltp": 4592.4,
+        "prevClose": 4448.8,
+        "chgPct": 3.23,
+        "volume": 397174,
+        "latestOi": 20314,
+        "prevOi": 14464,
+        "oiPct": 40.45
+      },
+      {
+        "symbol": "TATASTEEL",
+        "name": "Tata Steel Limited",
+        "ltp": 190.83,
+        "prevClose": 184.97,
+        "chgPct": 3.17,
+        "volume": 30746675,
+        "latestOi": 210292,
+        "prevOi": 188899,
+        "oiPct": 11.33
+      },
+      {
+        "symbol": "IDFCFIRSTB",
+        "name": "IDFC First Bank Limited",
+        "ltp": 87.87,
+        "prevClose": 85.37,
+        "chgPct": 2.93,
+        "volume": 57510802,
+        "latestOi": 76011,
+        "prevOi": 70196,
+        "oiPct": 8.28
+      },
+      {
+        "symbol": "PHOENIXLTD",
+        "name": "The Phoenix Mills Limited",
+        "ltp": 2003.1,
+        "prevClose": 1953.4,
+        "chgPct": 2.54,
+        "volume": 484502,
+        "latestOi": 17216,
+        "prevOi": 15957,
+        "oiPct": 7.89
+      }
+    ],
+    "short": [
+      {
+        "symbol": "ATHERENERG",
+        "name": "Ather Energy Limited",
+        "ltp": 1491,
+        "prevClose": 1543.8,
+        "chgPct": -3.42,
+        "volume": 5581164,
+        "latestOi": 56789,
+        "prevOi": 46780,
+        "oiPct": 21.4
+      },
+      {
+        "symbol": "INOXWIND",
+        "name": "Inox Wind Limited",
+        "ltp": 75.68,
+        "prevClose": 77.9,
+        "chgPct": -2.85,
+        "volume": 12700190,
+        "latestOi": 32150,
+        "prevOi": 26251,
+        "oiPct": 22.47
+      },
+      {
+        "symbol": "PERSISTENT",
+        "name": "Persistent Systems Limited",
+        "ltp": 5235,
+        "prevClose": 5366,
+        "chgPct": -2.44,
+        "volume": 285745,
+        "latestOi": 63620,
+        "prevOi": 55073,
+        "oiPct": 15.52
+      }
+    ],
+    "skipped": [],
+    "excluded": [],
+    "rejected": {
+      "rank": 170,
+      "chg": 16,
+      "oi": 13
+    },
+    "trace": [
+      {
+        "symbol": "SAIL",
+        "side": "gainer",
+        "chgPct": 6.07,
+        "oiPct": -0.17,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "POLICYBZR",
+        "side": "gainer",
+        "chgPct": 4.8,
+        "oiPct": 24.05,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "side": "gainer",
+        "chgPct": 4.03,
+        "oiPct": 43.94,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MOTILALOFS",
+        "side": "gainer",
+        "chgPct": 3.87,
+        "oiPct": 24.77,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "360ONE",
+        "side": "gainer",
+        "chgPct": 3.86,
+        "oiPct": 35.86,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "KEI",
+        "side": "gainer",
+        "chgPct": 3.66,
+        "oiPct": -9.12,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "RADICO",
+        "side": "gainer",
+        "chgPct": 3.23,
+        "oiPct": 40.45,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "TATASTEEL",
+        "side": "gainer",
+        "chgPct": 3.17,
+        "oiPct": 11.33,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "JINDALSTEL",
+        "side": "gainer",
+        "chgPct": 3.15,
+        "oiPct": 6.08,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "IDFCFIRSTB",
+        "side": "gainer",
+        "chgPct": 2.93,
+        "oiPct": 8.28,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "SONACOMS",
+        "side": "gainer",
+        "chgPct": 2.84,
+        "oiPct": 2.62,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "NATIONALUM",
+        "side": "gainer",
+        "chgPct": 2.78,
+        "oiPct": 2.05,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "CAMS",
+        "side": "gainer",
+        "chgPct": 2.77,
+        "oiPct": -1.35,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "UNITDSPR",
+        "side": "gainer",
+        "chgPct": 2.71,
+        "oiPct": 6.74,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "LODHA",
+        "side": "gainer",
+        "chgPct": 2.67,
+        "oiPct": 1.86,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "PHOENIXLTD",
+        "side": "gainer",
+        "chgPct": 2.54,
+        "oiPct": 7.89,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "VMM",
+        "side": "gainer",
+        "chgPct": 2.53,
+        "oiPct": 3.54,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "MCX",
+        "side": "gainer",
+        "chgPct": 2.5,
+        "oiPct": 5.53,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "VEDL",
+        "side": "gainer",
+        "chgPct": 2.49,
+        "oiPct": 0.5,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BAJFINANCE",
+        "side": "gainer",
+        "chgPct": 2.47,
+        "oiPct": 4.57,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "ATHERENERG",
+        "side": "loser",
+        "chgPct": -3.42,
+        "oiPct": 21.4,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "INOXWIND",
+        "side": "loser",
+        "chgPct": -2.85,
+        "oiPct": 22.47,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PERSISTENT",
+        "side": "loser",
+        "chgPct": -2.44,
+        "oiPct": 15.52,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PAYTM",
+        "side": "loser",
+        "chgPct": -2.11,
+        "oiPct": 1.69,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "SWIGGY",
+        "side": "loser",
+        "chgPct": -1.9,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "LUPIN",
+        "side": "loser",
+        "chgPct": -1.82,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "SUZLON",
+        "side": "loser",
+        "chgPct": -1.79,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "LTM",
+        "side": "loser",
+        "chgPct": -1.55,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "OFSS",
+        "side": "loser",
+        "chgPct": -1.31,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "UPL",
+        "side": "loser",
+        "chgPct": -1.29,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "COALINDIA",
+        "side": "loser",
+        "chgPct": -1.21,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "INFY",
+        "side": "loser",
+        "chgPct": -1.1,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ADANIPOWER",
+        "side": "loser",
+        "chgPct": -1.08,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "TCS",
+        "side": "loser",
+        "chgPct": -1.05,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BHEL",
+        "side": "loser",
+        "chgPct": -0.99,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "COCHINSHIP",
+        "side": "loser",
+        "chgPct": -0.99,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BOSCHLTD",
+        "side": "loser",
+        "chgPct": -0.97,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "HCLTECH",
+        "side": "loser",
+        "chgPct": -0.97,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ADANIGREEN",
+        "side": "loser",
+        "chgPct": -0.94,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "SOLARINDS",
+        "side": "loser",
+        "chgPct": -0.88,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      }
+    ],
+    "reconciles": true,
+    "elapsedMs": 25272,
+    "error": null
+  },
+  "wider": [
+    {
+      "n": 25,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 50,
+        "chg": 29,
+        "oi": 13
+      },
+      "long": [
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1891.6,
+          "prevClose": 1805,
+          "chgPct": 4.8,
+          "volume": 1461887,
+          "latestOi": 47936,
+          "prevOi": 38644,
+          "oiPct": 24.05
+        },
+        {
+          "symbol": "BANDHANBNK",
+          "name": "Bandhan Bank Limited",
+          "ltp": 192.15,
+          "prevClose": 184.7,
+          "chgPct": 4.03,
+          "volume": 38035541,
+          "latestOi": 63767,
+          "prevOi": 44302,
+          "oiPct": 43.94
+        },
+        {
+          "symbol": "MOTILALOFS",
+          "name": "Motilal Oswal Financial Services Limited",
+          "ltp": 1046,
+          "prevClose": 1007,
+          "chgPct": 3.87,
+          "volume": 1819880,
+          "latestOi": 16979,
+          "prevOi": 13608,
+          "oiPct": 24.77
+        },
+        {
+          "symbol": "360ONE",
+          "name": "360 ONE WAM LIMITED",
+          "ltp": 1114.9,
+          "prevClose": 1073.5,
+          "chgPct": 3.86,
+          "volume": 2937988,
+          "latestOi": 22434,
+          "prevOi": 16512,
+          "oiPct": 35.86
+        },
+        {
+          "symbol": "RADICO",
+          "name": "Radico Khaitan Limited",
+          "ltp": 4592.4,
+          "prevClose": 4448.8,
+          "chgPct": 3.23,
+          "volume": 397174,
+          "latestOi": 20314,
+          "prevOi": 14464,
+          "oiPct": 40.45
+        },
+        {
+          "symbol": "TATASTEEL",
+          "name": "Tata Steel Limited",
+          "ltp": 190.83,
+          "prevClose": 184.97,
+          "chgPct": 3.17,
+          "volume": 30746675,
+          "latestOi": 210292,
+          "prevOi": 188899,
+          "oiPct": 11.33
+        },
+        {
+          "symbol": "IDFCFIRSTB",
+          "name": "IDFC First Bank Limited",
+          "ltp": 87.87,
+          "prevClose": 85.37,
+          "chgPct": 2.93,
+          "volume": 57510802,
+          "latestOi": 76011,
+          "prevOi": 70196,
+          "oiPct": 8.28
+        },
+        {
+          "symbol": "PHOENIXLTD",
+          "name": "The Phoenix Mills Limited",
+          "ltp": 2003.1,
+          "prevClose": 1953.4,
+          "chgPct": 2.54,
+          "volume": 484502,
+          "latestOi": 17216,
+          "prevOi": 15957,
+          "oiPct": 7.89
+        },
+        {
+          "symbol": "HINDALCO",
+          "name": "Hindalco Industries Limited",
+          "ltp": 995.9,
+          "prevClose": 973,
+          "chgPct": 2.35,
+          "volume": 3974953,
+          "latestOi": 124695,
+          "prevOi": 112776,
+          "oiPct": 10.57
+        },
+        {
+          "symbol": "APOLLOHOSP",
+          "name": "Apollo Hospitals Enterprise Limited",
+          "ltp": 9042,
+          "prevClose": 8835.5,
+          "chgPct": 2.34,
+          "volume": 259187,
+          "latestOi": 42416,
+          "prevOi": 39157,
+          "oiPct": 8.32
+        }
+      ],
+      "short": [
+        {
+          "symbol": "ATHERENERG",
+          "name": "Ather Energy Limited",
+          "ltp": 1491,
+          "prevClose": 1543.8,
+          "chgPct": -3.42,
+          "volume": 5581164,
+          "latestOi": 56789,
+          "prevOi": 46780,
+          "oiPct": 21.4
+        },
+        {
+          "symbol": "INOXWIND",
+          "name": "Inox Wind Limited",
+          "ltp": 75.68,
+          "prevClose": 77.9,
+          "chgPct": -2.85,
+          "volume": 12700190,
+          "latestOi": 32150,
+          "prevOi": 26251,
+          "oiPct": 22.47
+        },
+        {
+          "symbol": "PERSISTENT",
+          "name": "Persistent Systems Limited",
+          "ltp": 5235,
+          "prevClose": 5366,
+          "chgPct": -2.44,
+          "volume": 285745,
+          "latestOi": 63620,
+          "prevOi": 55073,
+          "oiPct": 15.52
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 60,
+        "chg": 32,
+        "oi": 13
+      },
+      "long": [
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1891.6,
+          "prevClose": 1805,
+          "chgPct": 4.8,
+          "volume": 1461887,
+          "latestOi": 47936,
+          "prevOi": 38644,
+          "oiPct": 24.05
+        },
+        {
+          "symbol": "BANDHANBNK",
+          "name": "Bandhan Bank Limited",
+          "ltp": 192.15,
+          "prevClose": 184.7,
+          "chgPct": 4.03,
+          "volume": 38035541,
+          "latestOi": 63767,
+          "prevOi": 44302,
+          "oiPct": 43.94
+        },
+        {
+          "symbol": "MOTILALOFS",
+          "name": "Motilal Oswal Financial Services Limited",
+          "ltp": 1046,
+          "prevClose": 1007,
+          "chgPct": 3.87,
+          "volume": 1819880,
+          "latestOi": 16979,
+          "prevOi": 13608,
+          "oiPct": 24.77
+        },
+        {
+          "symbol": "360ONE",
+          "name": "360 ONE WAM LIMITED",
+          "ltp": 1114.9,
+          "prevClose": 1073.5,
+          "chgPct": 3.86,
+          "volume": 2937988,
+          "latestOi": 22434,
+          "prevOi": 16512,
+          "oiPct": 35.86
+        },
+        {
+          "symbol": "RADICO",
+          "name": "Radico Khaitan Limited",
+          "ltp": 4592.4,
+          "prevClose": 4448.8,
+          "chgPct": 3.23,
+          "volume": 397174,
+          "latestOi": 20314,
+          "prevOi": 14464,
+          "oiPct": 40.45
+        },
+        {
+          "symbol": "TATASTEEL",
+          "name": "Tata Steel Limited",
+          "ltp": 190.83,
+          "prevClose": 184.97,
+          "chgPct": 3.17,
+          "volume": 30746675,
+          "latestOi": 210292,
+          "prevOi": 188899,
+          "oiPct": 11.33
+        },
+        {
+          "symbol": "IDFCFIRSTB",
+          "name": "IDFC First Bank Limited",
+          "ltp": 87.87,
+          "prevClose": 85.37,
+          "chgPct": 2.93,
+          "volume": 57510802,
+          "latestOi": 76011,
+          "prevOi": 70196,
+          "oiPct": 8.28
+        },
+        {
+          "symbol": "PHOENIXLTD",
+          "name": "The Phoenix Mills Limited",
+          "ltp": 2003.1,
+          "prevClose": 1953.4,
+          "chgPct": 2.54,
+          "volume": 484502,
+          "latestOi": 17216,
+          "prevOi": 15957,
+          "oiPct": 7.89
+        },
+        {
+          "symbol": "HINDALCO",
+          "name": "Hindalco Industries Limited",
+          "ltp": 995.9,
+          "prevClose": 973,
+          "chgPct": 2.35,
+          "volume": 3974953,
+          "latestOi": 124695,
+          "prevOi": 112776,
+          "oiPct": 10.57
+        },
+        {
+          "symbol": "APOLLOHOSP",
+          "name": "Apollo Hospitals Enterprise Limited",
+          "ltp": 9042,
+          "prevClose": 8835.5,
+          "chgPct": 2.34,
+          "volume": 259187,
+          "latestOi": 42416,
+          "prevOi": 39157,
+          "oiPct": 8.32
+        }
+      ],
+      "short": [
+        {
+          "symbol": "ATHERENERG",
+          "name": "Ather Energy Limited",
+          "ltp": 1491,
+          "prevClose": 1543.8,
+          "chgPct": -3.42,
+          "volume": 5581164,
+          "latestOi": 56789,
+          "prevOi": 46780,
+          "oiPct": 21.4
+        },
+        {
+          "symbol": "INOXWIND",
+          "name": "Inox Wind Limited",
+          "ltp": 75.68,
+          "prevClose": 77.9,
+          "chgPct": -2.85,
+          "volume": 12700190,
+          "latestOi": 32150,
+          "prevOi": 26251,
+          "oiPct": 22.47
+        },
+        {
+          "symbol": "PERSISTENT",
+          "name": "Persistent Systems Limited",
+          "ltp": 5235,
+          "prevClose": 5366,
+          "chgPct": -2.44,
+          "volume": 285745,
+          "latestOi": 63620,
+          "prevOi": 55073,
+          "oiPct": 15.52
+        }
+      ]
+    }
+  ]
+}
