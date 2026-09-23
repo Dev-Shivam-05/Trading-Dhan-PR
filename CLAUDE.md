@@ -534,3 +534,9 @@ wrong, which is exactly the failure this project's verification bar exists to pr
 
 **And the terminology trap that will silently corrupt any implementation: in this product
 "Max Pain" means STOP LOSS and "Max Gain" means TARGET.** Neither carries its industry meaning.
+
+## A replay server on 8787 overnight lets the token die before the open
+`index.ts` calls `keepAlive(creds)` only when `!isReplay()`, and `shouldRenew` refuses between 09:00
+and 15:45 IST. So if replay holds 8787 overnight, nothing renews: on 23 Sep the token would have
+expired at 05:43 IST, before a 09:36 armed run. **Anything that needs live data at the open needs a
+live `npm run dev` running the evening before.** It renews as soon as it starts.
