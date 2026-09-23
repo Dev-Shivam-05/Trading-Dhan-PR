@@ -1,52 +1,45 @@
-# HANDOFF — Dhan Terminal — Phase P30 — 2026-09-23
+# HANDOFF — Dhan Terminal — Phase P31 (setup only) — 2026-09-23
 
-> P29's handoff is in git history at `1add63d` and its board row is in `docs/PHASES.md`.
+> P30's handoff is in git history at `e124207`, and its board row is in `docs/PHASES.md`.
 
-Branch **`p30-health-session`** (cut from `p29-ltp-spec`), **pushed**. Commits `71b2317` (fix), `97ce376`
-(docs), plus this handoff.
+Branch **`p31-open-session`**, cut from `p30-health-session`. The only commit is this handoff and the board update.
 
 ## Done
-- `/api/health` and `/api/instruments` now report each chip's session as of **the request**, not as
-  of server boot. Before, a server started at 06:10 said `pre-open` until 15:00. That is why P29's
-  armed open-session run never fired on 23 Sep (`.cache/p29-open-run.log`: 43 "pre-open" lines,
-  09:49–14:47). It is also why the chip rail's open dot would not have lit.
-- `npm run session:test` passes **11/11** with an injected clock. It covers the bell, 09:14, the
-  15:30 close, the MCX DST close, Saturday, and the frozen registry giving the wrong answer at 10:00.
-- Route-level check: a new-build replay server on 8791 read GOLD `open (19:13 IST)` and then
-  `open (19:14 IST)` 65 s later. At the same time the old build on 8787 stayed at `open (19:12 IST)`,
-  its boot minute. `tsc --noEmit` is clean.
-- **Armed:** `.cache/p30-at-open.js` is running detached as **PID 24376** for **2026-09-24**. It starts
-  at 09:36 IST, gives up at 15:00, and writes to `.cache/p30-open-run.log`. An hourly heartbeat marks
-  when the machine was asleep.
+- **8787 is a LIVE server built from P30** (PID **16036**, started 19:25 IST, `npm run dev` detached,
+  log `.cache/p31-dev.log`). Checked: exactly one listener on 8787, zero `EADDRINUSE`, `/api/health` `mode=live`,
+  and GOLD reads `open (19:25 IST)`, which shows the per-request session is working.
+- `npm run check` reported **READY** before the server started.
+- The token was renewed at start and now expires **Thu 24 Sep 19:25 IST**. That is after Thursday's session.
+  If the replay server had stayed on 8787, the token would have died at **05:43 IST Thu**, because a replay
+  server never renews and `shouldRenew` blocks renewal between 09:00 and 15:45. The armed run would then
+  have found a dead token.
+- The replay server that held 8787 (PID 7060, started 19:12 on the P29 build) was killed **by PID** after
+  `ListAgents` showed no peer session alive.
+- The armed runner **PID 24376** is still waiting for **Thu 24 Sep 09:36 IST** → `.cache/p30-open-run.log`.
 
 ## Files changed
-- `src/server/instruments.ts` — `withLiveSession()` re-derives `session` from `sessionState(now)`.
-- `src/server/index.ts` — `/api/health` and `/api/instruments` go through it.
-- `scripts/session-test.ts` and `package.json` (`session:test`) — the injected-clock proof.
-- `.cache/p30-at-open.js` (gitignored) — the re-armed runner. It waits for a date, keeps re-checking a
-  replay or stopped server, and names the stale-session case.
-- `docs/PHASES.md`, `CLAUDE.md`, `docs/DECISIONS.md` — the board row, the lesson and the decision.
+- `docs/HANDOFF.md`, `docs/PHASES.md`, `docs/DECISIONS.md`: handoff, board and decisions. No code changed.
 
 ## Decisions made
-- Fixed at the route, not by re-resolving the registry. Re-resolving would re-download the master
-  and re-run the GOLD spike, which is too much work to get one clock-derived field.
-- The runner keeps waiting when the server is in replay instead of exiting. That way, a live server
-  started late in the morning still gets measured.
+- The live server was started on Wednesday night, not Thursday morning. The token would otherwise have expired
+  before the 09:36 run.
+- **The user's direction for the next session:** build an **auto trading system that PAPER trades, driven from
+  the front page (the UI)**. It is boarded as **P32**. P31 (reading Thursday's open-session log) stays open
+  and can be closed in any later session. The log stays on disk.
 
 ## Known broken / deliberately skipped
-- **8787 is running a REPLAY server that this session did not start** (PID 7060, started 19:12,
-  `--env-file-if-exists=.env`). It also predates P30. I did not touch it, because it may belong to
-  the user or a peer. The armed run will log `server is replay` until a **live** server built from
-  P30 or later owns 8787.
-- The runner's "stale session" message has not been exercised live, because no pre-P30 live server
-  was available to point it at. Only its give-up branch and its replay branch were dry-run.
-- Laptop sleep: the P29 log has a gap from 09:49 to 14:06. Nothing in a script can prevent that.
-- The `ltp-calculator-v1.md` L4–L10 layers are still unspecified (P31+). They need intraday history.
+- **The laptop sleeps after 3 minutes idle on mains power** (`powercfg` STANDBYIDLE AC = 180 s). If it is
+  asleep at 09:36, the server and the runner freeze until it wakes, and the runner gives up at 15:00. I did not
+  change the setting, because it is the user's machine.
+- P31's actual work (closing P8 AC5, P12b, P19/P9 on NSE, P21 and the NSE `last_price` lag from the log) needs
+  Thursday's data. Nothing was measured tonight.
 
 ## Next session starts here
-- Phase P31: read Thursday's open-session results and close the board's open-session criteria
-  (P8 AC5, P12b, P19/P9 on NSE, P21, and NSE `last_price` lag).
-- First command: `cat .cache/p30-open-run.log`
-- Watch out for: the run needs a **live** server on 8787 before 09:36 on Thu 24 Sep. If 8787 is
-  still the replay one, kill it by PID (never `//IM node.exe`) and start `npm run dev`, then confirm
-  that exactly one server is listening.
+- Phase P32: the auto paper-trading system, run from the front page. It needs a spec locked first. Strategy
+  and entry signal, exit (target / stop), position size, instruments, and what the UI shows are all
+  **undefined**, so run `spec-lock` and propose exact values before writing any code.
+- First command: `git checkout -b p32-paper-trading` (then `cat .cache/p30-open-run.log` to see whether
+  Thursday's run landed)
+- Watch out for: **paper means paper.** Never call a Dhan order endpoint (`/v2/orders` or any other). Fills are
+  simulated locally from the LTP the app already has. Replay and live must keep **separate** paper ledgers,
+  chosen by `isReplay()`, or replay's synthetic fills will mix into the live P&L.

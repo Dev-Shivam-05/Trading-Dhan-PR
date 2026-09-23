@@ -572,3 +572,14 @@ The registry is memoised at boot, so its `session` field was the state at boot. 
 would re-download the master and re-run the GOLD spike to refresh one clock-derived field. The
 armed open-session runner now waits for a date as well as a time, and keeps re-checking a replay
 or stopped server until 15:00 rather than exiting.
+
+## 2026-09-23 — P31 setup: the live server starts the night before, not at the open
+A replay server never renews the Dhan token, and `shouldRenew` refuses between 09:00 and 15:45.
+With replay on 8787 overnight, the token expired at 05:43 IST, before the 09:36 armed run. So the
+live server is started the evening before; on start it renewed to 19:25 IST the next day. The replay
+server was killed by PID only after `ListAgents` showed no live peer session.
+
+## 2026-09-23 — P32 boarded: auto trading is PAPER trading, operated from the UI
+User's direction. No Dhan order endpoint is called; fills are simulated from the LTP the app already
+streams. Strategy, exit, size, instruments and UI are unspecified and go through `spec-lock` first.
+Replay and live keep separate ledgers (same rule as every other persisted cache here).
