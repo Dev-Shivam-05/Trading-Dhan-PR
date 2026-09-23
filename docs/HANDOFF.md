@@ -139,9 +139,18 @@ That covers every remaining open-session criterion on the board:
    and a GitHub token store as *"Data Exfiltration"*. **(a)** PC + tunnel, everything works but only
    while this PC is on; **(b)** an always-on host with a persistent disk, your account and a paid
    plan. **Not Vercel** — exactly one long-lived process may own the Dhan token.
-5. **The stacked branches.** Now **79 commits** ahead of `main`, in the order
+5. **The stacked branches.** Now **81 commits** ahead of `main`, in the order
    p6 → … → p20 → p21 → p22 → p23 → p24 → p26 → p25 → **p29**. Merging out of order will not work.
-6. **P9's opening-candle question** — the 09:36 run will print the two counts. One word after that.
+6. **P9's opening-candle question — and the board's premise for it was wrong.** Measured on the
+   finished 22-Sep session, 18 contracts around the ATM, both sides
+   (`node .cache/p9-opening-question.js`, `SPAN=4`): **2 of 36 signals land in 09:15–09:34 — 6%.**
+   The board has said since 2026-09-19 that *"every live blue fires in the first 20 minutes"*.
+   On this session almost none does. The first half of the premise **is** confirmed — `median20` at
+   09:15 is far below the session's own first-20 median, four-fold on some strikes (23450 CE:
+   23,692 against 98,312) — but a depressed volume baseline is not sufficient on its own, because
+   row 7's OI half must fire too and OI has barely moved by 09:20. One session, one instrument, one
+   expiry; the 09:36 run adds today's. **If this holds, there is nothing to fix and the question
+   closes as "leave it".**
 7. **`gh secret set NTFY_TOPIC`** and a Telegram bot.
 
 ## Known broken / deliberately skipped

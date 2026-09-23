@@ -135,6 +135,17 @@ script's own (a 14px Style-button icon matched instead of the chart surface; `in
 coordinate instead of a chart-local one; a pan asserted on a fully-fitted view, where row 7
 correctly clamps it to a no-op).
 
+**P9's opening-candle premise, measured — and it does not hold.** The board has said since
+2026-09-19 that *"every live blue fires in the first 20 minutes, because `median20` at the open
+reaches back into yesterday's quiet tail."* Counted on the finished 22-Sep session across 18
+contracts around the ATM, both sides: **2 of 36 signals land in 09:15–09:34 — 6%.** The first half
+of the premise is real — `median20` at 09:15 sits far below the session's own first-20 median, four-
+fold on some strikes (23,450 CE: 23,692 against 98,312) — but it is **not sufficient**, because row
+7's OI half must fire as well and OI has barely moved by 09:20. One session, one instrument, one
+expiry, so the 09:36 run adds today's. `node .cache/p9-opening-question.js` (`SPAN=4`). Its first
+run lost 6 of 10 contracts to `DH-904` and would have concluded from the 4 that survived; it is
+paced now.
+
 ## Next 3
 1. **Answer spec row 12 (OQ-1) in one word** — `go` / `theoretical` / `api` / `hold` — and the
    rest of `docs/spec/ltp-calculator-v1.md` with one `go`. Then build L0–L3 + L6.
