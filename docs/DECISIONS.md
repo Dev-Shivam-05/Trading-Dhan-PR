@@ -597,3 +597,10 @@ A Run now pressed at 21:00 would meet the 15:15 square-off in the same second. T
 exempting replay positions from the clock rules — would have left the 09:30 and 15:15 branches
 untested in replay. So the press is mapped to 09:20:00 IST and the offset is persisted in the replay
 ledger (a restart must not jump the clock to 21:00). Live's offset is always 0; live has no Run now.
+
+## 2026-09-23 — `L` is bound twice; left for the user rather than chosen here
+The P32 regression sweep found p10b's drawer-drag check red (29/1). `app.js:729` binds `L` to the
+telemetry drawer (terminal-redesign-v1) and P29's `ltp.js:290` binds the same key to the LTP
+workspace, with no spec row giving it one. Both fire, the overlay covers the drawer grip. Choosing
+which feature keeps `L` changes a documented shortcut, so it is the user's call; the check was not
+loosened.

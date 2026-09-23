@@ -1,45 +1,69 @@
-# HANDOFF — Dhan Terminal — Phase P31 (setup only) — 2026-09-23
+# HANDOFF — Dhan Terminal — Phase P32 — 2026-09-23
 
-> P30's handoff is in git history at `e124207`, and its board row is in `docs/PHASES.md`.
+> P31's setup handoff is in git history at `0f4f733`.
 
-Branch **`p31-open-session`**, cut from `p30-health-session`. The only commit is this handoff and the board update.
+Branch **`p32-paper-trading`**, cut from `p31-open-session`, pushed to origin.
 
 ## Done
-- **8787 is a LIVE server built from P30** (PID **16036**, started 19:25 IST, `npm run dev` detached,
-  log `.cache/p31-dev.log`). Checked: exactly one listener on 8787, zero `EADDRINUSE`, `/api/health` `mode=live`,
-  and GOLD reads `open (19:25 IST)`, which shows the per-request session is working.
-- `npm run check` reported **READY** before the server started.
-- The token was renewed at start and now expires **Thu 24 Sep 19:25 IST**. That is after Thursday's session.
-  If the replay server had stayed on 8787, the token would have died at **05:43 IST Thu**, because a replay
-  server never renews and `shouldRenew` blocks renewal between 09:00 and 15:45. The armed run would then
-  have found a dead token.
-- The replay server that held 8787 (PID 7060, started 19:12 on the P29 build) was killed **by PID** after
-  `ListAgents` showed no peer session alive.
-- The armed runner **PID 24376** is still waiting for **Thu 24 Sep 09:36 IST** → `.cache/p30-open-run.log`.
+- **Auto paper-trading works in replay.** When armed, the server runs the P14 NSE scan at 09:20 IST.
+  It BUYs the Long list's near-month futures and SELLs the Short list's (1 lot each, at most 10,
+  entries until 09:30). Each position fills at the first feed tick and exits at stop 1%, target 2%
+  or 15:15. No Dhan order endpoint exists in `src/` (checked by grep).
+- **A fourth workspace, Paper.** It has the arm toggle, a status line, gross day P&L, Square off
+  all, Run now (replay only), and three tables: Open, Closed today and Last 5 days. It survives a
+  reload.
+- **The LTP Calculator now survives a reload too.** It never did before. See the decision below.
+- **Verification, all run:**
+  - `npm run paper:test`: 70/70.
+  - `.cache/p32-verify.js` on a replay server: 18/18 (open), 19/19 (resume after kill + restart),
+    6/6 (scan failed).
+  - Every P&L was recomputed in integer paise and matched the state, the screen and the ledger file.
+  - Five states were screenshotted and read. The screenshots showed three layout defects, all fixed.
+  - AC11 regression sweep, 21 suites one at a time: all green except p10b at 29/1. That red is a
+    P29 defect, described below.
+- The live ledger `.cache/paper-ledger.json` does not exist yet. Replay wrote only
+  `paper-ledger.replay.json` (AC6).
 
 ## Files changed
-- `docs/HANDOFF.md`, `docs/PHASES.md`, `docs/DECISIONS.md`: handoff, board and decisions. No code changed.
+- `docs/spec/paper-trading-v1.md`: the locked spec. 18 rows plus amendments 19–23.
+- `src/server/paper.ts`: the pure rules (clock injected) and the `PaperTrader` I/O shell (timer,
+  ledger, feed subscriptions).
+- `src/server/index.ts`: the trader wired to the feed under a reserved `feedWants` key, the
+  `/api/paper*` routes (bodies validated), and a `/paper.js` STATIC row.
+- `public/paper.js`, `public/index.html`, `public/app.css`: the Paper workspace.
+- `public/scan.js`, `public/ltp.js`: a fix so workspaces persist across a reload.
+- `scripts/paper-test.ts`, `package.json` (`paper:test`): the unit acceptance criteria.
+- `docs/PHASES.md`, `docs/DECISIONS.md`, `docs/spec/GLOSSARY.md`, `CLAUDE.md`: board, decisions,
+  three terms, and two lessons.
 
 ## Decisions made
-- The live server was started on Wednesday night, not Thursday morning. The token would otherwise have expired
-  before the 09:36 run.
-- **The user's direction for the next session:** build an **auto trading system that PAPER trades, driven from
-  the front page (the UI)**. It is boarded as **P32**. P31 (reading Thursday's open-session log) stays open
-  and can be closed in any later session. The log stays on disk.
+- **Strategy.** Entry is the user's recorded 9:20 list. Exit, instrument, size and retry are GUESS
+  rows the user accepted with `go`. The trader lives in the server, so it runs without a browser tab.
+- **Replay's Run now maps the press to 09:20:00 IST.** The offset is persisted in the replay ledger.
+  Without it, the 15:15 rule would square everything off the same second.
+- **Feed LTPs are rounded to 0.01 before the rules see them.** They are decoded as float32, and
+  1259.24 would miss a 1259.24 target.
+- **Why workspaces lost their state on reload:** `scan.js` claimed every non-`chain` `ws` value,
+  and `ltp.js` saved `ws` before announcing itself, so the scanner overwrote it. Now each workspace
+  announces first and then saves.
 
 ## Known broken / deliberately skipped
-- **The laptop sleeps after 3 minutes idle on mains power** (`powercfg` STANDBYIDLE AC = 180 s). If it is
-  asleep at 09:36, the server and the runner freeze until it wakes, and the runner gives up at 15:00. I did not
-  change the setting, because it is the user's machine.
-- P31's actual work (closing P8 AC5, P12b, P19/P9 on NSE, P21 and the NSE `last_price` lag from the log) needs
-  Thursday's data. Nothing was measured tonight.
+- **The live 8787 server predates P32**, so `/paper.js` returns 404 there and the Paper tab does
+  nothing on the live screen. I tried to restart it and the session's permission classifier refused
+  ("Interfere With Workloads"), so I did not work around it. It is still PID 16036, live, with a
+  token valid until Thu 19:25 IST.
+- **AC10 (a live 09:20 entry) is unmeasured.** It needs the restart above, the Arm button pressed,
+  and the laptop awake at 09:20. The laptop sleeps after 3 minutes idle on mains.
+- **p10b 29/1: `L` is bound twice.** `app.js:729` toggles the drawer and `ltp.js:290` opens the LTP
+  Calculator. P29 added the second binding, and no spec row gives it that key. This needs the user's
+  call; I did not loosen the check.
+- Stop, target and 15:15 firing were proven in the unit tests only. In the browser run, every exit
+  was manual, because replay's walk takes minutes to move 1%.
 
 ## Next session starts here
-- Phase P32: the auto paper-trading system, run from the front page. It needs a spec locked first. Strategy
-  and entry signal, exit (target / stop), position size, instruments, and what the UI shows are all
-  **undefined**, so run `spec-lock` and propose exact values before writing any code.
-- First command: `git checkout -b p32-paper-trading` (then `cat .cache/p30-open-run.log` to see whether
-  Thursday's run landed)
-- Watch out for: **paper means paper.** Never call a Dhan order endpoint (`/v2/orders` or any other). Fills are
-  simulated locally from the LTP the app already has. Replay and live must keep **separate** paper ledgers,
-  chosen by `isReplay()`, or replay's synthetic fills will mix into the live P&L.
+- **Phase P31 + P32 AC10:** after Thursday's session, read the open-session run log and the live
+  paper ledger, and close both sets of criteria.
+- **First command, tonight:** `taskkill //F //PID 16036` then `npm run dev`. That restarts 8787 on
+  the P32 build. Then open the Paper tab and press **Arm auto-trading**.
+- **Watch out for:** a replay server on 8787 overnight. It never renews the token and has no live
+  ledger, so Thursday's 09:20 run and the 09:36 P31 run would both find nothing to measure.
