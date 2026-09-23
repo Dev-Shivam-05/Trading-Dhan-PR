@@ -17,6 +17,7 @@ import { CandleService, INTERVALS, type Interval } from './candles.ts';
 import { UnderlyingCandleService } from './ucandles.ts';
 import { PollerHub, type Snapshot, type PollerStatus } from './poller.ts';
 import { isReplay, replayBasePrice } from './replay.ts';
+import { readChain } from './ltp.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
@@ -343,6 +344,49 @@ app.get('/api/ucandles', async (req, reply) => {
   }
   const res = await ucandles.get(inst, interval);
   return { ...res, openNow: sessionState(inst.session.id).openNow };
+});
+
+/* --------------------------------------------- LTP Calculator (P29, L0-L3 + L6) */
+
+/**
+ * One reading of the chain by `ltp-calculator-v1.md`'s rules: the imaginary line, the ATM by
+ * highest TIME VALUE (not nearest spot — spec row 2), support and resistance by the outward scan,
+ * their grades, and the reversal-price ladder.
+ *
+ * It reads the poller's LAST snapshot and computes nothing from the network — spec row 8. A second
+ * Dhan call inside the poll loop is a cadence bug waiting to happen, and this is a second READING
+ * of a payload the option chain already subscribes to, not a second subscription.
+ *
+ * Expiry is validated against the instrument's own list for the same reason `/api/candles` does:
+ * unvalidated, every distinct value creates a ChainPoller that is never removed (~0.26 MB each,
+ * reachable with one query parameter and no credentials).
+ */
+app.get('/api/ltp', async (req, reply) => {
+  const q = req.query as Record<string, string>;
+  const inst = findInstrument(q.key ?? '');
+  if (!inst) return reply.code(404).send({ error: `unknown instrument ${q.key}` });
+  const expiry = q.expiry || inst.nearestExpiry;
+  if (!expiry) return reply.code(400).send({ error: `${inst.id} has no expiry` });
+  if (!inst.expiries.includes(expiry)) {
+    return reply.code(400).send({ error: `unknown expiry ${expiry} for ${inst.id}`, expiries: inst.expiries });
+  }
+
+  const poller = hub.get(inst, expiry);
+  const snap = poller.last;
+  if (!snap) {
+    return reply.code(503).send({
+      error: 'no snapshot yet',
+      note: 'the chain has not delivered its first poll for this expiry — retry in a few seconds',
+    });
+  }
+  return {
+    mode: isReplay() ? 'replay' : 'live',
+    instrument: inst.id, label: inst.label, expiry,
+    sessionOpen: sessionState(inst.session.id).openNow,
+    receivedAt: snap.receivedAt,
+    spotSource: snap.spotSource,
+    reading: readChain({ spot: snap.spot, rows: snap.rows }),
+  };
 });
 
 /* ----------------------------------------------------------------- SSE */

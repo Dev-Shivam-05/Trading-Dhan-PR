@@ -1,6 +1,7 @@
 # SPEC LOCK — P29 LTP Calculator, layer 0 to layer 6
 
-Status: **proposed** 2026-09-23 — every row is a value you can veto in one word.
+Status: **LOCKED** 2026-09-23 — approved by the user with `GO` on row 12 (OQ-1) and on the table.
+Implemented in `src/server/ltp.ts` (pure engine) and `/api/ltp`. `npm run ltp:test` — 29 checks.
 
 A future session with no memory of the approving conversation must be able to build the identical
 thing from this file. Implementation may not introduce a value that is not in this table.
@@ -180,7 +181,7 @@ Each is binary, and each is measurable **outside** market hours unless it says o
 | AC5 | The reversal ladder converges at expiry | `npm run oq1:live` on an expiring contract: ITM reversals land on spot, OTM on their own strike |
 | AC6 | The corpus's 17 worked pairs still reproduce | `npm run oq1:test` — 5/5, with the Sensex counter-example still present and still not scored |
 | AC7 | Resistance and support are found by the scan rule, not by the highlight | Fixture with the highest-volume strike **deep ITM** and a nearer qualifying strike: the nearer one wins. Both of V111/V112's counter-examples are in the fixture |
-| AC8 | Support never sits more than one strike ITM | Fixture that would place it two strikes ITM; the engine rejects it and names why |
+| AC8 | Support never sits more than one strike ITM | **Found while building: this bound is EMERGENT, not an independent filter.** The support scan starts at `pair.upper`, which is by definition the first strike ABOVE spot, so the deepest a put support can sit is that strike — at most one step ITM, and the rejection branch is unreachable through `locate()`. So it is tested as an invariant swept across 176 spot positions, not by a fixture engineered to reach a dead branch. The guard stays in `readChain` as defence-in-depth (an irregular ladder, or a pair supplied from elsewhere) |
 | AC9 | 75% is a threshold, not a range | Fixture at 74.99% → Strong; at 75.00% → WTT or WTB. **Both** must be exercised: a fixture where nothing is ever rejected has not tested the filter |
 | AC10 | The double-factor asymmetry is exercised in **all four** directions | Four fixtures: resistance-WTB-on-one, resistance-WTT-needs-both, support-WTT-on-one, support-WTB-needs-both. A fixture set that only shows agreement has not tested the asymmetry |
 | AC11 | Orientation: no rule is written in screen terms | Grep — `screenDir` is the only function in `src/server/ltp.ts` or the LTP client that mentions up/down, and `src/server/ltp.ts` does not import it |
