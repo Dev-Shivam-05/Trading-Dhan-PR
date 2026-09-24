@@ -595,3 +595,19 @@ three futures expiries summed MFSL +6.4%. Across the whole 24-Sep losing list NS
 near-month future read −1.4 to −30.5% (rollover, five days before expiry). NSE's number evidently includes options OI.
 So P37's proxy scan almost never passes the 7% filter, and **only a real 09:20 scan is evidence** — the backtest
 reports real and proxy days apart for this reason. The cash price change, by contrast, rebuilds within ~0.1–0.7 pp.
+
+## The sandbox's positions share ids with the live ones — never give them a live button
+A sandbox run of 24 Sep creates `2026-09-24-POLICYBZR`, exactly the live ledger's id for that day. The first Sandbox
+card reused the Paper tables, whose Cancel/Exit buttons post that id to `/api/paper/exit`, the **live** trader.
+Every sandbox table is rendered `readOnly`. Any new view of sandbox positions must be too.
+
+## The tick recorder changes the feed's subscription count all day
+From 09:14 to 15:31 the recorder adds about 2,300 instruments to the same socket union as the chain and Paper (key −2).
+P5's `subscriptions === 2 x strikes + 1` therefore does not hold on a live server during market hours. Check it on a
+replay server, or read the recorder's count from `/api/health`'s feed numbers first.
+
+## A verification server that reads live data needs its own CACHE_DIR and no push topic
+To drive the sandbox UI with real history at night, a second live-mode server was started on 8793 with
+`CACHE_DIR=<scratch copy of .cache/history + master>`, `NTFY_TOPIC=` and `TELEGRAM_BOT_TOKEN=` (an existing empty variable
+beats `--env-file`). Without its own CACHE_DIR it writes the live paper ledger. Without the empty topic its sandbox
+trades land on the user's phone at 01:00. It also must not live long enough to hit the token renewal window.
