@@ -185,7 +185,10 @@ function openTable(rows) {
       <td>${num(p.ltp)}</td>
       <td class="dim">${rng}</td>
       <td class="dim">${opt ? '' : num(p.sma9)}</td>
-      <td>${against}${p.exitDue ? '<span class="pp-wait"> exit at next tick</span>' : ''}</td>
+      <td>${against}${p.awaiting
+        // sleep-proof-v1.md rows 1-2: blind through a gap, so no tick may close it until candles price it.
+        ? `<span class="pp-wait" title="${esc(p.awaiting.dueAt ? `due ${hms(p.awaiting.dueAt)} (${p.awaiting.reason})` : 'working out what came due')}"> asleep ${hms(p.awaiting.from).slice(0, 5)}–${hms(p.awaiting.to).slice(0, 5)} · awaiting a candle price</span>`
+        : p.exitDue ? '<span class="pp-wait"> exit at next tick</span>' : ''}</td>
       <td class="${dirClass(p.pnl)}">${signed(p.pnl)}</td>
       <td class="${dirClass(p.pnlPct)}">${p.pnlPct === null ? '—' : signed(p.pnlPct) + '%'}</td>
       <td><button class="tog pp-exit" type="button" data-exit="${esc(p.id)}"
@@ -207,7 +210,7 @@ function closedTable(rows) {
       ${p.leg === 'option' ? '<td class="l"><span class="pp-side buy">BUY</span></td>' : sideCell(p.side)}
       <td>${num(p.entryPx)}</td>
       <td>${num(p.exitPx)}</td>
-      <td class="l dim">${p.status === 'unfilled' ? `Not filled — ${esc(p.note)}` : esc(REASON[p.reason] ?? p.reason)}</td>
+      <td class="l dim" title="${esc(p.note ?? '')}">${p.status === 'unfilled' ? `Not filled — ${esc(p.note)}` : esc(REASON[p.reason] ?? p.reason)}${p.repriced ? ' · priced from 1-min candle' : ''}</td>
       <td class="${dirClass(p.pnl)}">${p.status === 'unfilled' ? '—' : signed(p.pnl)}</td>
     </tr>`).join('');
   return `<table class="scan-t pp-t">

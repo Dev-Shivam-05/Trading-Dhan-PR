@@ -20,7 +20,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { CACHE_DIR } from './paths.ts';
-import { dhanPost, type Credentials } from './dhan.ts';
+import { dhanPost, MARKETFEED_KEY, MARKETFEED_CADENCE_MS, type Credentials } from './dhan.ts';
 import { fnoUniverse, sessionState, todayIso, type FnoStock } from './instruments.ts';
 import { fetchIntraday, closingOiOn, previousSessionIn, type Candles } from './peakoi.ts';
 import {
@@ -31,8 +31,9 @@ import {
 // a live scan's baseline for that date.
 const CACHE_PATH = path.join(CACHE_DIR, isReplay() ? 'scan-oi.replay.json' : 'scan-oi.json');
 
-/** Row 4. One key, so the 420-instrument quote never races anything else. */
-const QUOTE_KEY = 'scan:quote';
+/** Row 4, amended by P36 row 4: the chain's spot quote hits the same endpoint, and two calls there
+ *  in one second return `805` whatever their keys (measured 2026-09-24). So they share one key. */
+const QUOTE_KEY = MARKETFEED_KEY;
 /** Row 8. One key for the whole baseline fan-out - at most 100 calls, strictly serial at 1/s. */
 const OI_KEY = 'scan:oi';
 const CADENCE_MS = 1000;
@@ -235,7 +236,7 @@ export class Scanner {
         NSE_FNO: quotable.map(s => s.futureId!),
       };
       const call = await dhanPost<unknown>('/v2/marketfeed/quote', body,
-        { creds: this.creds!, key: QUOTE_KEY, cadenceMs: CADENCE_MS, timeoutMs: 20_000 });
+        { creds: this.creds!, key: QUOTE_KEY, cadenceMs: MARKETFEED_CADENCE_MS, timeoutMs: 20_000 });
       calls.quote = 1;
       if (!call.ok) {
         return fail(`quote request failed (${call.error?.code ?? 'UNKNOWN'}): ${call.error?.message ?? ''}`);

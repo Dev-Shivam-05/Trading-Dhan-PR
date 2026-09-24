@@ -413,11 +413,14 @@ for (const side of ['BUY', 'SELL'] as const) {
   legs.forEach((o, i) => tick(o.securityId, [11.1, 7.45, 3.2][i]!));
   ok('row 6: each option fills at its first tick', legs.every(o => o.status === 'open'));
 
-  // Walk the replay clock across two candle closes, stepping every 5 s.
-  for (const target of [at(9, 30, 5), at(9, 35, 5)]) {
-    wall += target - t.now();
-    await t.step();
-  }
+  // sleep-proof-v1.md (P36): two steps more than GAP_MS apart now mean the process was BLIND, and
+  // blind time is priced from candles. These checks are about an AWAKE trader, so the clock walks
+  // in steps under a minute, as the 1 s timer would, instead of jumping (P36 superseded the jumps).
+  const advanceTo = async (target: number) => {
+    while (t.now() < target) { wall += Math.min(55_000, target - t.now()); await t.step(); }
+  };
+  // Walk the replay clock across two candle closes.
+  for (const target of [at(9, 30, 5), at(9, 35, 5)]) await advanceTo(target);
   const fed = futs().find(p => p.symbol === 'FEDERALBNK')!;
   ok('row 13: FEDERALBNK — two closes above SMA9 mark the exit at 09:35:05', fed.exitDue === true && fed.against === 2, `${fed.note}`);
   ok('row 13: MFSL and POLICYBZR hold (against 0)', ['MFSL', 'POLICYBZR'].every(s => { const p = futs().find(x => x.symbol === s)!; return p.status === 'open' && p.against === 0 && !p.exitDue; }));
@@ -432,11 +435,9 @@ for (const side of ['BUY', 'SELL'] as const) {
   ok('row 7: FEDERALBNK future and option both close on their next tick, reason sma',
     fed.status === 'closed' && fed.reason === 'sma' && fedOpt.status === 'closed' && fedOpt.reason === 'sma');
 
-  wall += at(15, 0) - t.now();
-  await t.step();
+  await advanceTo(at(15, 0));
   ok('AC3: PNBHOUSING is unfilled at 15:00 — "no break by 15:00"', pnb.status === 'unfilled' && pnb.note === 'no break by 15:00');
-  wall += at(15, 15) - t.now();
-  await t.step();
+  await advanceTo(at(15, 15));
   ok('AC3: everything else squares off at 15:15', t.ledger.positions.every(p => p.status === 'closed' || p.status === 'unfilled'));
   ok('P32 row 12: once nothing is live the feed is released', wants.length === 0, wants.join(','));
 

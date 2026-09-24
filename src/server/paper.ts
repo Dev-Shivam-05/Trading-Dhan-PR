@@ -54,6 +54,18 @@ export const SQUARE_OFF_MIN = 15 * 60 + 15;
 /** P33 amendment 18: replay's synthetic option walk starts at this fraction of the future. */
 export const REPLAY_OPTION_BASE = 0.02;
 
+/**
+ * P36 rows 1-2 (sleep-proof-v1.md): two of the shell's 1 s steps more than this far apart, or a
+ * ledger loaded with an `aliveAt` this old, means the process was blind. GUESS derived from row 1:
+ * the repricing source is a 1-minute candle, so a shorter gap cannot be priced better than the
+ * live tick, and is left to the live rules.
+ */
+export const GAP_MS = 60_000;
+export const MINUTE_MS = 60_000;
+/** P36 row 3: the keep-awake window. */
+export const AWAKE_FROM_MIN = 9 * 60 + 10;
+export const AWAKE_UNTIL_MIN = 15 * 60 + 35;
+
 const IST_MS = 5.5 * 3600_000;
 
 /* ------------------------------------------------------------------ types */
@@ -62,6 +74,14 @@ export type Dir = 'BUY' | 'SELL';
 /** `target` / `stop` survive only in P32 ledgers written before P33. */
 export type ExitReason = 'sma' | 'eod' | 'manual' | 'stale' | 'target' | 'stop';
 export type Leg = 'future' | 'option';
+
+/** P36: a stretch of engine time in which the process saw nothing — asleep, or not running. */
+export type Gap = { from: number; to: number };
+/**
+ * P36 rows 1-2: an open leg that was open through a gap. Ticks and the 15:15 rule leave it alone
+ * until the catch-up has decided what came due while blind (`dueAt`) and priced it from candles.
+ */
+export type Awaiting = { from: number; to: number; dueAt: number | null; reason: 'sma' | 'eod' | null };
 
 /** What the instrument master says about one F&O stock. Injected, so this file never reads it. */
 export type Contract = {
@@ -130,6 +150,10 @@ export type Position = {
   /** P32 row 13: closed at boot because it was still open from an earlier date. */
   stale: boolean;
   note: string | null;
+  /** P36 rows 1-2. Set while blind-time exits are being worked out; null otherwise. */
+  awaiting?: Awaiting | null;
+  /** P36 row 1: the exit price came from Dhan's 1-minute candle, not a live tick. */
+  repriced?: boolean;
 };
 
 export type NotTaken = { symbol: string; side: Dir; reason: string };
@@ -158,6 +182,8 @@ export type Ledger = {
    * (P33 amendment 17). Always 0 live. Persisted, so a restart does not jump the clock.
    */
   clockOffsetMs: number;
+  /** P36: engine time of the last ledger write. A restart measures its blind gap from here. */
+  aliveAt?: number | null;
   days: Record<string, Day>;
   positions: Position[];
 };
@@ -204,6 +230,7 @@ export function pnlOf(side: Dir, entry: number, exit: number, qty: number): numb
 const pnlSide = (p: Position): Dir => (legOf(p) === 'option' ? 'BUY' : p.side);
 
 function close(p: Position, px: number, at: number, reason: ExitReason) {
+  p.awaiting = null;
   p.status = 'closed';
   p.exitPx = px;
   p.exitAt = at;
@@ -354,7 +381,7 @@ export function scanDue(l: Ledger, nowMs: number): boolean {
 
 /** Does this future need a candle read now: its range (row 3), or a close for the exit (row 7)? */
 export function candlesDue(p: Position, nowMs: number): 'range' | 'exit' | null {
-  if (legOf(p) !== 'future' || p.date !== ist(nowMs).date) return null;
+  if (legOf(p) !== 'future' || p.date !== ist(nowMs).date || p.awaiting) return null;
   const { minutes } = ist(nowMs);
   if (p.status === 'pending' && !p.range) {
     if (minutes >= ENTRY_UNTIL_MIN) return null;
@@ -429,6 +456,7 @@ export function onTick(l: Ledger, securityId: number, ltp: number, nowMs: number
       if (p.date !== date) continue;   // onClock marks it unfilled
       if (legOf(p) === 'option') {
         const parent = l.positions.find(x => x.id === p.parentId);
+        if (parent?.awaiting) continue;   // P36: the future is being priced from candles
         if (!parent || parent.status !== 'open' || parent.exitDue || p.exitDue) {
           p.status = 'unfilled';
           p.note = 'future exited first';   // amendment 19
@@ -467,7 +495,7 @@ export function onTick(l: Ledger, securityId: number, ltp: number, nowMs: number
       p.ltpAt = nowMs;
       // An open position from an earlier date is onClock's to close as stale, not the tick's.
       if (p.date !== date) continue;
-      if (p.exitDue) { close(p, ltp, nowMs, 'sma'); changed = true; }
+      if (p.exitDue && !p.awaiting) { close(p, ltp, nowMs, 'sma'); changed = true; }
     }
   }
   l.positions.push(...spawned);
@@ -496,10 +524,13 @@ export function onClock(l: Ledger, nowMs: number): boolean {
         changed = true;
       }
     } else if (p.status === 'open' && p.date < date) {
+      const blind = p.awaiting;
       close(p, p.ltp ?? p.entryPx!, nowMs, 'stale');
       p.stale = true;
+      // P36 row 2: never a silent close — say what the price is and why it is not better.
+      if (blind) p.note = `machine asleep from ${hm(blind.from)}; no candle price before the date changed — closed at the last tick${p.ltpAt ? ` (${hm(p.ltpAt)})` : ''}`;
       changed = true;
-    } else if (p.status === 'open' && minutes >= SQUARE_OFF_MIN) {
+    } else if (p.status === 'open' && minutes >= SQUARE_OFF_MIN && !p.awaiting) {
       close(p, p.ltp ?? p.entryPx!, nowMs, 'eod');
       changed = true;
     }
@@ -521,6 +552,87 @@ export function onClock(l: Ledger, nowMs: number): boolean {
     }
   }
   return changed;
+}
+
+/* ------------------------------------------------ P36: blind time, keep awake */
+
+const hm = (ms: number) => ist(ms).hms.slice(0, 5);
+
+/**
+ * P36 rows 1-2. A gap was found: every leg of the gap's date that is still open stops trading on
+ * ticks and on the 15:15 rule until `decideLate` / `closeRepriced` have dealt with it.
+ */
+export function markBlind(l: Ledger, gap: Gap): boolean {
+  const date = ist(gap.to).date;
+  let changed = false;
+  for (const p of l.positions) {
+    if (p.status !== 'open' || p.date !== date) continue;
+    // A second gap before the first is settled extends it; a decided `dueAt` stands.
+    p.awaiting = p.awaiting ? { ...p.awaiting, to: gap.to } : { from: gap.from, to: gap.to, dueAt: null, reason: null };
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * P36 catch-up steps 1-2, for one awaiting FUTURE and its option legs. Walks its 5-minute candles
+ * with the clock capped just before 15:15 (the 15:10 candle completes at 15:15 exactly, and live
+ * the square-off comes first). If an exit came due more than `GAP_MS` ago, every leg gets that
+ * `dueAt`; otherwise the legs are released to the live rules. Returns true when anything changed.
+ */
+export function decideLate(l: Ledger, id: string, bars: Bar[], nowMs: number): boolean {
+  const p = l.positions.find(x => x.id === id);
+  if (!p || legOf(p) !== 'future' || p.status !== 'open' || !p.awaiting || p.awaiting.dueAt !== null) return false;
+  const sq = istAt(nowMs, SQUARE_OFF_MIN);
+  applyBars(l, id, bars, Math.min(nowMs, sq - 1));
+  let dueAt: number | null = null;
+  let reason: 'sma' | 'eod' | null = null;
+  if (p.exitDue && p.lastBarT != null) { dueAt = p.lastBarT + CANDLE_MS; reason = 'sma'; }
+  else if (nowMs >= sq) { dueAt = sq; reason = 'eod'; }
+  const legs = [p, ...l.positions.filter(c => c.parentId === p.id && c.status === 'open')];
+  const gap = p.awaiting;
+  for (const x of legs) {
+    x.awaiting = dueAt === null || nowMs - dueAt <= GAP_MS
+      ? null
+      : { from: x.awaiting?.from ?? gap.from, to: x.awaiting?.to ?? gap.to, dueAt, reason };
+  }
+  return true;
+}
+
+/**
+ * P36 row 1: the price of the minute holding `dueAt` — the open of the first 1-minute candle at or
+ * after that minute's start, on the same date. "At or after", because an illiquid option may not
+ * trade in that minute, and live its first tick would be the fill. Null when nothing traded after.
+ */
+export function minuteOpen(bars: Bar[], dueAt: number): { px: number; t: number } | null {
+  const m = Math.floor(dueAt / MINUTE_MS) * MINUTE_MS;
+  const day = ist(dueAt).date;
+  const b = bars.filter(x => x.t >= m && ist(x.t).date === day).sort((a, b) => a.t - b.t)[0];
+  return b ? { px: b.o, t: b.t } : null;
+}
+
+/** P36 row 1: close an awaiting leg at its candle price, stamped at the instant it came due. */
+export function closeRepriced(l: Ledger, id: string, px: number, candleT: number): boolean {
+  const p = l.positions.find(x => x.id === id);
+  const a = p?.awaiting;
+  if (!p || p.status !== 'open' || !a || a.dueAt === null || !a.reason) return false;
+  close(p, px, a.dueAt, a.reason);
+  p.repriced = true;
+  p.note = `machine asleep ${hm(a.from)}–${hm(a.to)} · priced from Dhan's ${hm(candleT)} 1-minute candle open`;
+  return true;
+}
+
+/**
+ * P36 row 3: hold the machine awake while armed on a weekday 09:10-15:35 IST, and either today's
+ * scan has not finished or a leg of today is pending or open.
+ */
+export function holdAwake(l: Ledger, nowMs: number): boolean {
+  if (!l.armed || !tradingWeekday(nowMs)) return false;
+  const { date, minutes } = ist(nowMs);
+  if (minutes < AWAKE_FROM_MIN || minutes >= AWAKE_UNTIL_MIN) return false;
+  const d = l.days[date];
+  const scanPending = !d || d.status === 'waiting' || d.status === 'scanning';
+  return scanPending || l.positions.some(p => p.date === date && live(p));
 }
 
 /**
@@ -659,6 +771,10 @@ type TraderOpts = {
   scan: () => Promise<NseScanResult>;
   /** P33 rows 3, 7: the future's 5-minute candles, previous session included. */
   candles: (ask: CandleAsk, nowMs: number) => Promise<CandleAnswer>;
+  /** P36 row 1: one contract's 1-minute candles for today (future or option). */
+  minuteBars?: (ask: { securityId: number; leg: Leg }, nowMs: number) => Promise<CandleAnswer>;
+  /** P36 row 3: called when the keep-awake hold should start (true) or end (false). */
+  onAwake?: (hold: boolean) => void;
   /** P33 row 6: the symbol's near-month stock options. */
   options: OptionsFor;
   /** Called with the contracts this trader needs ticks for; an empty list releases them. */
@@ -678,6 +794,11 @@ export class PaperTrader {
   private fetching = false;
   /** Amendment 15: a failed candle fetch is not retried before this time. In memory only. */
   private retryAt = new Map<string, number>();
+  /** P36: wall time of the previous step, to see a gap in them. */
+  private lastStepWall = 0;
+  private catching = false;
+  private catchRetryAt = 0;
+  private awake = false;
 
   constructor(o: TraderOpts) {
     this.o = o;
@@ -704,6 +825,11 @@ export class PaperTrader {
     }
     // A process that died mid-scan left the day at 'scanning', which scanDue() never retries.
     for (const d of Object.values(this.ledger.days)) if (d.status === 'scanning') d.status = 'waiting';
+    // P36: a restart is a gap too, measured from the last write. It must be marked BEFORE onClock,
+    // or a restart after 15:15 squares off at the pre-gap tick — the 24 Sep failure by another road.
+    const now = this.now();
+    const alive = this.ledger.aliveAt;
+    if (alive != null && now - alive > GAP_MS && markBlind(this.ledger, { from: alive, to: now })) this.dirty = true;
     // P32 row 13: an earlier date's open position is closed as stale before anything else happens.
     if (onClock(this.ledger, this.now())) this.dirty = true;
     this.syncWants();
@@ -719,11 +845,64 @@ export class PaperTrader {
 
   /** One pass of the clock. Exposed for the unit test, which drives it with an injected wall. */
   async step() {
+    const wall = this.wall();
     const now = this.now();
+    // P36: marked before onClock, for the same reason as in load().
+    if (this.lastStepWall && wall - this.lastStepWall > GAP_MS
+      && markBlind(this.ledger, { from: this.lastStepWall + this.ledger.clockOffsetMs, to: now })) {
+      await this.flush(true);
+    }
+    this.lastStepWall = wall;
+    const hold = holdAwake(this.ledger, now);
+    if (hold !== this.awake) { this.awake = hold; this.o.onAwake?.(hold); }
     if (onClock(this.ledger, now)) { this.dirty = true; this.syncWants(); await this.flush(true); }
+    if (!this.catching && now >= this.catchRetryAt && this.ledger.positions.some(p => p.status === 'open' && p.awaiting)) {
+      await this.catchUp();
+    }
     if (!this.scanning && scanDue(this.ledger, now)) await this.runScan(true);
     if (!this.fetching) await this.readCandles();
     await this.flush(false);
+  }
+
+  /**
+   * P36 catch-up (sleep-proof-v1.md). For each awaiting future: decide what came due while blind,
+   * then price every leg from its own 1-minute candles. Any failed read leaves the whole signal
+   * awaiting and retries after `RETRY_MS` (row 2) — the network is often still down at wake.
+   */
+  private async catchUp() {
+    this.catching = true;
+    let failed = false;
+    const ask = async (f: () => Promise<CandleAnswer>): Promise<CandleAnswer> => {
+      try { return await f(); } catch (e) { return { bars: [], why: (e as Error).message }; }
+    };
+    try {
+      const futures = this.ledger.positions.filter(p => legOf(p) === 'future' && p.status === 'open' && p.awaiting);
+      for (const f of futures) {
+        if (f.awaiting!.dueAt === null) {
+          const five = await ask(() => this.o.candles({ symbol: f.symbol, side: f.side, securityId: f.securityId, base: f.signal.cashLtp }, this.now()));
+          if (five.why) { failed = true; continue; }
+          if (decideLate(this.ledger, f.id, five.bars, this.now())) this.dirty = true;
+          if (!f.awaiting) { this.syncWants(); await this.flush(true); continue; }
+        }
+        const dueAt = f.awaiting!.dueAt!;
+        const legs = [f, ...this.ledger.positions.filter(c => c.parentId === f.id && c.status === 'open' && c.awaiting)];
+        const priced: { id: string; px: number; t: number }[] = [];
+        for (const x of legs) {
+          if (!this.o.minuteBars) break;
+          const ans = await ask(() => this.o.minuteBars!({ securityId: x.securityId, leg: legOf(x) }, this.now()));
+          const m = ans.why ? null : minuteOpen(ans.bars, dueAt);
+          if (!m) break;
+          priced.push({ id: x.id, ...m });
+        }
+        if (priced.length !== legs.length) { failed = true; continue; }
+        for (const q of priced) closeRepriced(this.ledger, q.id, q.px, q.t);
+        this.syncWants();
+        await this.flush(true);
+      }
+    } finally {
+      this.catchRetryAt = failed ? this.now() + RETRY_MS : 0;
+      this.catching = false;
+    }
   }
 
   /**
@@ -853,6 +1032,7 @@ export class PaperTrader {
     if (!this.dirty || (!urgent && this.wall() - this.lastSave < 5000)) return this.saving;
     this.dirty = false;
     this.lastSave = this.wall();
+    this.ledger.aliveAt = this.now();
     const body = JSON.stringify(this.ledger, null, 1);
     this.saving = this.saving.then(async () => {
       await mkdir(path.dirname(this.o.file), { recursive: true });

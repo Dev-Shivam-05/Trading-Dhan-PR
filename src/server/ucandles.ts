@@ -14,7 +14,7 @@
  */
 
 import type { Credentials } from './dhan.ts';
-import { todayIso, underlyingInstrument, type ResolvedInstrument } from './instruments.ts';
+import { sessionCloseMin, todayIso, underlyingInstrument, type ResolvedInstrument, type SessionId } from './instruments.ts';
 import { fetchIntraday, istParts, type Candles } from './peakoi.ts';
 import { isReplay, replaySessionDates, replayUnderlyingCandles } from './replay.ts';
 import { INTERVALS, shapeError, type Interval } from './candles.ts';
@@ -25,6 +25,21 @@ export { INTERVALS };
 const WINDOW_DAYS = 5;
 /** P9 row 14's cadence for the same endpoint. */
 const CADENCE_MS = 1000;
+/** P36 row 5: a candle opening this long after the session close is not part of the session.
+ *  10 min keeps Dhan's own 15:30-15:39 F&O tail (385 one-minute candles a day). */
+const TAIL_MIN = 10;
+
+/**
+ * P36 row 5 (sleep-proof-v1.md). Dhan's NIFTY `IDX_I` intraday for 24 Sep carried a flat 17:55
+ * candle (direct call, P31), and the chart drew a 2.5 h gap to it. Judged on each candle's OWN
+ * date, because MCX's close moves with US daylight saving.
+ */
+export function inSession(list: UCandle[], id: SessionId): UCandle[] {
+  return list.filter(k => {
+    const [h, m] = k.at.split(':').map(Number);
+    return h! * 60 + m! < sessionCloseMin(id, k.d) + TAIL_MIN;
+  });
+}
 
 export type UCandle = {
   /** Candle OPEN time, epoch ms. */
@@ -129,7 +144,7 @@ export class UnderlyingCandleService {
     const shape = shapeError(raw ? { ...raw, volume: raw.timestamp, open_interest: raw.timestamp } : raw);
     if (shape) return done({ error: shape });
 
-    const all = toUCandles(raw);
+    const all = inSession(toUCandles(raw), inst.session.id);
     if (!all.length) return done({ note: `no candles for ${inst.label} in the last ${WINDOW_DAYS} days` });
 
     const sessionDate = all[all.length - 1]!.d || null;

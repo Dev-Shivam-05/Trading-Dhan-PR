@@ -11,7 +11,7 @@ import path from 'node:path';
 import { CACHE_DIR } from './paths.ts';
 import { randomUUID } from 'node:crypto';
 import {
-  CADENCE_MS, dhanPost, explain, fetchOptionChain,
+  CADENCE_MS, dhanPost, explain, fetchOptionChain, MARKETFEED_KEY, MARKETFEED_CADENCE_MS,
   type CallTiming, type Credentials, type OptionChainResponse,
 } from './dhan.ts';
 import { derive, ivChangePct, type Baseline, type Derived } from './derive.ts';
@@ -480,7 +480,8 @@ type SpotEntry = { value: number | null; at: number };
 const spotCache = new Map<string, SpotEntry>();
 const spotInFlight = new Set<string>();
 const SPOT_TTL_MS = 2500;          // just under the 3 s chain cadence: one quote per poll at most
-const SPOT_KEY = 'spot:quote';     // ONE gate key for the fan-out (CLAUDE.md)
+// P36 row 4: the scanner's quote shares this key, because Dhan limits the endpoint, not our key.
+const SPOT_KEY = MARKETFEED_KEY;
 
 /**
  * Read the cached quote and, if it has gone stale, start a refresh WITHOUT waiting for it.
@@ -509,7 +510,7 @@ async function refreshSpot(inst: ResolvedInstrument, creds: Credentials): Promis
   const res = await dhanPost<Record<string, Record<string, Record<string, unknown>>> & {
     data?: Record<string, Record<string, Record<string, unknown>>>;
   }>('/v2/marketfeed/quote', { [seg]: [Number(id)] },
-    { creds, key: SPOT_KEY, cadenceMs: 1000, timeoutMs: 10_000 });
+    { creds, key: SPOT_KEY, cadenceMs: MARKETFEED_CADENCE_MS, timeoutMs: 10_000 });
   // A failed call is not an answer: keep whatever was known rather than blanking the header.
   if (!res.ok) return;
   const body = res.data?.data ?? res.data;

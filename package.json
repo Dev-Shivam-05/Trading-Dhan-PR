@@ -24,7 +24,8 @@
     "oq1:live": "node --env-file-if-exists=.env scripts/oq1-live-probe.ts",
     "ltp:test": "node scripts/ltp-test.ts",
     "session:test": "node scripts/session-test.ts",
-    "paper:test": "node scripts/paper-test.ts"
+    "paper:test": "node scripts/paper-test.ts",
+    "sleep:test": "node scripts/sleep-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",

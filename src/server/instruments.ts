@@ -29,7 +29,7 @@ type RegistryEntry = {
   session: SessionId;
 };
 
-type SessionId = 'NSE_BSE_FNO' | 'MCX';
+export type SessionId = 'NSE_BSE_FNO' | 'MCX';
 
 const REGISTRY: RegistryEntry[] = [
   {
@@ -142,13 +142,19 @@ export function sessionState(id: SessionId, at = new Date()): SessionState {
   const weekend = weekday === 0 || weekday === 6;
 
   const open = id === 'MCX' ? 9 * 60 : 9 * 60 + 15;
-  const close = id === 'MCX' ? (isUsDst(date) ? 23 * 60 + 30 : 23 * 60 + 55) : 15 * 60 + 30;
+  const close = sessionCloseMin(id, date);
   const window = `${fmt(open)}-${fmt(close)} IST Mon-Fri`;
 
   if (weekend) return { id, window, openNow: false, reason: `weekend (${hhmm} IST)` };
   if (minutes < open) return { id, window, openNow: false, reason: `pre-open, opens ${fmt(open)} IST` };
   if (minutes >= close) return { id, window, openNow: false, reason: `closed at ${fmt(close)} IST` };
   return { id, window, openNow: true, reason: `open (${hhmm} IST)` };
+}
+
+/** Minutes after IST midnight at which session `id` closes on `date` (MCX moves with US DST). */
+export function sessionCloseMin(id: SessionId, date: Date | string): number {
+  const d = typeof date === 'string' ? new Date(`${date}T12:00:00Z`) : date;
+  return id === 'MCX' ? (isUsDst(d) ? 23 * 60 + 30 : 23 * 60 + 55) : 15 * 60 + 30;
 }
 
 /**

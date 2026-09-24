@@ -21,6 +21,7 @@ import { isReplay, replayBasePrice, replayOrbCandles } from './replay.ts';
 import { fetchIntraday } from './peakoi.ts';
 import { readChain } from './ltp.ts';
 import { PaperTrader, ledgerPath } from './paper.ts';
+import { keepAwake } from './awake.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
@@ -90,6 +91,20 @@ const paper = new PaperTrader({
     });
     return res.why ? { bars: [], why: res.why } : { bars: toUCandles(res.candles), why: null };
   },
+  // sleep-proof-v1.md row 1: a leg's 1-minute candles, read only to price an exit that came due
+  // while the process was blind. Same gate key as the 5-minute reads. Replay has no such series,
+  // so a replay gap waits and is named (row 2) rather than priced from an invented candle.
+  minuteBars: async (ask) => {
+    if (isReplay()) return { bars: [], why: 'replay has no 1-minute candles' };
+    const res = await fetchIntraday(creds, {
+      securityId: String(ask.securityId), seg: 'NSE_FNO', instrument: ask.leg === 'option' ? 'OPTSTK' : 'FUTSTK',
+      interval: '1', oi: false, fromDate: todayIso(), toDate: todayIso(),
+      key: 'paper:candles', cadenceMs: CADENCE_MS,
+    });
+    return res.why ? { bars: [], why: res.why } : { bars: toUCandles(res.candles), why: null };
+  },
+  // Row 3: live only. Replay trades nothing real and has no reason to hold a laptop awake.
+  onAwake: (hold) => { if (!isReplay()) keepAwake(hold); },
   options: (symbol) => stockOptions(symbol, todayIso()),
   onWants: (subs) => {
     if (subs.length) feedWants.set(PAPER_CONN, subs);

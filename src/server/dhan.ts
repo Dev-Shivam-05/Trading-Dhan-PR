@@ -63,6 +63,29 @@ export function readCredentials(): Credentials | null {
 /* ------------------------------------------------------------- rate gate */
 
 const lastCompleted = new Map<string, number>();
+/** P36 row 4: the tail of each key's queue. A call waits for the one in flight on its key. */
+const turns = new Map<string, Promise<void>>();
+
+/**
+ * P36 row 4 (sleep-proof-v1.md). `waitForSlot` alone spaced a call from the key's last COMPLETION,
+ * so two calls issued together on one key both went out at once. Measured 2026-09-24: two
+ * marketfeed quotes in the same second -> one `805`. This queues them: the returned function must
+ * be called when the call completes, whatever the outcome.
+ */
+async function takeTurn(key: string): Promise<() => void> {
+  const prior = turns.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const mine = new Promise<void>(r => { release = r; });
+  const tail = prior.then(() => mine);
+  turns.set(key, tail);
+  await prior;
+  return () => { release(); if (turns.get(key) === tail) turns.delete(key); };
+}
+
+/** P36 row 4: every `/v2/marketfeed/*` caller in `src/` shares this key. Dhan's 1 req/s limit is
+ *  per endpoint per account, not per our key. */
+export const MARKETFEED_KEY = 'marketfeed';
+export const MARKETFEED_CADENCE_MS = 1000;
 
 /** Wait until this key's 3-second slot is free. Measured from completion, never from dispatch. */
 async function waitForSlot(key: string, cadenceMs: number): Promise<number> {
@@ -142,8 +165,11 @@ export async function dhanPost<T>(
 
   const queuedAt = new Date().toISOString();
   const queued = performance.now();
-  const gateWait = await waitForSlot(key, cadenceMs);
+  const release = await takeTurn(key);
+  const slotWait = await waitForSlot(key, cadenceMs);
   const dispatched = performance.now();
+  // Time spent behind an in-flight call on the same key counts as gate wait, as the slot does.
+  const gateWait = Math.max(slotWait, round(dispatched - queued));
 
   const timing: CallTiming = {
     queuedAt, queued: 0, dispatched: round(dispatched - queued),
@@ -222,6 +248,7 @@ export async function dhanPost<T>(
     };
   } finally {
     clearTimeout(timer);
+    release();
   }
 }
 
