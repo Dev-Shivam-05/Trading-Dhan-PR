@@ -1025,5 +1025,15 @@ body:has(#paper:not([hidden])) .optwin{display:none!important}
 .pp-notice{padding:10px 14px;border-radius:8px;font-size:12px;color:var(--warn);
   background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
 .pp-hint{margin:0;font-size:12px;color:var(--fg-muted)}
+/* phone-sandbox-v1.md P41 row 7: the sandbox card. */
+.pp-sb h3 span{font-weight:400;color:var(--fg-faint)}
+.sb-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--fg-muted)}
+.sb-ctl select{margin-left:6px}
+.sb-rules{display:flex;flex-wrap:wrap;gap:6px 14px}
+.sb-rules label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.sb-status{margin:0;padding:0 16px 12px;font-size:12px;color:var(--fg-muted);font-variant-numeric:tabular-nums}
+.sb-status.bad{color:var(--warn)}
+.sb-sub{padding:0 16px 8px;font-size:11px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:.06em}
+.pp-flag{color:var(--warn);font-size:11px;margin-left:6px;cursor:help}
 @media (max-width:1100px){ .pp-two{grid-template-columns:1fr} }
 @media (max-width:900px){ .pp-box{padding:16px} }

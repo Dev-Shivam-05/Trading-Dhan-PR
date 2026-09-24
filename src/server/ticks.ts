@@ -106,6 +106,16 @@ export class TickRecorder {
     if (nowMs - this.lastFlush >= FLUSH_MS) await this.flush(nowMs);
   }
 
+  /**
+   * Also record whatever the live paper trader holds. Seen in the first sandbox run: POLICYBZR fell
+   * through its band to 1606, so the option it bought (1600 PE) was outside the 5 strikes around
+   * its 09:20 price, and a recorded day would not have that option's ticks to replay.
+   */
+  watch(list: RecInstrument[]) {
+    if (!this.date) return;
+    for (const i of list) if (!this.set.has(i.securityId)) this.set.set(i.securityId, i);
+  }
+
   onTick(t: Tick) {
     if (!this.date || t.seg !== 'NSE_FNO' || !this.set.has(t.securityId)) return;
     if (t.ltp !== null) this.lastLtp.set(t.securityId, t.ltp);

@@ -27,6 +27,8 @@ const state = {
   notice: null,
   busy: false,
   timer: null,
+  /** phone-sandbox-v1.md P41 row 7: the sandbox's own state, read from /api/sandbox. */
+  sb: { dates: null, view: null, busy: false, notice: null },
 };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
@@ -120,6 +122,71 @@ async function load() {
     state.error = `could not reach the backend — ${e.message ?? e}`;
   }
   render();
+  loadSandbox();
+}
+
+/* ---------------------------------------------------------------- sandbox (P41) */
+
+async function loadSandbox() {
+  try {
+    if (!state.sb.dates) {
+      const d = await fetch('/api/sandbox/dates').then((r) => r.json());
+      state.sb.dates = d.dates ?? [];
+      const sel = $('sbDate');
+      if (sel) {
+        sel.innerHTML = state.sb.dates.length
+          ? state.sb.dates.map((x) => `<option value="${esc(x.date)}">${esc(x.date)} · ${x.source === 'recorded' ? 'recorded ticks' : 'from 1-min candles'}</option>`).join('')
+          : '<option value="">no day available yet</option>';
+      }
+    }
+    state.sb.view = await fetch('/api/sandbox').then((r) => r.json());
+  } catch (e) {
+    state.sb.notice = `sandbox: could not reach the backend — ${e.message ?? e}`;
+  }
+  renderSandbox();
+}
+
+async function sbPost(path, body) {
+  if (state.sb.busy) return;
+  state.sb.busy = true;
+  renderSandbox();
+  try {
+    const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) state.sb.notice = out.error ?? `HTTP ${res.status}`;
+    else { state.sb.view = out; state.sb.notice = null; }
+  } catch (e) {
+    state.sb.notice = `sandbox: could not reach the backend — ${e.message ?? e}`;
+  }
+  state.sb.busy = false;
+  renderSandbox();
+}
+
+const sbRules = () => Object.fromEntries([...document.querySelectorAll('#ppSandbox [data-rule]')].map((i) => [i.dataset.rule, i.checked]));
+
+function renderSandbox() {
+  const out = $('sbBody');
+  if (!out) return;
+  const run = state.sb.view?.run ?? null;
+  const v = state.sb.view?.view ?? null;
+  const live = run && (run.status === 'running' || run.status === 'paused');
+  $('sbStart').disabled = state.sb.busy || !$('sbDate')?.value;
+  $('sbStart').textContent = state.sb.busy ? 'Loading day…' : live ? 'Restart' : 'Start';
+  $('sbPause').disabled = !live || state.sb.busy;
+  $('sbPause').textContent = run?.status === 'paused' ? 'Resume' : 'Pause';
+  $('sbStop').disabled = !live || state.sb.busy;
+  const st = $('sbStatus');
+  if (!run) st.textContent = state.sb.notice ?? 'No sandbox run yet. Pick a day and press Start.';
+  else {
+    const rules = Object.entries(run.rules).filter(([, on]) => on).map(([k]) => k).join(', ') || 'none (as live)';
+    const pct = run.total ? Math.round((run.delivered / run.total) * 100) : 0;
+    st.textContent = `${run.date} · ${run.source === 'recorded' ? 'recorded ticks' : 'synthetic ticks from 1-min candles'} · ${run.scanKind} 09:20 scan · sandbox clock ${hms(run.simNow)} · ${int(run.delivered)} of ${int(run.total)} ticks (${pct}%) · ${run.status}${run.speed ? ` at ${run.speed}×` : ' at max speed'} · rules: ${rules}${run.error ? ` · ${run.error}` : ''}${state.sb.notice ? ` · ${state.sb.notice}` : ''}`;
+  }
+  st.classList.toggle('bad', !!(run?.error || state.sb.notice));
+  if (!v) { out.innerHTML = ''; return; }
+  const pnl = v.dayPnl.total;
+  out.innerHTML = `<div class="sb-sub">Sandbox P&amp;L <b class="${dirClass(pnl)}">${signed(pnl)}</b> · realised ${signed(v.dayPnl.realised)} · open ${signed(v.dayPnl.unrealised)} · ${esc(v.status)}</div>
+    ${waitingTable(v.waiting ?? [], true)}${v.open.length ? openTable(v.open, true) : ''}${closedTable(v.closed)}`;
 }
 
 async function post(path, body = {}) {
@@ -146,7 +213,8 @@ function sideCell(side) {
   return `<td class="l"><span class="pp-side ${side === 'BUY' ? 'buy' : 'sell'}">${side}</span></td>`;
 }
 
-function waitingTable(rows) {
+/** `readOnly` for the sandbox: a Cancel there would post a sandbox id to the LIVE trader's exit route. */
+function waitingTable(rows, readOnly = false) {
   if (!rows.length) return '';
   const body = rows.map((p) => `<tr data-id="${esc(p.id)}" class="pending">
       <td class="l"><b>${esc(p.symbol)}</b><span class="nm">${esc(contractLabel(p))}</span></td>
@@ -157,7 +225,7 @@ function waitingTable(rows) {
       <td class="l dim">${p.range
         ? `waiting for a ${p.side === 'BUY' ? 'break above' : 'break below'} ${num(p.side === 'BUY' ? p.range.high : p.range.low)}`
         : esc(p.rangeNote ?? 'range forms from the 09:15 and 09:20 candles')}</td>
-      <td><button class="tog pp-exit" type="button" data-exit="${esc(p.id)}" ${state.busy ? 'disabled' : ''}>Cancel</button></td>
+      <td>${readOnly ? '' : `<button class="tog pp-exit" type="button" data-exit="${esc(p.id)}" ${state.busy ? 'disabled' : ''}>Cancel</button>`}</td>
     </tr>`).join('');
   return `<section class="card scan-sec pp-sec"><h3>Waiting for break <span>${rows.length}</span></h3>
     <table class="scan-t pp-t">
@@ -167,7 +235,8 @@ function waitingTable(rows) {
     <tbody>${body}</tbody></table></section>`;
 }
 
-function openTable(rows) {
+/** `readOnly` for the sandbox: its positions are not the live trader's, so no Exit button. */
+function openTable(rows, readOnly = false) {
   if (!rows.length) return '<p class="scan-none">No open positions.</p>';
   const body = grouped(rows).map((p) => {
     const pending = p.status === 'pending';
@@ -175,15 +244,19 @@ function openTable(rows) {
     // An option leg is always a BOUGHT option, whichever way its signal points.
     const side = opt ? '<td class="l"><span class="pp-side buy">BUY</span></td>' : sideCell(p.side);
     const rng = !opt && p.range ? `${num(p.range.high)} – ${num(p.range.low)}` : '';
+    // phone-sandbox-v1.md P42: the stop and target when a rule set them, and any flag on the signal.
+    const risk = !opt && (p.stopPx != null || p.targetPx != null)
+      ? `<br><span class="pp-wait">${p.stopPx != null ? `SL ${num(p.stopPx)}` : ''}${p.stopPx != null && p.targetPx != null ? ' · ' : ''}${p.targetPx != null ? `T ${num(p.targetPx)}` : ''}</span>` : '';
+    const flag = p.flags?.length ? `<span class="pp-flag" title="${esc(p.flags.join(' · '))}">⚑</span>` : '';
     const against = !opt && typeof p.against === 'number'
       ? `<span class="pp-ag${p.against ? ' warn' : ''}">${p.against} / 2</span>` : '';
     return `<tr data-id="${esc(p.id)}" class="${pending ? 'pending' : ''}${opt ? ' pp-leg' : ''}">
-      <td class="l">${opt ? '' : `<b>${esc(p.symbol)}</b>`}<span class="nm">${esc(contractLabel(p))}</span></td>
+      <td class="l">${opt ? '' : `<b>${esc(p.symbol)}</b>${flag}`}<span class="nm">${esc(contractLabel(p))}</span></td>
       ${side}
       <td>${int(p.qty)}</td>
       <td>${pending ? '<span class="pp-wait">first tick…</span>' : num(p.entryPx)}</td>
       <td>${num(p.ltp)}</td>
-      <td class="dim">${rng}</td>
+      <td class="dim">${rng}${risk}</td>
       <td class="dim">${opt ? '' : num(p.sma9)}</td>
       <td>${against}${p.awaiting
         // sleep-proof-v1.md rows 1-2: blind through a gap, so no tick may close it until candles price it.
@@ -192,8 +265,8 @@ function openTable(rows) {
         : p.exitDue ? '<span class="pp-wait"> exit at next tick</span>' : ''}</td>
       <td class="${dirClass(p.pnl)}">${signed(p.pnl)}</td>
       <td class="${dirClass(p.pnlPct)}">${p.pnlPct === null ? '—' : signed(p.pnlPct) + '%'}</td>
-      <td><button class="tog pp-exit" type="button" data-exit="${esc(p.id)}"
-        ${state.busy ? 'disabled' : ''}>${pending ? 'Cancel' : 'Exit'}</button></td>
+      <td>${readOnly ? '' : `<button class="tog pp-exit" type="button" data-exit="${esc(p.id)}"
+        ${state.busy ? 'disabled' : ''}>${pending ? 'Cancel' : 'Exit'}</button>`}</td>
     </tr>`;
   }).join('');
   return `<table class="scan-t pp-t">
@@ -314,6 +387,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && state.open) close(true);
 });
 
+$('sbStart')?.addEventListener('click', () => sbPost('/api/sandbox/start', { date: $('sbDate').value, speed: Number($('sbSpeed').value), rules: sbRules() }));
+$('sbPause')?.addEventListener('click', () => sbPost('/api/sandbox/control', { action: state.sb.view?.run?.status === 'paused' ? 'resume' : 'pause', speed: null }));
+$('sbStop')?.addEventListener('click', () => sbPost('/api/sandbox/control', { action: 'stop', speed: null }));
+$('sbSpeed')?.addEventListener('change', () => {
+  const r = state.sb.view?.run;
+  if (r && (r.status === 'running' || r.status === 'paused')) sbPost('/api/sandbox/control', { action: 'speed', speed: Number($('sbSpeed').value) });
+});
+
 /** Read-only test seam (row 18), beside window.__chart / __grid / __ltp. Nothing in the app reads it. */
 window.__paper = {
   open: () => state.open,
@@ -322,6 +403,7 @@ window.__paper = {
   waiting: () => state.view?.waiting ?? [],
   closed: () => state.view?.closed ?? [],
   notice: () => state.notice,
+  sandbox: () => state.sb.view,
   reload: load,
 };
 

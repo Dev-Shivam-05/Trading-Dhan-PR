@@ -96,7 +96,7 @@ ok('row 6: a second full run is identical', strip(again.l) === strip(full.l));
 
 const frozen = await run(d, 'frozen', { rules: { ...NO_RULES, frozenRange: true } });
 ok('P42 row 10: frozen range — POLICYBZR (0.00% wide) is skipped, MFSL (1.64%) still trades',
-  P(frozen.l, '2026-09-24-POLICYBZR').status === 'unfilled' && /frozen range \(0\.00%/.test(P(frozen.l, '2026-09-24-POLICYBZR').note ?? '') && P(frozen.l, '2026-09-24-MFSL').status === 'closed',
+  P(frozen.l, '2026-09-24-POLICYBZR').status === 'unfilled' && /frozen range 0\.00%/.test(P(frozen.l, '2026-09-24-POLICYBZR').note ?? '') && P(frozen.l, '2026-09-24-MFSL').status === 'closed',
   P(frozen.l, '2026-09-24-POLICYBZR').note ?? '');
 const st = await run(d, 'stoptarget', { rules: { ...NO_RULES, stop: true, target: true } });
 const mfs = P(st.l, '2026-09-24-MFSL');

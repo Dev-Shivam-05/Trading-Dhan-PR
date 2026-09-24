@@ -26,6 +26,7 @@ import { runBacktest, lastRunDate, saveScan } from './history.ts';
 import { jobDue } from './backtest.ts';
 import { TickRecorder } from './ticks.ts';
 import { notify } from './notify.ts';
+import { SandboxManager, sandboxDates, SPEEDS, NO_RULES, type Speed } from './sandbox.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
@@ -129,11 +130,15 @@ const paper = new PaperTrader({
   candles: async (ask, nowMs) => {
     if (isReplay()) return { bars: toUCandles(replayOrbCandles(ask.symbol, ask.side, ask.base, nowMs)), why: null };
     const res = await fetchIntraday(creds, {
-      securityId: String(ask.securityId), seg: 'NSE_FNO', instrument: 'FUTSTK', interval: '5', oi: false,
+      securityId: String(ask.securityId), seg: 'NSE_FNO', instrument: 'FUTSTK', interval: '5', oi: true,
       fromDate: new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10), toDate: todayIso(),
       key: 'paper:candles', cadenceMs: CADENCE_MS,
     });
-    return res.why ? { bars: [], why: res.why } : { bars: toUCandles(res.candles), why: null };
+    if (res.why) return { bars: [], why: res.why };
+    // With each candle's OI (phone-sandbox-v1.md row 11). toUCandles drops invalid rows, so OI is
+    // matched by timestamp rather than by index.
+    const oiAt = new Map((res.candles?.timestamp ?? []).map((t, i) => [t > 1e11 ? t : t * 1000, Number(res.candles?.open_interest?.[i] ?? 0)]));
+    return { bars: toUCandles(res.candles).map(b => ({ ...b, oi: oiAt.get(b.t) || undefined })), why: null };
   },
   // sleep-proof-v1.md row 1: a leg's 1-minute candles, read only to price an exit that came due
   // while the process was blind. Same gate key as the 5-minute reads. Replay has no such series,
@@ -161,6 +166,13 @@ const paper = new PaperTrader({
     if (subs.length) feedWants.set(PAPER_CONN, subs);
     else feedWants.delete(PAPER_CONN);
     refreshFeedSubscriptions();
+    // phone-sandbox-v1.md row 3: the recorder keeps every leg the trader holds, even outside its
+    // 5 strikes. `recorder` is declared below; this runs only after both exist.
+    const ids = new Set(subs.map(s => s.securityId));
+    recorder?.watch(paper.ledger.positions.filter(p => ids.has(p.securityId)).map(p => ({
+      securityId: p.securityId, symbol: p.symbol, kind: p.leg === 'option' ? p.optionType! : 'FUT',
+      strike: p.strike ?? null, expiry: p.expiry, lot: p.lot,
+    })));
   },
 });
 
@@ -557,6 +569,56 @@ app.post('/api/paper/run', async (req, reply) => {
   const r = await paper.runNow();
   if (!r.ok) return reply.code(409).send({ error: r.error });
   return paper.view();
+});
+
+/* ------------------------------------------------ sandbox (phone-sandbox-v1.md P41, P42) */
+
+/**
+ * One sandbox run at a time, replaying a past day through its own `PaperTrader` and its own ledger
+ * under `.cache/sandbox/`. It never reads or writes the live or replay ledgers. Its trades are
+ * pushed tagged SANDBOX (row 2), live only.
+ */
+const sandbox = new SandboxManager({
+  creds,
+  onEvent: (e) => {
+    if (isReplay()) return;
+    const run = sandbox.current()?.state;
+    void notify(`SANDBOX ${e.title}`, `${run?.date ?? ''} replay · ${e.body}`);
+  },
+});
+const RULE_KEYS = Object.keys(NO_RULES) as (keyof typeof NO_RULES)[];
+
+app.get('/api/sandbox', async () => sandbox.view());
+app.get('/api/sandbox/dates', async () => ({ dates: await sandboxDates(), speeds: SPEEDS, rules: RULE_KEYS }));
+
+app.post('/api/sandbox/start', async (req, reply) => {
+  const b = bodyWith(req.body, ['date', 'speed', 'rules']);
+  const dates = (await sandboxDates()).map(d => d.date);
+  if (!b || typeof b.date !== 'string' || !dates.includes(b.date)) return reply.code(400).send({ error: `date must be one of ${dates.join(', ') || '(none yet)'}` });
+  if (!SPEEDS.includes(b.speed as Speed)) return reply.code(400).send({ error: `speed must be one of ${SPEEDS.join(', ')}` });
+  const r = b.rules as Record<string, unknown> | null;
+  if (!r || typeof r !== 'object' || Object.keys(r).length !== RULE_KEYS.length || !RULE_KEYS.every(k => typeof r[k] === 'boolean')) {
+    return reply.code(400).send({ error: `rules must be {${RULE_KEYS.map(k => `"${k}": true|false`).join(', ')}}` });
+  }
+  try {
+    await sandbox.start(b.date, b.speed as Speed, r as typeof NO_RULES);
+  } catch (e) {
+    return reply.code(409).send({ error: (e as Error).message });
+  }
+  return sandbox.view();
+});
+
+app.post('/api/sandbox/control', async (req, reply) => {
+  const b = bodyWith(req.body, ['action', 'speed']);
+  const run = sandbox.current();
+  if (!b || !['pause', 'resume', 'stop', 'speed'].includes(b.action as string)) return reply.code(400).send({ error: 'body must be {"action": "pause"|"resume"|"stop"|"speed", "speed": <speed or null>}' });
+  if (!run) return reply.code(409).send({ error: 'no sandbox run' });
+  if (b.action === 'pause') run.pause();
+  else if (b.action === 'resume') run.resume();
+  else if (b.action === 'stop') run.stop();
+  else if (SPEEDS.includes(b.speed as Speed)) run.setSpeed(b.speed as Speed);
+  else return reply.code(400).send({ error: `speed must be one of ${SPEEDS.join(', ')}` });
+  return sandbox.view();
 });
 
 /* ----------------------------------------------------------------- SSE */

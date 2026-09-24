@@ -128,6 +128,30 @@
     </header>
     <p class="pp-rules" id="ppRules"></p>
     <div class="pp-body" id="ppBody"></div>
+    <!-- phone-sandbox-v1.md P41 row 7: the sandbox. Its controls are static markup, so the once-a-second
+         re-render of #sbBody never resets a select or a checkbox under the pointer. -->
+    <section class="card scan-sec pp-sec pp-sb" id="ppSandbox" aria-labelledby="sbTitle">
+      <h3 id="sbTitle">Sandbox · replay a past day tick by tick <span>own ledger · no real orders</span></h3>
+      <div class="sb-ctl">
+        <label>Day <select id="sbDate"><option value="">loading…</option></select></label>
+        <label>Speed <select id="sbSpeed">
+          <option value="1">1×</option><option value="10">10×</option><option value="60" selected>60×</option><option value="0">Max</option>
+        </select></label>
+        <span class="sb-rules" role="group" aria-label="Risk rules">
+          <label><input type="checkbox" data-rule="stop"> Stop-loss</label>
+          <label><input type="checkbox" data-rule="target"> Target 2R</label>
+          <label><input type="checkbox" data-rule="frozenRange"> Skip frozen range</label>
+          <label><input type="checkbox" data-rule="oiFlag"> Flag OI disagreement</label>
+          <label><input type="checkbox" data-rule="lossCap"> Loss cap</label>
+        </span>
+        <span class="grow"></span>
+        <button class="tog primary" id="sbStart" type="button">Start</button>
+        <button class="tog" id="sbPause" type="button" disabled>Pause</button>
+        <button class="tog" id="sbStop" type="button" disabled>Stop</button>
+      </div>
+      <p class="sb-status" id="sbStatus">No sandbox run yet.</p>
+      <div id="sbBody"></div>
+    </section>
   </div>
 </section>
 

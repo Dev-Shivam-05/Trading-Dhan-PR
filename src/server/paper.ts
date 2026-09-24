@@ -438,7 +438,7 @@ export function applyBars(l: Ledger, id: string, bars: Bar[], nowMs: number): bo
     const widthPct = r.low > 0 ? ((r.high - r.low) / r.low) * 100 : 0;
     if (rules.frozenRange && widthPct < FROZEN_RANGE_PCT) {
       p.status = 'unfilled';
-      p.note = `frozen range (${widthPct.toFixed(2)}% < ${FROZEN_RANGE_PCT}%) — skipped`;
+      p.note = `frozen range ${widthPct.toFixed(2)}% (< ${FROZEN_RANGE_PCT}%)`;
       return true;
     }
     // P42 row 11: NSE's OI % (the scan's) against the near-month future's own OI %, both as of 09:20.
