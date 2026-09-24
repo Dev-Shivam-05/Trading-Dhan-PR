@@ -22,6 +22,8 @@ import { fetchIntraday } from './peakoi.ts';
 import { readChain } from './ltp.ts';
 import { PaperTrader, ledgerPath } from './paper.ts';
 import { keepAwake } from './awake.ts';
+import { runBacktest, lastRunDate, saveScan } from './history.ts';
+import { jobDue } from './backtest.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
@@ -53,6 +55,33 @@ const ucandles = new UnderlyingCandleService(creds);
 if (!isReplay()) keepAlive(creds);
 
 /**
+ * backtest-v1.md row 14: the nightly backtest, inside the one process that owns the Dhan token.
+ * Due once per weekday at or after 16:00 IST. A failed run is not retried until the next day —
+ * a fan-out of ~630 calls must not repeat every minute — and says why in the log.
+ */
+let backtestBusy = false;
+let backtestTriedOn: string | null = null;
+if (!isReplay() && creds) {
+  setInterval(async () => {
+    if (backtestBusy) return;
+    const now = Date.now();
+    const last = await lastRunDate();
+    const today = todayIso();
+    if (!jobDue(last, now) || backtestTriedOn === today) return;
+    backtestBusy = true;
+    backtestTriedOn = today;
+    try {
+      const r = await runBacktest(creds, now, m => console.log(`[backtest] ${m}`));
+      console.log(`[backtest] done: ${r.sessions.length} sessions to ${r.lastDay}, ${r.calls} Dhan calls, ${r.failed.length} failed`);
+    } catch (e) {
+      console.error(`[backtest] FAILED: ${(e as Error).message} — next try tomorrow, or run npm run backtest`);
+    } finally {
+      backtestBusy = false;
+    }
+  }, 60_000).unref();
+}
+
+/**
  * Which instruments each open SSE connection wants ticks for. The feed holds ONE socket, so it
  * subscribes to the union - two tabs on different underlyings both keep working, and Dhan's
  * 5-socket-per-user limit is never approached.
@@ -79,7 +108,20 @@ const paper = new PaperTrader({
   file: ledgerPath(),
   mode: isReplay() ? 'replay' : 'live',
   lookup: (symbol) => fnoUniverse(todayIso()).find(s => s.symbol === symbol),
-  scan: () => nseScanner.run(DEFAULT_TOP_N),
+  scan: async () => {
+    const r = await nseScanner.run(DEFAULT_TOP_N);
+    // backtest-v1.md row 18: keep every live 09:20 scan, with the top-25/30 re-ranks of the SAME
+    // fetch (no new page loads). Re-ranked at 20 last so the Scanner tab still shows the top-20
+    // result it asked for.
+    if (!isReplay() && !r.error) {
+      try {
+        const wider = [await nseScanner.run(25, true), await nseScanner.run(30, true)];
+        await nseScanner.run(DEFAULT_TOP_N, true);
+        await saveScan(r.market.tradeDate ?? todayIso(), r, wider);
+      } catch (e) { console.error(`[backtest] could not save the 09:20 scan: ${(e as Error).message}`); }
+    }
+    return r;
+  },
   // orb-strategy-v1.md rows 3, 7: the future's own 5-minute candles, with a week behind them so
   // SMA9 exists at 09:25. Every paper fetch shares ONE gate key - dhan.ts gates per key.
   candles: async (ask, nowMs) => {

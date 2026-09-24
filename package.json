@@ -25,7 +25,9 @@
     "ltp:test": "node scripts/ltp-test.ts",
     "session:test": "node scripts/session-test.ts",
     "paper:test": "node scripts/paper-test.ts",
-    "sleep:test": "node scripts/sleep-test.ts"
+    "sleep:test": "node scripts/sleep-test.ts",
+    "backtest": "node --env-file-if-exists=.env scripts/backtest.ts",
+    "backtest:test": "node scripts/backtest-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
