@@ -170,6 +170,8 @@ export type Day = {
   notTaken: NotTaken[];
   funnel: NseScanResult['funnel'] | null;
   note: string | null;
+  /** P40 row 2: which once-a-day phone messages have gone out, so a restart does not repeat them. */
+  pushed?: { digest?: boolean; summary?: boolean };
 };
 
 export type Ledger = {
@@ -635,6 +637,80 @@ export function holdAwake(l: Ledger, nowMs: number): boolean {
   return scanPending || l.positions.some(p => p.date === date && live(p));
 }
 
+/* ------------------------------------------------ P40: messages for the phone */
+
+/** P40 rows 1-2 (sleep-proof and backtest specs' sibling, `docs/spec/phone-sandbox-v1.md`). */
+export const DIGEST_MIN = 9 * 60 + 30;
+export const SUMMARY_MIN = 15 * 60 + 20;
+
+export type PaperEvent = { kind: 'entry' | 'exit' | 'digest' | 'summary'; title: string; body: string };
+
+const px = (x: number | null | undefined) => (x === null || x === undefined ? '-' : x.toFixed(2));
+/** ASCII only: ntfy titles are HTTP headers (notify.ts). */
+const rs = (x: number | null | undefined) => (x === null || x === undefined ? '-' : `${x < 0 ? '-' : '+'}Rs ${Math.abs(x).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const legName = (p: Position) => (legOf(p) === 'option' ? `${p.strike} ${p.optionType}` : 'FUT');
+const REASON_TEXT: Record<string, string> = {
+  sma: 'closes against SMA9', eod: '15:15 square-off', manual: 'exited by hand', stale: 'stale close', target: 'target', stop: 'stop-loss',
+};
+
+/** The status of every position, to diff against after a change. */
+export function statusMap(l: Ledger): Map<string, Position['status']> {
+  return new Map(l.positions.map(p => [p.id, p.status]));
+}
+
+/** P40 row 2: an entry (pending -> open) or an exit (open -> closed) since `before`. */
+export function transitions(before: Map<string, Position['status']>, l: Ledger): PaperEvent[] {
+  const out: PaperEvent[] = [];
+  for (const p of l.positions) {
+    const was = before.get(p.id);
+    if (p.status === 'open' && was !== 'open' && p.entryPx !== null) {
+      const opt = legOf(p) === 'option';
+      const side = opt ? 'BUY' : p.side;
+      const why = opt ? `option leg of the ${p.symbol} ${p.side}`
+        : p.range ? `broke ${p.side === 'BUY' ? 'above' : 'below'} ${px(p.side === 'BUY' ? p.range.high : p.range.low)} (range ${px(p.range.high)}-${px(p.range.low)})` : 'entered';
+      out.push({ kind: 'entry', title: `${side} ${p.symbol} ${legName(p)} @ ${px(p.entryPx)}`, body: `${ist(p.entryAt!).hms} · ${why} · qty ${p.qty}` });
+    } else if (p.status === 'closed' && was === 'open') {
+      const reason = REASON_TEXT[p.reason ?? ''] ?? p.reason ?? '';
+      out.push({
+        kind: 'exit',
+        title: `EXIT ${p.symbol} ${legName(p)} @ ${px(p.exitPx)} ${rs(p.pnl)}`,
+        body: `${ist(p.exitAt!).hms} · ${reason}${p.repriced ? ' (repriced)' : ''} · entry ${px(p.entryPx)}${p.note ? ` · ${p.note}` : ''}`,
+      });
+    }
+  }
+  return out;
+}
+
+/** P40 row 2: the 09:30 list — what was scanned, what waits for a break, what was not taken and why. */
+export function digestEvent(l: Ledger, nowMs: number): PaperEvent | null {
+  const { date, minutes } = ist(nowMs);
+  const d = l.days[date];
+  if (!d || minutes < DIGEST_MIN || d.pushed?.digest || (d.status !== 'done' && d.status !== 'no-trades')) return null;
+  (d.pushed ??= {}).digest = true;
+  if (d.status === 'no-trades') return { kind: 'digest', title: `09:30 · no trades today`, body: d.note ?? d.lastError ?? '' };
+  const futs = l.positions.filter(p => p.date === date && legOf(p) === 'future');
+  const lines = futs.map(p => `${p.symbol} ${p.side} · ${p.status === 'pending'
+    ? (p.range ? `waiting for ${p.side === 'BUY' ? 'above' : 'below'} ${px(p.side === 'BUY' ? p.range.high : p.range.low)}` : `no range yet${p.rangeNote ? ` (${p.rangeNote})` : ''}`)
+    : `${p.status} @ ${px(p.entryPx)}`}`);
+  for (const n of d.notTaken) lines.push(`not taken: ${n.symbol} ${n.side} · ${n.reason}`);
+  return { kind: 'digest', title: `09:30 · ${d.signals} signal${d.signals === 1 ? '' : 's'} · ${futs.length} taken`, body: lines.join('\n') || 'nothing to trade' };
+}
+
+/** P40 row 2: the 15:20 day summary, once, when the day had a scan. */
+export function summaryEvent(l: Ledger, nowMs: number): PaperEvent | null {
+  const { date, minutes } = ist(nowMs);
+  const d = l.days[date];
+  if (!d || minutes < SUMMARY_MIN || d.pushed?.summary || d.status === 'waiting' || d.status === 'scanning') return null;
+  (d.pushed ??= {}).summary = true;
+  const legs = l.positions.filter(p => p.date === date);
+  const closed = legs.filter(p => p.status === 'closed');
+  const total = r2(closed.reduce((s, p) => s + (p.pnl ?? 0), 0));
+  const lines = legs.map(p => p.status === 'closed'
+    ? `${p.symbol} ${legName(p)} ${rs(p.pnl)} · ${REASON_TEXT[p.reason ?? ''] ?? p.reason}${p.repriced ? ' (repriced)' : ''}`
+    : `${p.symbol} ${legName(p)} ${p.status}${p.note ? ` · ${p.note}` : ''}`);
+  return { kind: 'summary', title: `Day ${date} · ${closed.length} closed · gross ${rs(total)}`, body: lines.join('\n') || 'no positions today' };
+}
+
 /**
  * P32 row 11: manual exit at the last LTP; a pending leg is cancelled instead. Exiting a FUTURE
  * takes its option leg with it — they are one signal, and an option left behind would be a trade
@@ -775,6 +851,8 @@ type TraderOpts = {
   minuteBars?: (ask: { securityId: number; leg: Leg }, nowMs: number) => Promise<CandleAnswer>;
   /** P36 row 3: called when the keep-awake hold should start (true) or end (false). */
   onAwake?: (hold: boolean) => void;
+  /** P40: entries, exits and the two daily messages, for the phone. */
+  onEvent?: (e: PaperEvent) => void;
   /** P33 row 6: the symbol's near-month stock options. */
   options: OptionsFor;
   /** Called with the contracts this trader needs ticks for; an empty list releases them. */
@@ -799,6 +877,8 @@ export class PaperTrader {
   private catching = false;
   private catchRetryAt = 0;
   private awake = false;
+  /** P40: statuses as last announced. Seeded at load, so a restart re-announces nothing. */
+  private announced = new Map<string, Position['status']>();
 
   constructor(o: TraderOpts) {
     this.o = o;
@@ -833,6 +913,7 @@ export class PaperTrader {
     // P32 row 13: an earlier date's open position is closed as stale before anything else happens.
     if (onClock(this.ledger, this.now())) this.dirty = true;
     this.syncWants();
+    this.announced = statusMap(this.ledger);
     await this.flush(true);
   }
 
@@ -858,6 +939,10 @@ export class PaperTrader {
     if (onClock(this.ledger, now)) { this.dirty = true; this.syncWants(); await this.flush(true); }
     if (!this.catching && now >= this.catchRetryAt && this.ledger.positions.some(p => p.status === 'open' && p.awaiting)) {
       await this.catchUp();
+    }
+    // P40 row 2: the once-a-day messages. Marked in the ledger, so a restart does not repeat them.
+    for (const e of [digestEvent(this.ledger, now), summaryEvent(this.ledger, now)]) {
+      if (e) { this.o.onEvent?.(e); await this.flush(true); }
     }
     if (!this.scanning && scanDue(this.ledger, now)) await this.runScan(true);
     if (!this.fetching) await this.readCandles();
@@ -1001,6 +1086,13 @@ export class PaperTrader {
 
   view() { return view(this.ledger, this.now()); }
 
+  /** P40 row 2: every status change since the last call, once. Runs on each urgent flush. */
+  private announce() {
+    if (!this.o.onEvent) return;
+    for (const e of transitions(this.announced, this.ledger)) this.o.onEvent(e);
+    this.announced = statusMap(this.ledger);
+  }
+
   /** P32 row 12: one feed entry for everything pending or open; empty once nothing is. */
   private syncWants() {
     const subs = new Map<number, Subscription>();
@@ -1028,7 +1120,7 @@ export class PaperTrader {
    * and renamed, so a crash mid-write cannot leave half a ledger behind.
    */
   private flush(urgent: boolean): Promise<void> {
-    if (urgent) this.dirty = true;
+    if (urgent) { this.dirty = true; this.announce(); }
     if (!this.dirty || (!urgent && this.wall() - this.lastSave < 5000)) return this.saving;
     this.dirty = false;
     this.lastSave = this.wall();

@@ -24,6 +24,8 @@ import { PaperTrader, ledgerPath } from './paper.ts';
 import { keepAwake } from './awake.ts';
 import { runBacktest, lastRunDate, saveScan } from './history.ts';
 import { jobDue } from './backtest.ts';
+import { TickRecorder } from './ticks.ts';
+import { notify } from './notify.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
 import { keepAlive, tokenExpiryMs } from './token.ts';
 import { execFileSync } from 'node:child_process';
@@ -147,6 +149,13 @@ const paper = new PaperTrader({
   },
   // Row 3: live only. Replay trades nothing real and has no reason to hold a laptop awake.
   onAwake: (hold) => { if (!isReplay()) keepAwake(hold); },
+  // phone-sandbox-v1.md P40 rows 1-2: every entry, exit and the two daily messages go to the
+  // phone. Live only: replay's fills are synthetic and would read as real trades on a lock screen.
+  onEvent: (e) => {
+    if (isReplay()) return;
+    void notify(`PAPER ${e.title}`, e.body, { urgent: e.kind === 'entry' || e.kind === 'exit' })
+      .then(r => { for (const o of r) if (!o.ok) console.error(`[paper] ${o.channel} push failed: ${o.detail}`); });
+  },
   options: (symbol) => stockOptions(symbol, todayIso()),
   onWants: (subs) => {
     if (subs.length) feedWants.set(PAPER_CONN, subs);
@@ -157,10 +166,32 @@ const paper = new PaperTrader({
 
 /** Underlying ticks feed the chart, so they are kept in a ring buffer per instrument. */
 const underlyingOf = new Map<string, string>();   // "SEG:securityId" -> instrument id
+/**
+ * phone-sandbox-v1.md P41 row 3: the tick recorder, live only, on its own reserved feed key. Its
+ * 2,000-odd instruments ride the same socket union as the chain and Paper, so P5's
+ * `subscriptions === 2 x strikes + 1` check does not hold while it records (09:14-15:31).
+ */
+const RECORD_CONN = -2;
+const recorder = isReplay() ? null : new TickRecorder({
+  universe: () => fnoUniverse(todayIso())
+    .filter(s => !s.problem && s.futureId !== null && s.lot !== null && s.futureExpiry)
+    .map(s => ({
+      symbol: s.symbol, futureId: s.futureId!, lot: s.lot!, expiry: s.futureExpiry!,
+      options: stockOptions(s.symbol, todayIso()).filter(o => o.expiry === s.futureExpiry),
+    })),
+  onWants: (subs) => {
+    if (subs.length) feedWants.set(RECORD_CONN, subs);
+    else feedWants.delete(RECORD_CONN);
+    refreshFeedSubscriptions();
+  },
+});
+if (recorder) setInterval(() => { void recorder.step(Date.now()); }, 1000).unref();
+
 feed.on('tick', (t: Tick) => {
   const id = underlyingOf.get(`${t.seg}:${t.securityId}`);
   if (id && t.ltp !== null) history.push(id, t.at, t.ltp);
   paper.onFeedTick(t);
+  recorder?.onTick(t);
 });
 
 let registry: Registry;
