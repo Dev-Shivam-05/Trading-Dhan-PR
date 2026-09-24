@@ -177,7 +177,11 @@ run lost 6 of 10 contracts to `DH-904` and would have concluded from the 4 that 
 paced now.
 
 ## Next 3
-*(Updated at P33 close, 2026-09-23.)*
+*(Updated at P40-P42 close, 2026-09-25 00:40.)*
+1. **Fri 25 Sep after 15:31:** read `.cache/ticks/2026-09-25/summary.json` (P41 AC2), replay today in the Sandbox on recorded ticks and compare with the live ledger, confirm `[backtest] done` after 16:00 and the saved scan in `.cache/history/scans/2026-09-25.json`.
+2. **User calls owed:** Arm the live trader (it is disarmed); which P42 rules go live after sandbox runs; how the calculators combine (P43); `w32tm /resync`.
+3. **P38** (backtest panel) or **P34** (LTP Calculator on NIFTY) — whichever the user picks next.
+
 1. **Thu 24 Sep after 15:15:** read `.cache/paper-ledger.json`. Recompute every range, entry, SMA9 exit and P&L from Dhan's real 5-minute candles (`.cache/p33-live-candles.ts <SYMBOL>`), and close P33 AC6. Also read `.cache/p30-open-run.log` and close P31's open-session criteria.
 2. **P34 spec-lock:** LTP Calculator trades on NIFTY options. The user's answers are on the board row. Still undefined: the touch rule, which snapshot's level, the entry window, lots and the square-off.
 3. **User calls owed:** `exclude` or keep the post-15:30 candles in SMA9; add a hard stop (`change 10`); who owns `L`.

@@ -633,3 +633,26 @@ recomputation.
 The user wants paper results first and then "switch it to real money, try it once". That needs an
 account seam, a loss cap, a kill switch and Dhan's order API verified — none built. Until the user
 asks for P35 by name, `src/` contains no order endpoint (P32 row 1, grepped by `paper:test`).
+
+## 2026-09-24 — The 24-Sep ledger stays as the record; corrected numbers live in the docs (P31)
+The laptop slept 10:40-17:45 and the trader closed at the 10:40 tick. Rewriting the ledger would hide
+what the system actually did; P31's recompute (Rs 2,28,672.50) is recorded on the board and in AC6.
+
+## 2026-09-24 — Blind time is priced from Dhan's 1-minute candles (P36)
+An exit that came due while the process was asleep or down closes at the open of the 1-minute candle
+at the due instant, marked `repriced`. A failed read retries every 60 s; a date change closes stale
+with a note. A signal is priced whole or not at all (amendment 9).
+
+## 2026-09-24 — The backtest learns only from real 09:20 scans (P37)
+NSE's OI Spurts figure includes options OI and cannot be rebuilt from Dhan's history (MFSL +7.82%
+NSE vs +2.86% near-month future). Proxy days are always reported apart, and every live 09:20 scan
+is saved so the real sample grows by one day per session.
+
+## 2026-09-25 — Phone visibility through ntfy, not a paper-trading app (P40)
+Research: FrontPage has no API; Dhan/Upstox sandboxes do not show in their apps; Tradetron's free
+plan is the only inbound option and has catches. ntfy was already configured (P17).
+
+## 2026-09-25 — Risk rules exist but start OFF live (P42)
+Stop, 2R target, frozen-range skip, OI flag and a -Rs 50,000 loss cap are switchable per sandbox
+run. On 24 Sep the frozen-range rule would have skipped the day's winner, so which rules go live is
+the user's call after sandbox evidence.
