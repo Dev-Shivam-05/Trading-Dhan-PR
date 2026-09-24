@@ -1,4 +1,4 @@
-# HANDOFF — Dhan Terminal — P31 + P33 AC6 read, then P36 built — 2026-09-24
+# HANDOFF — Dhan Terminal — P31 read, P36 and P37 built — 2026-09-24
 
 > P33's handoff is in git history at `fc15c3f`. The P31-only version of this file is at `ab104bb`.
 
@@ -57,6 +57,18 @@ at the user's word.
 - First command: `curl -s http://127.0.0.1:8787/api/health` → build `9db344e`, `tokenExpires` 2026-09-25T12:30:39Z.
 - Watch out for: the token expires at 18:00 IST Friday. The server renews it once 12 h remain and the market is shut,
   which is 06:00–09:00 or after 15:45. The laptop must be awake in one of those windows before 18:00.
+
+## P37 — backtest (branch `p37-backtest`, cut from `p36-sleep-proof`)
+- Spec `docs/spec/backtest-v1.md`. `npm run backtest` prints the report. The live server also runs it once per weekday at or after 16:00 IST, writing
+  `.cache/history/report.json`. `npm run backtest:test` 31/31.
+- First run: 638 calls, 21 sessions (26 Aug–24 Sep). Second run: 0 calls. Real-scan days: 21 Sep and 24 Sep only.
+- **Finding:** NSE's OI Spurts figure is not near-month futures OI. The proxy's OI goes the other way (rollover, 5 days
+  before expiry), so proxy days almost never trade. The learning therefore rests on real 09:20 scans, which row 18
+  now saves daily (`.cache/history/scans/<date>.json`). The first saved one will be Friday's.
+- **Row 12's fill model misses band jumps:** POLICYBZR model 1700.45 vs live 1606 (and so 1700 PE vs 1600 PE). MFSL is off by 1.10.
+- Live server restarted on P37 (`aeabd99`, PID 26928). It did not rerun the job today, because the report is dated today. ARMED.
+- Next: after Friday 16:00, read `[backtest] done` in `.cache/live-8787.log` and `report.json`. Friday should be the
+  third real-scan day. P38 (the panel) and P39 (older history) are boarded.
 
 ## Regression sweep (browser, replay 8791)
 Run by a subagent on **8793**. 8791 was held by a stale replay server, PID 16816, on build `ed5c509`, started 23 Sep

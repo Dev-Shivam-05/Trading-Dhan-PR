@@ -588,3 +588,10 @@ two calls in flight on one key are not serialised. Do not re-run the race test c
 `w32tm /stripchart /computer:time.windows.com` read +4.62 s on 24 Sep. The ledger stamps ticks with
 `Date.now()`, so MFSL's 09:49:00 break was logged 09:48:56 and matched the wrong 1-minute candle until
 corrected. Matching ledger times to exchange candles needs the measured offset (`CLOCK_SKEW_MS`).
+
+## NSE's OI Spurts figure is not futures OI — a Dhan rebuild of the 09:20 scan cannot use it (measured 2026-09-24)
+24 Sep, previous session -> 09:19: NSE MFSL +7.82% / POLICYBZR +8.71%; Dhan near-month future +2.86% / −13.5%; all
+three futures expiries summed MFSL +6.4%. Across the whole 24-Sep losing list NSE read +0.2 to +8.7% while the
+near-month future read −1.4 to −30.5% (rollover, five days before expiry). NSE's number evidently includes options OI.
+So P37's proxy scan almost never passes the 7% filter, and **only a real 09:20 scan is evidence** — the backtest
+reports real and proxy days apart for this reason. The cash price change, by contrast, rebuilds within ~0.1–0.7 pp.
