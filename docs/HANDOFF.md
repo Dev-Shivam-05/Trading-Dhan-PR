@@ -52,14 +52,12 @@ P30/P31's setup branch, so this one has a new name.)
 - **The paper trader's exits are unreliable on this laptop** until P36 (or until the laptop stays awake 09:10–15:35).
 - **P8 live is red**, and P8 AC5 could not run. Both wait for P36(b) and one more session.
 - P19's 1-minute tick containment (SKIP) needs a re-run with the market open. P9's `median20` needs the user's call.
-- Tomorrow's 09:20 run needs the token renewed tonight (see Watch out).
+- The token renewed at 18:00 and is good until **Fri 25 Sep 18:00 IST**. The 09:20 run is still armed.
 
 ## Next session starts here
 - Phase P36: spec-lock first (the proposals are below and in the reply). Then build.
-- First command: `curl -s http://127.0.0.1:8787/api/health` → `tokenExpires` must be later than `2026-09-24T13:55:28Z`.
-- Watch out for: **the token.** The 17:45 renewal failed with `network: fetch failed` on wake, and the token dies at 19:25 IST
-  today. The server retries every 15 min, but only while the laptop is awake. The overnight sleep also skipped the
-  07:25–09:00 renewal window.
+- First command: `curl -s http://127.0.0.1:8787/api/health` → `tokenExpires` must be `2026-09-25T12:30:39Z` or later.
+- Watch out for: **the laptop sleeping.** The token is good until Fri 18:00 IST, renewed at 18:00 after the 17:45 attempt failed on wake. The overnight sleep skipped the 07:25–09:00 renewal window, and a 10:40 sleep wrecks the exits (P36).
 
 ## P36 proposals (awaiting one word)
 | # | Row | Proposal |
