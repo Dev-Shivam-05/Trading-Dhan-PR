@@ -187,7 +187,8 @@ function openTable(rows) {
       <td class="dim">${opt ? '' : num(p.sma9)}</td>
       <td>${against}${p.awaiting
         // sleep-proof-v1.md rows 1-2: blind through a gap, so no tick may close it until candles price it.
-        ? `<span class="pp-wait" title="${esc(p.awaiting.dueAt ? `due ${hms(p.awaiting.dueAt)} (${p.awaiting.reason})` : 'working out what came due')}"> asleep ${hms(p.awaiting.from).slice(0, 5)}–${hms(p.awaiting.to).slice(0, 5)} · awaiting a candle price</span>`
+        // On its own line and short: inline, the sentence was clipped and squeezed Entry/LTP at 1024.
+        ? `<br><span class="pp-wait" title="${esc(`asleep ${hms(p.awaiting.from).slice(0, 5)}–${hms(p.awaiting.to).slice(0, 5)} · ${p.awaiting.dueAt ? `due ${hms(p.awaiting.dueAt)} (${p.awaiting.reason})` : 'working out what came due'}`)}">awaiting price</span>`
         : p.exitDue ? '<span class="pp-wait"> exit at next tick</span>' : ''}</td>
       <td class="${dirClass(p.pnl)}">${signed(p.pnl)}</td>
       <td class="${dirClass(p.pnlPct)}">${p.pnlPct === null ? '—' : signed(p.pnlPct) + '%'}</td>
@@ -210,7 +211,7 @@ function closedTable(rows) {
       ${p.leg === 'option' ? '<td class="l"><span class="pp-side buy">BUY</span></td>' : sideCell(p.side)}
       <td>${num(p.entryPx)}</td>
       <td>${num(p.exitPx)}</td>
-      <td class="l dim" title="${esc(p.note ?? '')}">${p.status === 'unfilled' ? `Not filled — ${esc(p.note)}` : esc(REASON[p.reason] ?? p.reason)}${p.repriced ? ' · priced from 1-min candle' : ''}</td>
+      <td class="l dim" title="${esc(p.note ?? '')}">${p.status === 'unfilled' ? `Not filled — ${esc(p.note)}` : esc(REASON[p.reason] ?? p.reason)}${p.repriced ? ' · repriced' : ''}</td>
       <td class="${dirClass(p.pnl)}">${p.status === 'unfilled' ? '—' : signed(p.pnl)}</td>
     </tr>`).join('');
   return `<table class="scan-t pp-t">

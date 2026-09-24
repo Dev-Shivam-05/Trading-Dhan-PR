@@ -54,3 +54,20 @@ For each of today's **open futures**:
 | AC5 | Two `dhanPost` calls on one key dispatch ≥ cadence apart **after** the first completes, even when issued together. The scanner and the spot quote share `marketfeed` | Unit with a stub fetch + grep |
 | AC6 | `/api/ucandles?key=NIFTY&interval=5` on the live server has no candle at 17:55 on 24 Sep, and NIFTY's today count is 75 | Live read |
 | AC7 | `paper:test` and every suite P33 ran stay green | Suites |
+
+---
+
+## Amendments found while building
+
+| # | Change | Why |
+|---|---|---|
+| 7 | Row 3 also holds the machine awake **before** today's scan has run (09:10 until the scan finishes). The approved proposal said "while any position is pending or open" | There are no positions before 09:20, so the row as proposed would not keep the laptop awake for the scan that creates them |
+| 8 | Row 1 prices from the first 1-minute candle **at or after** the due minute | An illiquid option may not trade in that minute. Live, its first tick after the due instant would have been the fill |
+| 9 | A failed 1-minute read on **any** leg leaves the whole signal awaiting. No leg is priced alone | A future priced at 10:55 beside an option still waiting would be half a signal |
+| 10 | `paper:test` walks its clock in steps under a minute where it used to jump from 09:35 to 15:00 | Under row 1, a jump longer than `GAP_MS` **is** a blind gap. The checks are about an awake trader, so the measurement changed. The claim did not (CLAUDE.md: fix the measurement) |
+| 11 | On the Paper screen, an awaiting leg shows `awaiting price` on its own line, with the gap and due time in the tooltip. A repriced close reads `… · repriced`, with the note in the tooltip | The first wording, `asleep 10:40–18:23 · awaiting a candle price` inline, was clipped in its 12% column. Seen in the screenshots |
+| 12 | `keepAwake`'s child polls the server's PID every 30 s and exits once it is gone | Killing the server by PID is the routine here, and an orphan would hold the laptop awake indefinitely. Verified: server killed with `taskkill //F`, child gone within 40 s |
+
+## Found, not changed
+- **At 1024 px the Open table clips Entry, LTP and SMA9 by 1 px** (`scrollWidth 69` vs `clientWidth 68`, `table-layout: fixed`). This predates P36: removing P36's line in the page changes nothing. The column widths are P33's, so fixing it means choosing a new width.
+- An entry missed during a gap (see Out of scope).
