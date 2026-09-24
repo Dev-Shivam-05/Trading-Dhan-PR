@@ -571,3 +571,20 @@ build. On 23 Sep it was unreachable and the whole sweep's reds were that one sty
 1259.24 target by a hair. Exchange prices are whole paise; `PaperTrader.onFeedTick` rounds to 0.01
 before any rule sees the tick. Anything new that compares a feed price with an exact level must do
 the same, or "the tick at the target" silently does not fire.
+
+## A sleeping laptop turns every paper exit into a silent lie (measured 2026-09-24)
+Modern Standby ran 10:40:04 -> 17:45:35 (System log, Kernel-Power 506/507). On wake `onClock` squared off at
+`p.ltp` — a 10:40 tick — stamped 17:45, `reason: eod`, `stale: false`. MFSL's SMA exit at 10:55 was never seen.
+The ledger said 1,12,985; the candles say 2,28,672.50. Before trusting any live paper result, check the
+Kernel-Power 506/507 events for the session and compare each `ltpAt` with its `exitAt`. P36 owns the fix.
+
+## Two marketfeed calls in the same second get `805`, whatever their gate keys
+Measured with `.cache/p31-quote-race.ts`: two `/v2/marketfeed/quote` calls on keys `race:a` / `race:b`, sent
+together -> one `805 Too many requests ... may result in the user being blocked`. Dhan's 1 req/s is per
+endpoint per account, not per our key. Also `waitForSlot` only spaces a call from the key's last COMPLETION —
+two calls in flight on one key are not serialised. Do not re-run the race test casually (the block warning).
+
+## This PC's clock runs ~4.6 s behind the exchange
+`w32tm /stripchart /computer:time.windows.com` read +4.62 s on 24 Sep. The ledger stamps ticks with
+`Date.now()`, so MFSL's 09:49:00 break was logged 09:48:56 and matched the wrong 1-minute candle until
+corrected. Matching ledger times to exchange candles needs the measured offset (`CLOCK_SKEW_MS`).

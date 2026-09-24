@@ -56,7 +56,7 @@ then we will switch it to real money"*). That switch is **P35** and is not built
 | AC3 | No break by 15:00 → `no break`; 15:15 squares off both legs | Unit |
 | AC4 | Every P&L on both legs recomputed in integer paise by a second implementation equals state, screen and ledger file | Unit + browser |
 | AC5 | Replay browser run shows the four seeded outcomes; screenshots taken **and read** | `.cache/p33-verify.js` |
-| AC6 | Live, the next trading day: the entries logged, recomputed from Dhan's real candles | **Open until measured** — never scored as a pass |
+| AC6 | Live, the next trading day: the entries logged, recomputed from Dhan's real candles | **Measured Thu 24 Sep (`.cache/p31-recompute.ts`, 15 pass / 7 fail). Entries: PASS.** Both ranges, both break minutes, both entry prices, both option strikes and both option fills agree with Dhan's 1- and 5-minute candles once the PC clock's measured 4.6 s lag is corrected. SMA9 and the against-count at 10:30 match to the paisa. **Exits: FAIL, all 7 reds from one cause.** The laptop entered Modern Standby at 10:40:04 and woke at 17:45:35 (Kernel-Power 506/507). The trader then squared off at 17:45 at the 10:40 tick, not the 15:15 price, and did not mark those exits `stale`. MFSL's two closes above SMA9 (10:45, 10:50) were never seen, so it should have exited at 10:55. See P36 |
 | AC7 | Every earlier suite re-run and green | Suites in `.cache/` |
 | AC8 | Still no order endpoint in `src/`; `paper.ts` imports nothing from `dhan.ts` | Grep in `paper:test` |
 

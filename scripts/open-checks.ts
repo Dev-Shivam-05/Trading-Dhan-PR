@@ -239,6 +239,10 @@ async function main() {
       const r = scan.body;
       const f = r.funnel ?? r.result?.funnel ?? null;
       console.log(`      scan took ${(took / 1000).toFixed(1)} s · funnel ${JSON.stringify(f)}`);
+      // 24 Sep's run failed with "0 ranked" in 0.2 s and never said why; the scanner's own
+      // `error` field carries the reason (e.g. the quote call's Dhan code), so print it.
+      const err = r.error ?? r.result?.error ?? null;
+      if (err) console.log(`      scan error: ${err}`);
       // Recompute the funnel from the scan's own per-stock trace, independently of its counters.
       const trace: any[] = r.trace ?? r.result?.trace ?? [];
       const ranked = trace.length;
