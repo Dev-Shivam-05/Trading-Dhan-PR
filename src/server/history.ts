@@ -40,6 +40,8 @@ const file = (name: string) => path.join(HISTORY_DIR, name);
 async function readJson<T>(name: string): Promise<T | null> {
   try { return JSON.parse(await readFile(file(name), 'utf8')) as T; } catch { return null; }
 }
+/** A file under the history directory, parsed, or null. For the sandbox (P41). */
+export const readHistoryJson = readJson;
 async function writeJson(name: string, v: unknown) {
   await mkdir(path.dirname(file(name)), { recursive: true });
   const tmp = file(name) + '.tmp';
@@ -166,7 +168,7 @@ export async function updateHistory(creds: Credentials, nowMs: number, log: Fetc
 
 /* ------------------------------------------------------------ real scans */
 
-export type RealScan = { priceAsOf: string; byN: Record<number, { long: { symbol: string; chgPct: number }[]; short: { symbol: string; chgPct: number }[] }>; trace: NseScanResult['trace'] };
+export type RealScan = { result: NseScanResult; priceAsOf: string; byN: Record<number, { long: { symbol: string; chgPct: number }[]; short: { symbol: string; chgPct: number }[] }>; trace: NseScanResult['trace'] };
 
 /** "24-Sep-2026 09:20:10" -> minutes after midnight, or null. */
 function stampMinutes(s: string): number | null {
@@ -193,7 +195,7 @@ export async function realScan(date: string): Promise<RealScan | null> {
     if (r.market?.tradeDate !== date || mins === null || mins < REAL_SCAN_FROM_MIN || mins > REAL_SCAN_UNTIL_MIN) continue;
     const byN: RealScan['byN'] = { [r.n]: { long: r.long, short: r.short } };
     for (const w of c.wider ?? []) byN[w.n] = { long: w.long, short: w.short };
-    return { priceAsOf: stamp, byN, trace: r.trace };
+    return { result: r, priceAsOf: stamp, byN, trace: r.trace };
   }
   return null;
 }

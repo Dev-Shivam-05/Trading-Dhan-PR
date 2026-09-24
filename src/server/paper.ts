@@ -99,7 +99,20 @@ export type OptionPick = { strike: number; optionType: 'CE' | 'PE'; securityId: 
 export type OptionsFor = (symbol: string) => OptionPick[];
 
 /** A 5-minute candle. `t` is the candle's OPEN time, epoch ms. */
-export type Bar = { t: number; o: number; h: number; l: number; c: number };
+export type Bar = { t: number; o: number; h: number; l: number; c: number; oi?: number };
+
+/**
+ * P42 (`phone-sandbox-v1.md` rows 8-13): risk rules, each switchable. A ledger without `rules` —
+ * every live ledger until the user says otherwise (row 13) — trades exactly as P33 did.
+ */
+export type RiskRules = { stop: boolean; target: boolean; frozenRange: boolean; oiFlag: boolean; lossCap: boolean };
+export const NO_RULES: RiskRules = { stop: false, target: false, frozenRange: false, oiFlag: false, lossCap: false };
+/** Row 9 (GUESS): the target is this many times the risk (entry to stop). */
+export const TARGET_R = 2;
+/** Row 10 (GUESS): a range narrower than this % of its price is frozen. */
+export const FROZEN_RANGE_PCT = 0.3;
+/** Row 12 (GUESS): no new entries once the day's gross P&L is at or below this. */
+export const LOSS_CAP = -50_000;
 
 export type Position = {
   /** Future: `${date}-${symbol}`. Option: `${date}-${symbol}-CE|PE`. */
@@ -150,6 +163,10 @@ export type Position = {
   /** P32 row 13: closed at boot because it was still open from an earlier date. */
   stale: boolean;
   note: string | null;
+  /** P42 row 11: warnings raised about this signal. Informational — they change no decision. */
+  flags?: string[];
+  /** P42: why a due exit is due, for the leg that closes at its next tick. `sma` when absent. */
+  exitWhy?: ExitReason | null;
   /** P36 rows 1-2. Set while blind-time exits are being worked out; null otherwise. */
   awaiting?: Awaiting | null;
   /** P36 row 1: the exit price came from Dhan's 1-minute candle, not a live tick. */
@@ -184,6 +201,8 @@ export type Ledger = {
    * (P33 amendment 17). Always 0 live. Persisted, so a restart does not jump the clock.
    */
   clockOffsetMs: number;
+  /** P42: the risk rules this ledger trades with. Absent = all off. */
+  rules?: RiskRules;
   /** P36: engine time of the last ledger write. A restart measures its blind gap from here. */
   aliveAt?: number | null;
   days: Record<string, Day>;
@@ -414,6 +433,23 @@ export function applyBars(l: Ledger, id: string, bars: Bar[], nowMs: number): bo
     if ('error' in r) { const changed = p.rangeNote !== r.error; p.rangeNote = r.error; return changed; }
     p.range = r;
     p.rangeNote = null;
+    const rules = l.rules ?? NO_RULES;
+    // P42 row 10: a range with no width is a locked price, and a break through it fills anywhere.
+    const widthPct = r.low > 0 ? ((r.high - r.low) / r.low) * 100 : 0;
+    if (rules.frozenRange && widthPct < FROZEN_RANGE_PCT) {
+      p.status = 'unfilled';
+      p.note = `frozen range (${widthPct.toFixed(2)}% < ${FROZEN_RANGE_PCT}%) — skipped`;
+      return true;
+    }
+    // P42 row 11: NSE's OI % (the scan's) against the near-month future's own OI %, both as of 09:20.
+    if (rules.oiFlag) {
+      const b0915 = bars.find(b => ist(b.t).date === p.date && ist(b.t).minutes === RANGE_FROM_MIN);
+      const prev = bars.filter(b => ist(b.t).date < p.date).sort((a, b) => a.t - b.t).at(-1);
+      if (b0915?.oi && prev?.oi) {
+        const fut = r2(((b0915.oi - prev.oi) / prev.oi) * 100);
+        if (Math.sign(fut) !== Math.sign(p.signal.oiPct)) (p.flags ??= []).push(`OI disagrees: NSE ${p.signal.oiPct}% vs futures ${fut}%`);
+      }
+    }
     return true;
   }
 
@@ -434,7 +470,7 @@ export function applyBars(l: Ledger, id: string, bars: Bar[], nowMs: number): bo
     if (p.against >= EXIT_CLOSES) {
       p.exitDue = true;
       p.note = `2 closes ${p.side === 'BUY' ? 'below' : 'above'} SMA9 — last ${ist(b.t).hms.slice(0, 5)} close ${b.c} vs ${p.sma9}`;
-      for (const c of l.positions) if (c.parentId === p.id && (c.status === 'open' || c.status === 'pending')) c.exitDue = true;
+      for (const c of l.positions) if (c.parentId === p.id && (c.status === 'open' || c.status === 'pending')) { c.exitDue = true; c.exitWhy = 'sma'; }
       break;
     }
   }
@@ -477,10 +513,22 @@ export function onTick(l: Ledger, securityId: number, ltp: number, nowMs: number
       if (!p.range || minutes < RANGE_READY_MIN || minutes >= ENTRY_UNTIL_MIN) continue;
       const broke = p.side === 'BUY' ? ltp > p.range.high : ltp < p.range.low;
       if (!broke) continue;
+      const rules = l.rules ?? NO_RULES;
+      // P42 row 12: the day's gross P&L, closed plus open, decides whether a new entry is allowed.
+      if (rules.lossCap && dayGross(l, date) <= LOSS_CAP) {
+        p.status = 'unfilled';
+        p.note = `daily loss cap reached (${dayGross(l, date).toFixed(2)} <= ${LOSS_CAP})`;
+        changed = true;
+        continue;
+      }
       p.status = 'open';
       p.entryPx = ltp;
       p.entryAt = nowMs;
       p.note = null;
+      // P42 rows 8, 9: the stop is the other side of the range; the target is TARGET_R x that risk.
+      const stop = p.side === 'BUY' ? p.range.low : p.range.high;
+      if (rules.stop) p.stopPx = stop;
+      if (rules.target) p.targetPx = r2(p.side === 'BUY' ? ltp + TARGET_R * (ltp - stop) : ltp - TARGET_R * (stop - ltp));
       changed = true;
       const type = p.side === 'BUY' ? 'CE' : 'PE';
       const o = nearestOption(optionsFor(p.symbol), ltp, type);
@@ -491,17 +539,40 @@ export function onTick(l: Ledger, securityId: number, ltp: number, nowMs: number
         securityId: o.securityId, expiry: o.expiry, lot, qty: lot,
         status: 'pending', createdAt: nowMs, range: null, rangeNote: null, sma9: null, against: 0,
         lastBarT: null, exitDue: false, entryPx: null, entryAt: null, ltp: null, ltpAt: null, note: null,
+        stopPx: null, targetPx: null, flags: undefined, exitWhy: null,
       });
     } else if (p.status === 'open') {
       p.ltp = ltp;
       p.ltpAt = nowMs;
       // An open position from an earlier date is onClock's to close as stale, not the tick's.
       if (p.date !== date) continue;
-      if (p.exitDue && !p.awaiting) { close(p, ltp, nowMs, 'sma'); changed = true; }
+      if (p.exitDue && !p.awaiting) { close(p, ltp, nowMs, p.exitWhy ?? 'sma'); changed = true; continue; }
+      // P42 rows 8, 9: a future's stop or target, on this very tick. Its option leg follows at its own next tick.
+      if (legOf(p) === 'future' && !p.awaiting && !p.exitDue) {
+        const hitStop = p.stopPx != null && (p.side === 'BUY' ? ltp <= p.stopPx : ltp >= p.stopPx);
+        const hitTarget = p.targetPx != null && (p.side === 'BUY' ? ltp >= p.targetPx : ltp <= p.targetPx);
+        if (hitStop || hitTarget) {
+          const why: ExitReason = hitStop ? 'stop' : 'target';
+          close(p, ltp, nowMs, why);
+          for (const c of l.positions) if (c.parentId === p.id && (c.status === 'open' || c.status === 'pending')) { c.exitDue = true; c.exitWhy = why; }
+          changed = true;
+        }
+      }
     }
   }
   l.positions.push(...spawned);
   return changed;
+}
+
+/** P42 row 12: today's gross P&L — realised plus the open legs marked at their last tick. */
+export function dayGross(l: Ledger, date: string): number {
+  let s = 0;
+  for (const p of l.positions) {
+    if (p.date !== date || p.entryPx === null) continue;
+    const px_ = p.status === 'closed' ? p.exitPx : p.status === 'open' ? p.ltp : null;
+    if (px_ !== null) s += pnlOf(pnlSide(p), p.entryPx, px_, p.qty);
+  }
+  return r2(s);
 }
 
 /**
