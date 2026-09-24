@@ -1,0 +1,989 @@
+{
+  "meta": {
+    "date": "2026-09-24",
+    "time": "14:16:29",
+    "weekday": "Thu",
+    "runner": "github-windows",
+    "host": "runnervmvmocb",
+    "status": "ok",
+    "note": "NSE data for 2026-09-24"
+  },
+  "result": {
+    "source": "nse",
+    "mode": "live",
+    "at": "2026-09-24T08:46:39.897Z",
+    "n": 20,
+    "reused": false,
+    "market": {
+      "status": "Open",
+      "priceAsOf": "24-Sep-2026 14:16:37",
+      "oiAsOf": "24-Sep-2026 14:15:44",
+      "tradeDate": "2026-09-24",
+      "prevTradingDate": "2026-09-23"
+    },
+    "evidence": [
+      ".cache\\nse\\2026-09-24-141637-fno-securities.json",
+      ".cache\\nse\\2026-09-24-141637-oi-spurts.json"
+    ],
+    "funnel": {
+      "list": 210,
+      "scored": 210,
+      "ranked": 40,
+      "chg": 22,
+      "oi": 18
+    },
+    "long": [
+      {
+        "symbol": "ICICIGI",
+        "name": "ICICI Lombard General Insurance Company Limited",
+        "ltp": 1570.1,
+        "prevClose": 1500.6,
+        "chgPct": 4.63,
+        "volume": 2352879,
+        "latestOi": 41907,
+        "prevOi": 32408,
+        "oiPct": 29.31
+      }
+    ],
+    "short": [
+      {
+        "symbol": "POLICYBZR",
+        "name": "PB Fintech Limited",
+        "ltp": 1282.3,
+        "prevClose": 1886.3,
+        "chgPct": -32.02,
+        "volume": 3281656,
+        "latestOi": 110957,
+        "prevOi": 48099,
+        "oiPct": 130.68
+      },
+      {
+        "symbol": "MFSL",
+        "name": "Max Financial Services Limited",
+        "ltp": 1370.7,
+        "prevClose": 1562.9,
+        "chgPct": -12.3,
+        "volume": 8342727,
+        "latestOi": 43620,
+        "prevOi": 23496,
+        "oiPct": 85.65
+      },
+      {
+        "symbol": "LTF",
+        "name": "L&T Finance Limited",
+        "ltp": 281.95,
+        "prevClose": 310,
+        "chgPct": -9.05,
+        "volume": 27707076,
+        "latestOi": 63377,
+        "prevOi": 43955,
+        "oiPct": 44.19
+      },
+      {
+        "symbol": "NAUKRI",
+        "name": "Info Edge (India) Limited",
+        "ltp": 1218.2,
+        "prevClose": 1297,
+        "chgPct": -6.08,
+        "volume": 2123194,
+        "latestOi": 43600,
+        "prevOi": 35848,
+        "oiPct": 21.62
+      },
+      {
+        "symbol": "BAJFINANCE",
+        "name": "Bajaj Finance Limited",
+        "ltp": 980.2,
+        "prevClose": 1043.2,
+        "chgPct": -6.04,
+        "volume": 10334740,
+        "latestOi": 200361,
+        "prevOi": 154406,
+        "oiPct": 29.76
+      },
+      {
+        "symbol": "CHOLAFIN",
+        "name": "Cholamandalam Investment and Finance Company Limited",
+        "ltp": 1672.5,
+        "prevClose": 1774,
+        "chgPct": -5.72,
+        "volume": 3686981,
+        "latestOi": 47557,
+        "prevOi": 34780,
+        "oiPct": 36.74
+      },
+      {
+        "symbol": "HDFCLIFE",
+        "name": "HDFC Life Insurance Company Limited",
+        "ltp": 529.5,
+        "prevClose": 561.5,
+        "chgPct": -5.7,
+        "volume": 15625778,
+        "latestOi": 96989,
+        "prevOi": 83055,
+        "oiPct": 16.78
+      },
+      {
+        "symbol": "AXISBANK",
+        "name": "Axis Bank Limited",
+        "ltp": 1178.1,
+        "prevClose": 1243.2,
+        "chgPct": -5.24,
+        "volume": 7953534,
+        "latestOi": 265695,
+        "prevOi": 200812,
+        "oiPct": 32.31
+      },
+      {
+        "symbol": "IDFCFIRSTB",
+        "name": "IDFC First Bank Limited",
+        "ltp": 83.79,
+        "prevClose": 87.9,
+        "chgPct": -4.68,
+        "volume": 32155076,
+        "latestOi": 87155,
+        "prevOi": 74616,
+        "oiPct": 16.8
+      },
+      {
+        "symbol": "AUBANK",
+        "name": "AU Small Finance Bank Limited",
+        "ltp": 1004.5,
+        "prevClose": 1053,
+        "chgPct": -4.61,
+        "volume": 2370359,
+        "latestOi": 48152,
+        "prevOi": 39968,
+        "oiPct": 20.48
+      },
+      {
+        "symbol": "BAJAJFINSV",
+        "name": "Bajaj Finserv Limited",
+        "ltp": 1766.4,
+        "prevClose": 1846.5,
+        "chgPct": -4.34,
+        "volume": 1062525,
+        "latestOi": 75942,
+        "prevOi": 64510,
+        "oiPct": 17.72
+      },
+      {
+        "symbol": "INDUSINDBK",
+        "name": "IndusInd Bank Limited",
+        "ltp": 918,
+        "prevClose": 959.3,
+        "chgPct": -4.31,
+        "volume": 4546198,
+        "latestOi": 98250,
+        "prevOi": 80769,
+        "oiPct": 21.64
+      },
+      {
+        "symbol": "ICICIPRULI",
+        "name": "ICICI Prudential Life Insurance Company Limited",
+        "ltp": 464.5,
+        "prevClose": 484.5,
+        "chgPct": -4.13,
+        "volume": 6890451,
+        "latestOi": 41156,
+        "prevOi": 31577,
+        "oiPct": 30.34
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "name": "Bandhan Bank Limited",
+        "ltp": 183.82,
+        "prevClose": 191.38,
+        "chgPct": -3.95,
+        "volume": 16401051,
+        "latestOi": 61502,
+        "prevOi": 55597,
+        "oiPct": 10.62
+      },
+      {
+        "symbol": "PNBHOUSING",
+        "name": "PNB Housing Finance Limited",
+        "ltp": 1097.6,
+        "prevClose": 1138.5,
+        "chgPct": -3.59,
+        "volume": 462310,
+        "latestOi": 27275,
+        "prevOi": 25312,
+        "oiPct": 7.76
+      },
+      {
+        "symbol": "BAJAJHLDNG",
+        "name": "Bajaj Holdings & Investment Limited",
+        "ltp": 11053,
+        "prevClose": 11449,
+        "chgPct": -3.46,
+        "volume": 30384,
+        "latestOi": 6033,
+        "prevOi": 5276,
+        "oiPct": 14.35
+      },
+      {
+        "symbol": "YESBANK",
+        "name": "Yes Bank Limited",
+        "ltp": 22.47,
+        "prevClose": 23.24,
+        "chgPct": -3.31,
+        "volume": 84488183,
+        "latestOi": 75696,
+        "prevOi": 65519,
+        "oiPct": 15.53
+      }
+    ],
+    "skipped": [],
+    "excluded": [],
+    "rejected": {
+      "rank": 170,
+      "chg": 18,
+      "oi": 4
+    },
+    "trace": [
+      {
+        "symbol": "ICICIGI",
+        "side": "gainer",
+        "chgPct": 4.63,
+        "oiPct": 29.31,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "KAYNES",
+        "side": "gainer",
+        "chgPct": 2.43,
+        "oiPct": -2.24,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "MCX",
+        "side": "gainer",
+        "chgPct": 1.63,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "PERSISTENT",
+        "side": "gainer",
+        "chgPct": 1.58,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "CIPLA",
+        "side": "gainer",
+        "chgPct": 1.16,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "OIL",
+        "side": "gainer",
+        "chgPct": 0.93,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "MANKIND",
+        "side": "gainer",
+        "chgPct": 0.86,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ZYDUSLIFE",
+        "side": "gainer",
+        "chgPct": 0.55,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "OFSS",
+        "side": "gainer",
+        "chgPct": 0.49,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "COCHINSHIP",
+        "side": "gainer",
+        "chgPct": 0.39,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "UNOMINDA",
+        "side": "gainer",
+        "chgPct": 0.39,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "PAGEIND",
+        "side": "gainer",
+        "chgPct": 0.33,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "AUROPHARMA",
+        "side": "gainer",
+        "chgPct": 0.25,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "SAIL",
+        "side": "gainer",
+        "chgPct": 0.2,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "PIIND",
+        "side": "gainer",
+        "chgPct": 0.19,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "LAURUSLABS",
+        "side": "gainer",
+        "chgPct": 0.14,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "CONCOR",
+        "side": "gainer",
+        "chgPct": 0.13,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ABB",
+        "side": "gainer",
+        "chgPct": 0.11,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "DIXON",
+        "side": "gainer",
+        "chgPct": 0.11,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "DIVISLAB",
+        "side": "gainer",
+        "chgPct": 0.09,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "POLICYBZR",
+        "side": "loser",
+        "chgPct": -32.02,
+        "oiPct": 130.68,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MFSL",
+        "side": "loser",
+        "chgPct": -12.3,
+        "oiPct": 85.65,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "LTF",
+        "side": "loser",
+        "chgPct": -9.05,
+        "oiPct": 44.19,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "NAUKRI",
+        "side": "loser",
+        "chgPct": -6.08,
+        "oiPct": 21.62,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "BAJFINANCE",
+        "side": "loser",
+        "chgPct": -6.04,
+        "oiPct": 29.76,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "CHOLAFIN",
+        "side": "loser",
+        "chgPct": -5.72,
+        "oiPct": 36.74,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "HDFCLIFE",
+        "side": "loser",
+        "chgPct": -5.7,
+        "oiPct": 16.78,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "AXISBANK",
+        "side": "loser",
+        "chgPct": -5.24,
+        "oiPct": 32.31,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "IDFCFIRSTB",
+        "side": "loser",
+        "chgPct": -4.68,
+        "oiPct": 16.8,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "AUBANK",
+        "side": "loser",
+        "chgPct": -4.61,
+        "oiPct": 20.48,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "BAJAJFINSV",
+        "side": "loser",
+        "chgPct": -4.34,
+        "oiPct": 17.72,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "INDUSINDBK",
+        "side": "loser",
+        "chgPct": -4.31,
+        "oiPct": 21.64,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "ICICIPRULI",
+        "side": "loser",
+        "chgPct": -4.13,
+        "oiPct": 30.34,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "RBLBANK",
+        "side": "loser",
+        "chgPct": -4.1,
+        "oiPct": -3.05,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "SUZLON",
+        "side": "loser",
+        "chgPct": -4.01,
+        "oiPct": 5.11,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "side": "loser",
+        "chgPct": -3.95,
+        "oiPct": 10.62,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PNBHOUSING",
+        "side": "loser",
+        "chgPct": -3.59,
+        "oiPct": 7.76,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "BAJAJHLDNG",
+        "side": "loser",
+        "chgPct": -3.46,
+        "oiPct": 14.35,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "SWIGGY",
+        "side": "loser",
+        "chgPct": -3.32,
+        "oiPct": 5.21,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "YESBANK",
+        "side": "loser",
+        "chgPct": -3.31,
+        "oiPct": 15.53,
+        "outcome": "pass"
+      }
+    ],
+    "reconciles": true,
+    "elapsedMs": 9729,
+    "error": null
+  },
+  "wider": [
+    {
+      "n": 25,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 50,
+        "chg": 27,
+        "oi": 19
+      },
+      "long": [
+        {
+          "symbol": "ICICIGI",
+          "name": "ICICI Lombard General Insurance Company Limited",
+          "ltp": 1570.1,
+          "prevClose": 1500.6,
+          "chgPct": 4.63,
+          "volume": 2352879,
+          "latestOi": 41907,
+          "prevOi": 32408,
+          "oiPct": 29.31
+        }
+      ],
+      "short": [
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1282.3,
+          "prevClose": 1886.3,
+          "chgPct": -32.02,
+          "volume": 3281656,
+          "latestOi": 110957,
+          "prevOi": 48099,
+          "oiPct": 130.68
+        },
+        {
+          "symbol": "MFSL",
+          "name": "Max Financial Services Limited",
+          "ltp": 1370.7,
+          "prevClose": 1562.9,
+          "chgPct": -12.3,
+          "volume": 8342727,
+          "latestOi": 43620,
+          "prevOi": 23496,
+          "oiPct": 85.65
+        },
+        {
+          "symbol": "LTF",
+          "name": "L&T Finance Limited",
+          "ltp": 281.95,
+          "prevClose": 310,
+          "chgPct": -9.05,
+          "volume": 27707076,
+          "latestOi": 63377,
+          "prevOi": 43955,
+          "oiPct": 44.19
+        },
+        {
+          "symbol": "NAUKRI",
+          "name": "Info Edge (India) Limited",
+          "ltp": 1218.2,
+          "prevClose": 1297,
+          "chgPct": -6.08,
+          "volume": 2123194,
+          "latestOi": 43600,
+          "prevOi": 35848,
+          "oiPct": 21.62
+        },
+        {
+          "symbol": "BAJFINANCE",
+          "name": "Bajaj Finance Limited",
+          "ltp": 980.2,
+          "prevClose": 1043.2,
+          "chgPct": -6.04,
+          "volume": 10334740,
+          "latestOi": 200361,
+          "prevOi": 154406,
+          "oiPct": 29.76
+        },
+        {
+          "symbol": "CHOLAFIN",
+          "name": "Cholamandalam Investment and Finance Company Limited",
+          "ltp": 1672.5,
+          "prevClose": 1774,
+          "chgPct": -5.72,
+          "volume": 3686981,
+          "latestOi": 47557,
+          "prevOi": 34780,
+          "oiPct": 36.74
+        },
+        {
+          "symbol": "HDFCLIFE",
+          "name": "HDFC Life Insurance Company Limited",
+          "ltp": 529.5,
+          "prevClose": 561.5,
+          "chgPct": -5.7,
+          "volume": 15625778,
+          "latestOi": 96989,
+          "prevOi": 83055,
+          "oiPct": 16.78
+        },
+        {
+          "symbol": "AXISBANK",
+          "name": "Axis Bank Limited",
+          "ltp": 1178.1,
+          "prevClose": 1243.2,
+          "chgPct": -5.24,
+          "volume": 7953534,
+          "latestOi": 265695,
+          "prevOi": 200812,
+          "oiPct": 32.31
+        },
+        {
+          "symbol": "IDFCFIRSTB",
+          "name": "IDFC First Bank Limited",
+          "ltp": 83.79,
+          "prevClose": 87.9,
+          "chgPct": -4.68,
+          "volume": 32155076,
+          "latestOi": 87155,
+          "prevOi": 74616,
+          "oiPct": 16.8
+        },
+        {
+          "symbol": "AUBANK",
+          "name": "AU Small Finance Bank Limited",
+          "ltp": 1004.5,
+          "prevClose": 1053,
+          "chgPct": -4.61,
+          "volume": 2370359,
+          "latestOi": 48152,
+          "prevOi": 39968,
+          "oiPct": 20.48
+        },
+        {
+          "symbol": "BAJAJFINSV",
+          "name": "Bajaj Finserv Limited",
+          "ltp": 1766.4,
+          "prevClose": 1846.5,
+          "chgPct": -4.34,
+          "volume": 1062525,
+          "latestOi": 75942,
+          "prevOi": 64510,
+          "oiPct": 17.72
+        },
+        {
+          "symbol": "INDUSINDBK",
+          "name": "IndusInd Bank Limited",
+          "ltp": 918,
+          "prevClose": 959.3,
+          "chgPct": -4.31,
+          "volume": 4546198,
+          "latestOi": 98250,
+          "prevOi": 80769,
+          "oiPct": 21.64
+        },
+        {
+          "symbol": "ICICIPRULI",
+          "name": "ICICI Prudential Life Insurance Company Limited",
+          "ltp": 464.5,
+          "prevClose": 484.5,
+          "chgPct": -4.13,
+          "volume": 6890451,
+          "latestOi": 41156,
+          "prevOi": 31577,
+          "oiPct": 30.34
+        },
+        {
+          "symbol": "BANDHANBNK",
+          "name": "Bandhan Bank Limited",
+          "ltp": 183.82,
+          "prevClose": 191.38,
+          "chgPct": -3.95,
+          "volume": 16401051,
+          "latestOi": 61502,
+          "prevOi": 55597,
+          "oiPct": 10.62
+        },
+        {
+          "symbol": "PNBHOUSING",
+          "name": "PNB Housing Finance Limited",
+          "ltp": 1097.6,
+          "prevClose": 1138.5,
+          "chgPct": -3.59,
+          "volume": 462310,
+          "latestOi": 27275,
+          "prevOi": 25312,
+          "oiPct": 7.76
+        },
+        {
+          "symbol": "BAJAJHLDNG",
+          "name": "Bajaj Holdings & Investment Limited",
+          "ltp": 11053,
+          "prevClose": 11449,
+          "chgPct": -3.46,
+          "volume": 30384,
+          "latestOi": 6033,
+          "prevOi": 5276,
+          "oiPct": 14.35
+        },
+        {
+          "symbol": "YESBANK",
+          "name": "Yes Bank Limited",
+          "ltp": 22.47,
+          "prevClose": 23.24,
+          "chgPct": -3.31,
+          "volume": 84488183,
+          "latestOi": 75696,
+          "prevOi": 65519,
+          "oiPct": 15.53
+        },
+        {
+          "symbol": "PIDILITIND",
+          "name": "Pidilite Industries Limited",
+          "ltp": 1536.3,
+          "prevClose": 1588.1,
+          "chgPct": -3.26,
+          "volume": 774472,
+          "latestOi": 20918,
+          "prevOi": 16437,
+          "oiPct": 27.26
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 60,
+        "chg": 32,
+        "oi": 20
+      },
+      "long": [
+        {
+          "symbol": "ICICIGI",
+          "name": "ICICI Lombard General Insurance Company Limited",
+          "ltp": 1570.1,
+          "prevClose": 1500.6,
+          "chgPct": 4.63,
+          "volume": 2352879,
+          "latestOi": 41907,
+          "prevOi": 32408,
+          "oiPct": 29.31
+        }
+      ],
+      "short": [
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1282.3,
+          "prevClose": 1886.3,
+          "chgPct": -32.02,
+          "volume": 3281656,
+          "latestOi": 110957,
+          "prevOi": 48099,
+          "oiPct": 130.68
+        },
+        {
+          "symbol": "MFSL",
+          "name": "Max Financial Services Limited",
+          "ltp": 1370.7,
+          "prevClose": 1562.9,
+          "chgPct": -12.3,
+          "volume": 8342727,
+          "latestOi": 43620,
+          "prevOi": 23496,
+          "oiPct": 85.65
+        },
+        {
+          "symbol": "LTF",
+          "name": "L&T Finance Limited",
+          "ltp": 281.95,
+          "prevClose": 310,
+          "chgPct": -9.05,
+          "volume": 27707076,
+          "latestOi": 63377,
+          "prevOi": 43955,
+          "oiPct": 44.19
+        },
+        {
+          "symbol": "NAUKRI",
+          "name": "Info Edge (India) Limited",
+          "ltp": 1218.2,
+          "prevClose": 1297,
+          "chgPct": -6.08,
+          "volume": 2123194,
+          "latestOi": 43600,
+          "prevOi": 35848,
+          "oiPct": 21.62
+        },
+        {
+          "symbol": "BAJFINANCE",
+          "name": "Bajaj Finance Limited",
+          "ltp": 980.2,
+          "prevClose": 1043.2,
+          "chgPct": -6.04,
+          "volume": 10334740,
+          "latestOi": 200361,
+          "prevOi": 154406,
+          "oiPct": 29.76
+        },
+        {
+          "symbol": "CHOLAFIN",
+          "name": "Cholamandalam Investment and Finance Company Limited",
+          "ltp": 1672.5,
+          "prevClose": 1774,
+          "chgPct": -5.72,
+          "volume": 3686981,
+          "latestOi": 47557,
+          "prevOi": 34780,
+          "oiPct": 36.74
+        },
+        {
+          "symbol": "HDFCLIFE",
+          "name": "HDFC Life Insurance Company Limited",
+          "ltp": 529.5,
+          "prevClose": 561.5,
+          "chgPct": -5.7,
+          "volume": 15625778,
+          "latestOi": 96989,
+          "prevOi": 83055,
+          "oiPct": 16.78
+        },
+        {
+          "symbol": "AXISBANK",
+          "name": "Axis Bank Limited",
+          "ltp": 1178.1,
+          "prevClose": 1243.2,
+          "chgPct": -5.24,
+          "volume": 7953534,
+          "latestOi": 265695,
+          "prevOi": 200812,
+          "oiPct": 32.31
+        },
+        {
+          "symbol": "IDFCFIRSTB",
+          "name": "IDFC First Bank Limited",
+          "ltp": 83.79,
+          "prevClose": 87.9,
+          "chgPct": -4.68,
+          "volume": 32155076,
+          "latestOi": 87155,
+          "prevOi": 74616,
+          "oiPct": 16.8
+        },
+        {
+          "symbol": "AUBANK",
+          "name": "AU Small Finance Bank Limited",
+          "ltp": 1004.5,
+          "prevClose": 1053,
+          "chgPct": -4.61,
+          "volume": 2370359,
+          "latestOi": 48152,
+          "prevOi": 39968,
+          "oiPct": 20.48
+        },
+        {
+          "symbol": "BAJAJFINSV",
+          "name": "Bajaj Finserv Limited",
+          "ltp": 1766.4,
+          "prevClose": 1846.5,
+          "chgPct": -4.34,
+          "volume": 1062525,
+          "latestOi": 75942,
+          "prevOi": 64510,
+          "oiPct": 17.72
+        },
+        {
+          "symbol": "INDUSINDBK",
+          "name": "IndusInd Bank Limited",
+          "ltp": 918,
+          "prevClose": 959.3,
+          "chgPct": -4.31,
+          "volume": 4546198,
+          "latestOi": 98250,
+          "prevOi": 80769,
+          "oiPct": 21.64
+        },
+        {
+          "symbol": "ICICIPRULI",
+          "name": "ICICI Prudential Life Insurance Company Limited",
+          "ltp": 464.5,
+          "prevClose": 484.5,
+          "chgPct": -4.13,
+          "volume": 6890451,
+          "latestOi": 41156,
+          "prevOi": 31577,
+          "oiPct": 30.34
+        },
+        {
+          "symbol": "BANDHANBNK",
+          "name": "Bandhan Bank Limited",
+          "ltp": 183.82,
+          "prevClose": 191.38,
+          "chgPct": -3.95,
+          "volume": 16401051,
+          "latestOi": 61502,
+          "prevOi": 55597,
+          "oiPct": 10.62
+        },
+        {
+          "symbol": "PNBHOUSING",
+          "name": "PNB Housing Finance Limited",
+          "ltp": 1097.6,
+          "prevClose": 1138.5,
+          "chgPct": -3.59,
+          "volume": 462310,
+          "latestOi": 27275,
+          "prevOi": 25312,
+          "oiPct": 7.76
+        },
+        {
+          "symbol": "BAJAJHLDNG",
+          "name": "Bajaj Holdings & Investment Limited",
+          "ltp": 11053,
+          "prevClose": 11449,
+          "chgPct": -3.46,
+          "volume": 30384,
+          "latestOi": 6033,
+          "prevOi": 5276,
+          "oiPct": 14.35
+        },
+        {
+          "symbol": "YESBANK",
+          "name": "Yes Bank Limited",
+          "ltp": 22.47,
+          "prevClose": 23.24,
+          "chgPct": -3.31,
+          "volume": 84488183,
+          "latestOi": 75696,
+          "prevOi": 65519,
+          "oiPct": 15.53
+        },
+        {
+          "symbol": "PIDILITIND",
+          "name": "Pidilite Industries Limited",
+          "ltp": 1536.3,
+          "prevClose": 1588.1,
+          "chgPct": -3.26,
+          "volume": 774472,
+          "latestOi": 20918,
+          "prevOi": 16437,
+          "oiPct": 27.26
+        },
+        {
+          "symbol": "SBICARD",
+          "name": "SBI Cards and Payment Services Limited",
+          "ltp": 617.4,
+          "prevClose": 635,
+          "chgPct": -2.77,
+          "volume": 861555,
+          "latestOi": 52707,
+          "prevOi": 49181,
+          "oiPct": 7.17
+        }
+      ]
+    }
+  ]
+}
