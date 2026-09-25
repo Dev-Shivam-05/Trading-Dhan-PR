@@ -231,7 +231,7 @@ export async function updateChainHistory(creds: Credentials | null, nowMs: numbe
         const d = r.data?.data ?? r.data;
         series.set(`${off}|${side}`, (side === 'CALL' ? d?.ce : d?.pe) ?? {});
       }
-      if (failed) { say(`${mk}: a series failed - month skipped, it is fetched again next run`); continue; }
+      if (failed) { say(`${mk}: ${log.failed.at(-1)} - month skipped, it is fetched again next run`); continue; }
       const { days, incomplete } = stitch(series, code, d => d >= a && d <= m.b);
       for (const day of days) {
         await writeDay(day);
