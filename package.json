@@ -35,6 +35,8 @@
     "chainhist": "node --env-file-if-exists=.env scripts/chainhist.ts",
     "chainhist:verify": "node --env-file-if-exists=.env scripts/chainhist-verify.ts",
     "chainhist:test": "node scripts/chainhist-test.ts",
+    "ltpstate": "node scripts/ltp-state.ts",
+    "ltpstate:test": "node scripts/ltp-state-test.ts",
     "phone:test": "node scripts/phone-test.ts",
     "sandbox:test": "node scripts/sandbox-test.ts"
   },
