@@ -1,7 +1,7 @@
 # HANDOFF — Dhan Terminal — Phase P49 — 2026-09-25
 
 > The previous handoff (P48) is at `3e8997c`. Branches are stacked:
-> … → `p48-chain-rebuild` → **`p49-ltp-state`** (current, pushed).
+> … → `p48-chain-rebuild` → **`p49-ltp-state`** (current, **NOT pushed**: github.com was unreachable at session end — run `git push -u origin p49-ltp-state` first).
 
 ## Done
 - **`npm run ltpstate -- <date>`** prints the LTP state machine's timeline for any rebuilt NIFTY day.
