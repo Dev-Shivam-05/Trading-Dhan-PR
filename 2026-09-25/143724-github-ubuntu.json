@@ -1,0 +1,824 @@
+{
+  "meta": {
+    "date": "2026-09-25",
+    "time": "14:37:24",
+    "weekday": "Fri",
+    "runner": "github-ubuntu",
+    "host": "runnervmtr4k5",
+    "status": "ok",
+    "note": "NSE data for 2026-09-25"
+  },
+  "result": {
+    "source": "nse",
+    "mode": "live",
+    "at": "2026-09-25T09:08:03.062Z",
+    "n": 20,
+    "reused": false,
+    "market": {
+      "status": "Open",
+      "priceAsOf": "25-Sep-2026 14:37:52",
+      "oiAsOf": "25-Sep-2026 14:36:20",
+      "tradeDate": "2026-09-25",
+      "prevTradingDate": "2026-09-24"
+    },
+    "evidence": [
+      ".cache/nse/2026-09-25-143801-fno-securities.json",
+      ".cache/nse/2026-09-25-143801-oi-spurts.json"
+    ],
+    "funnel": {
+      "list": 210,
+      "scored": 210,
+      "ranked": 40,
+      "chg": 18,
+      "oi": 14
+    },
+    "long": [
+      {
+        "symbol": "MFSL",
+        "name": "Max Financial Services Limited",
+        "ltp": 1458.5,
+        "prevClose": 1410,
+        "chgPct": 3.44,
+        "volume": 3262517,
+        "latestOi": 41105,
+        "prevOi": 35585,
+        "oiPct": 15.51
+      },
+      {
+        "symbol": "AXISBANK",
+        "name": "Axis Bank Limited",
+        "ltp": 1224,
+        "prevClose": 1186.5,
+        "chgPct": 3.16,
+        "volume": 5778249,
+        "latestOi": 310437,
+        "prevOi": 229813,
+        "oiPct": 35.08
+      },
+      {
+        "symbol": "INOXWIND",
+        "name": "Inox Wind Limited",
+        "ltp": 75.14,
+        "prevClose": 73.09,
+        "chgPct": 2.8,
+        "volume": 8753150,
+        "latestOi": 30357,
+        "prevOi": 28330,
+        "oiPct": 7.15
+      },
+      {
+        "symbol": "MAHABANK",
+        "name": "Bank of Maharashtra",
+        "ltp": 84.63,
+        "prevClose": 82.38,
+        "chgPct": 2.73,
+        "volume": 10337434,
+        "latestOi": 15870,
+        "prevOi": 13930,
+        "oiPct": 13.93
+      },
+      {
+        "symbol": "HYUNDAI",
+        "name": "Hyundai Motor India Limited",
+        "ltp": 2111.1,
+        "prevClose": 2060.6,
+        "chgPct": 2.45,
+        "volume": 1331486,
+        "latestOi": 33473,
+        "prevOi": 26735,
+        "oiPct": 25.2
+      },
+      {
+        "symbol": "NAUKRI",
+        "name": "Info Edge (India) Limited",
+        "ltp": 1253.3,
+        "prevClose": 1224,
+        "chgPct": 2.39,
+        "volume": 933264,
+        "latestOi": 48216,
+        "prevOi": 40772,
+        "oiPct": 18.26
+      },
+      {
+        "symbol": "JUBLFOOD",
+        "name": "Jubilant Foodworks Limited",
+        "ltp": 488.75,
+        "prevClose": 478.9,
+        "chgPct": 2.06,
+        "volume": 741335,
+        "latestOi": 34436,
+        "prevOi": 29728,
+        "oiPct": 15.84
+      },
+      {
+        "symbol": "MOTHERSON",
+        "name": "Samvardhana Motherson International Limited",
+        "ltp": 165.84,
+        "prevClose": 162.5,
+        "chgPct": 2.06,
+        "volume": 12292800,
+        "latestOi": 40483,
+        "prevOi": 34494,
+        "oiPct": 17.36
+      },
+      {
+        "symbol": "M&M",
+        "name": "Mahindra & Mahindra Limited",
+        "ltp": 3042.6,
+        "prevClose": 2982.7,
+        "chgPct": 2.01,
+        "volume": 1659036,
+        "latestOi": 155212,
+        "prevOi": 132163,
+        "oiPct": 17.44
+      }
+    ],
+    "short": [
+      {
+        "symbol": "FORTIS",
+        "name": "Fortis Healthcare Limited",
+        "ltp": 841.4,
+        "prevClose": 877.35,
+        "chgPct": -4.1,
+        "volume": 1935866,
+        "latestOi": 31040,
+        "prevOi": 21021,
+        "oiPct": 47.66
+      },
+      {
+        "symbol": "POLICYBZR",
+        "name": "PB Fintech Limited",
+        "ltp": 1161.3,
+        "prevClose": 1207.2,
+        "chgPct": -3.8,
+        "volume": 38674008,
+        "latestOi": 214535,
+        "prevOi": 132387,
+        "oiPct": 62.05
+      },
+      {
+        "symbol": "PAYTM",
+        "name": "One 97 Communications Limited",
+        "ltp": 1672.3,
+        "prevClose": 1735.5,
+        "chgPct": -3.64,
+        "volume": 4284548,
+        "latestOi": 72162,
+        "prevOi": 64756,
+        "oiPct": 11.44
+      },
+      {
+        "symbol": "MAXHEALTH",
+        "name": "Max Healthcare Institute Limited",
+        "ltp": 1012.4,
+        "prevClose": 1046,
+        "chgPct": -3.21,
+        "volume": 1545209,
+        "latestOi": 37109,
+        "prevOi": 31111,
+        "oiPct": 19.28
+      },
+      {
+        "symbol": "MCX",
+        "name": "Multi Commodity Exchange of India Limited",
+        "ltp": 3325.5,
+        "prevClose": 3427.7,
+        "chgPct": -2.98,
+        "volume": 1999308,
+        "latestOi": 110792,
+        "prevOi": 94966,
+        "oiPct": 16.66
+      }
+    ],
+    "skipped": [],
+    "excluded": [],
+    "rejected": {
+      "rank": 170,
+      "chg": 22,
+      "oi": 4
+    },
+    "trace": [
+      {
+        "symbol": "KAYNES",
+        "side": "gainer",
+        "chgPct": 3.6,
+        "oiPct": -6.17,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "MFSL",
+        "side": "gainer",
+        "chgPct": 3.44,
+        "oiPct": 15.51,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "IREDA",
+        "side": "gainer",
+        "chgPct": 3.28,
+        "oiPct": -3.93,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "AXISBANK",
+        "side": "gainer",
+        "chgPct": 3.16,
+        "oiPct": 35.08,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "SUPREMEIND",
+        "side": "gainer",
+        "chgPct": 2.87,
+        "oiPct": 1.53,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "BLUESTARCO",
+        "side": "gainer",
+        "chgPct": 2.8,
+        "oiPct": -0.93,
+        "outcome": "OI chg below 7%"
+      },
+      {
+        "symbol": "INOXWIND",
+        "side": "gainer",
+        "chgPct": 2.8,
+        "oiPct": 7.15,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MAHABANK",
+        "side": "gainer",
+        "chgPct": 2.73,
+        "oiPct": 13.93,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "HYUNDAI",
+        "side": "gainer",
+        "chgPct": 2.45,
+        "oiPct": 25.2,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "NAUKRI",
+        "side": "gainer",
+        "chgPct": 2.39,
+        "oiPct": 18.26,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "JUBLFOOD",
+        "side": "gainer",
+        "chgPct": 2.06,
+        "oiPct": 15.84,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MOTHERSON",
+        "side": "gainer",
+        "chgPct": 2.06,
+        "oiPct": 17.36,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "M&M",
+        "side": "gainer",
+        "chgPct": 2.01,
+        "oiPct": 17.44,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "ADANIPOWER",
+        "side": "gainer",
+        "chgPct": 1.97,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "side": "gainer",
+        "chgPct": 1.94,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "MANAPPURAM",
+        "side": "gainer",
+        "chgPct": 1.92,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "TVSMOTOR",
+        "side": "gainer",
+        "chgPct": 1.78,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ASIANPAINT",
+        "side": "gainer",
+        "chgPct": 1.76,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "IDEA",
+        "side": "gainer",
+        "chgPct": 1.7,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "PERSISTENT",
+        "side": "gainer",
+        "chgPct": 1.67,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "FORTIS",
+        "side": "loser",
+        "chgPct": -4.1,
+        "oiPct": 47.66,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "POLICYBZR",
+        "side": "loser",
+        "chgPct": -3.8,
+        "oiPct": 62.05,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "PAYTM",
+        "side": "loser",
+        "chgPct": -3.64,
+        "oiPct": 11.44,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MAXHEALTH",
+        "side": "loser",
+        "chgPct": -3.21,
+        "oiPct": 19.28,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "MCX",
+        "side": "loser",
+        "chgPct": -2.98,
+        "oiPct": 16.66,
+        "outcome": "pass"
+      },
+      {
+        "symbol": "GLENMARK",
+        "side": "loser",
+        "chgPct": -1.94,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "OFSS",
+        "side": "loser",
+        "chgPct": -1.84,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "INFY",
+        "side": "loser",
+        "chgPct": -1.8,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "TMPV",
+        "side": "loser",
+        "chgPct": -1.64,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "VMM",
+        "side": "loser",
+        "chgPct": -1.52,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "LAURUSLABS",
+        "side": "loser",
+        "chgPct": -1.47,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ICICIGI",
+        "side": "loser",
+        "chgPct": -1.46,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "CHOLAFIN",
+        "side": "loser",
+        "chgPct": -1.42,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "DELHIVERY",
+        "side": "loser",
+        "chgPct": -1.42,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "SBICARD",
+        "side": "loser",
+        "chgPct": -1.39,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ONGC",
+        "side": "loser",
+        "chgPct": -1.38,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "OIL",
+        "side": "loser",
+        "chgPct": -1.3,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "NMDC",
+        "side": "loser",
+        "chgPct": -1.2,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "ALKEM",
+        "side": "loser",
+        "chgPct": -1.15,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      },
+      {
+        "symbol": "BDL",
+        "side": "loser",
+        "chgPct": -1.11,
+        "oiPct": null,
+        "outcome": "chg below 2%"
+      }
+    ],
+    "reconciles": true,
+    "elapsedMs": 38441,
+    "error": null
+  },
+  "wider": [
+    {
+      "n": 25,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 50,
+        "chg": 18,
+        "oi": 14
+      },
+      "long": [
+        {
+          "symbol": "MFSL",
+          "name": "Max Financial Services Limited",
+          "ltp": 1458.5,
+          "prevClose": 1410,
+          "chgPct": 3.44,
+          "volume": 3262517,
+          "latestOi": 41105,
+          "prevOi": 35585,
+          "oiPct": 15.51
+        },
+        {
+          "symbol": "AXISBANK",
+          "name": "Axis Bank Limited",
+          "ltp": 1224,
+          "prevClose": 1186.5,
+          "chgPct": 3.16,
+          "volume": 5778249,
+          "latestOi": 310437,
+          "prevOi": 229813,
+          "oiPct": 35.08
+        },
+        {
+          "symbol": "INOXWIND",
+          "name": "Inox Wind Limited",
+          "ltp": 75.14,
+          "prevClose": 73.09,
+          "chgPct": 2.8,
+          "volume": 8753150,
+          "latestOi": 30357,
+          "prevOi": 28330,
+          "oiPct": 7.15
+        },
+        {
+          "symbol": "MAHABANK",
+          "name": "Bank of Maharashtra",
+          "ltp": 84.63,
+          "prevClose": 82.38,
+          "chgPct": 2.73,
+          "volume": 10337434,
+          "latestOi": 15870,
+          "prevOi": 13930,
+          "oiPct": 13.93
+        },
+        {
+          "symbol": "HYUNDAI",
+          "name": "Hyundai Motor India Limited",
+          "ltp": 2111.1,
+          "prevClose": 2060.6,
+          "chgPct": 2.45,
+          "volume": 1331486,
+          "latestOi": 33473,
+          "prevOi": 26735,
+          "oiPct": 25.2
+        },
+        {
+          "symbol": "NAUKRI",
+          "name": "Info Edge (India) Limited",
+          "ltp": 1253.3,
+          "prevClose": 1224,
+          "chgPct": 2.39,
+          "volume": 933264,
+          "latestOi": 48216,
+          "prevOi": 40772,
+          "oiPct": 18.26
+        },
+        {
+          "symbol": "JUBLFOOD",
+          "name": "Jubilant Foodworks Limited",
+          "ltp": 488.75,
+          "prevClose": 478.9,
+          "chgPct": 2.06,
+          "volume": 741335,
+          "latestOi": 34436,
+          "prevOi": 29728,
+          "oiPct": 15.84
+        },
+        {
+          "symbol": "MOTHERSON",
+          "name": "Samvardhana Motherson International Limited",
+          "ltp": 165.84,
+          "prevClose": 162.5,
+          "chgPct": 2.06,
+          "volume": 12292800,
+          "latestOi": 40483,
+          "prevOi": 34494,
+          "oiPct": 17.36
+        },
+        {
+          "symbol": "M&M",
+          "name": "Mahindra & Mahindra Limited",
+          "ltp": 3042.6,
+          "prevClose": 2982.7,
+          "chgPct": 2.01,
+          "volume": 1659036,
+          "latestOi": 155212,
+          "prevOi": 132163,
+          "oiPct": 17.44
+        }
+      ],
+      "short": [
+        {
+          "symbol": "FORTIS",
+          "name": "Fortis Healthcare Limited",
+          "ltp": 841.4,
+          "prevClose": 877.35,
+          "chgPct": -4.1,
+          "volume": 1935866,
+          "latestOi": 31040,
+          "prevOi": 21021,
+          "oiPct": 47.66
+        },
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1161.3,
+          "prevClose": 1207.2,
+          "chgPct": -3.8,
+          "volume": 38674008,
+          "latestOi": 214535,
+          "prevOi": 132387,
+          "oiPct": 62.05
+        },
+        {
+          "symbol": "PAYTM",
+          "name": "One 97 Communications Limited",
+          "ltp": 1672.3,
+          "prevClose": 1735.5,
+          "chgPct": -3.64,
+          "volume": 4284548,
+          "latestOi": 72162,
+          "prevOi": 64756,
+          "oiPct": 11.44
+        },
+        {
+          "symbol": "MAXHEALTH",
+          "name": "Max Healthcare Institute Limited",
+          "ltp": 1012.4,
+          "prevClose": 1046,
+          "chgPct": -3.21,
+          "volume": 1545209,
+          "latestOi": 37109,
+          "prevOi": 31111,
+          "oiPct": 19.28
+        },
+        {
+          "symbol": "MCX",
+          "name": "Multi Commodity Exchange of India Limited",
+          "ltp": 3325.5,
+          "prevClose": 3427.7,
+          "chgPct": -2.98,
+          "volume": 1999308,
+          "latestOi": 110792,
+          "prevOi": 94966,
+          "oiPct": 16.66
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "funnel": {
+        "list": 210,
+        "scored": 210,
+        "ranked": 60,
+        "chg": 18,
+        "oi": 14
+      },
+      "long": [
+        {
+          "symbol": "MFSL",
+          "name": "Max Financial Services Limited",
+          "ltp": 1458.5,
+          "prevClose": 1410,
+          "chgPct": 3.44,
+          "volume": 3262517,
+          "latestOi": 41105,
+          "prevOi": 35585,
+          "oiPct": 15.51
+        },
+        {
+          "symbol": "AXISBANK",
+          "name": "Axis Bank Limited",
+          "ltp": 1224,
+          "prevClose": 1186.5,
+          "chgPct": 3.16,
+          "volume": 5778249,
+          "latestOi": 310437,
+          "prevOi": 229813,
+          "oiPct": 35.08
+        },
+        {
+          "symbol": "INOXWIND",
+          "name": "Inox Wind Limited",
+          "ltp": 75.14,
+          "prevClose": 73.09,
+          "chgPct": 2.8,
+          "volume": 8753150,
+          "latestOi": 30357,
+          "prevOi": 28330,
+          "oiPct": 7.15
+        },
+        {
+          "symbol": "MAHABANK",
+          "name": "Bank of Maharashtra",
+          "ltp": 84.63,
+          "prevClose": 82.38,
+          "chgPct": 2.73,
+          "volume": 10337434,
+          "latestOi": 15870,
+          "prevOi": 13930,
+          "oiPct": 13.93
+        },
+        {
+          "symbol": "HYUNDAI",
+          "name": "Hyundai Motor India Limited",
+          "ltp": 2111.1,
+          "prevClose": 2060.6,
+          "chgPct": 2.45,
+          "volume": 1331486,
+          "latestOi": 33473,
+          "prevOi": 26735,
+          "oiPct": 25.2
+        },
+        {
+          "symbol": "NAUKRI",
+          "name": "Info Edge (India) Limited",
+          "ltp": 1253.3,
+          "prevClose": 1224,
+          "chgPct": 2.39,
+          "volume": 933264,
+          "latestOi": 48216,
+          "prevOi": 40772,
+          "oiPct": 18.26
+        },
+        {
+          "symbol": "JUBLFOOD",
+          "name": "Jubilant Foodworks Limited",
+          "ltp": 488.75,
+          "prevClose": 478.9,
+          "chgPct": 2.06,
+          "volume": 741335,
+          "latestOi": 34436,
+          "prevOi": 29728,
+          "oiPct": 15.84
+        },
+        {
+          "symbol": "MOTHERSON",
+          "name": "Samvardhana Motherson International Limited",
+          "ltp": 165.84,
+          "prevClose": 162.5,
+          "chgPct": 2.06,
+          "volume": 12292800,
+          "latestOi": 40483,
+          "prevOi": 34494,
+          "oiPct": 17.36
+        },
+        {
+          "symbol": "M&M",
+          "name": "Mahindra & Mahindra Limited",
+          "ltp": 3042.6,
+          "prevClose": 2982.7,
+          "chgPct": 2.01,
+          "volume": 1659036,
+          "latestOi": 155212,
+          "prevOi": 132163,
+          "oiPct": 17.44
+        }
+      ],
+      "short": [
+        {
+          "symbol": "FORTIS",
+          "name": "Fortis Healthcare Limited",
+          "ltp": 841.4,
+          "prevClose": 877.35,
+          "chgPct": -4.1,
+          "volume": 1935866,
+          "latestOi": 31040,
+          "prevOi": 21021,
+          "oiPct": 47.66
+        },
+        {
+          "symbol": "POLICYBZR",
+          "name": "PB Fintech Limited",
+          "ltp": 1161.3,
+          "prevClose": 1207.2,
+          "chgPct": -3.8,
+          "volume": 38674008,
+          "latestOi": 214535,
+          "prevOi": 132387,
+          "oiPct": 62.05
+        },
+        {
+          "symbol": "PAYTM",
+          "name": "One 97 Communications Limited",
+          "ltp": 1672.3,
+          "prevClose": 1735.5,
+          "chgPct": -3.64,
+          "volume": 4284548,
+          "latestOi": 72162,
+          "prevOi": 64756,
+          "oiPct": 11.44
+        },
+        {
+          "symbol": "MAXHEALTH",
+          "name": "Max Healthcare Institute Limited",
+          "ltp": 1012.4,
+          "prevClose": 1046,
+          "chgPct": -3.21,
+          "volume": 1545209,
+          "latestOi": 37109,
+          "prevOi": 31111,
+          "oiPct": 19.28
+        },
+        {
+          "symbol": "MCX",
+          "name": "Multi Commodity Exchange of India Limited",
+          "ltp": 3325.5,
+          "prevClose": 3427.7,
+          "chgPct": -2.98,
+          "volume": 1999308,
+          "latestOi": 110792,
+          "prevOi": 94966,
+          "oiPct": 16.66
+        }
+      ]
+    }
+  ]
+}
