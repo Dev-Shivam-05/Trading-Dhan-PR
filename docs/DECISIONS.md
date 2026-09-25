@@ -673,3 +673,25 @@ or developer documentation was found (web search 2026-09-25). There are only the
 investingdaddy.com), the apps, the pricing page, and the in-app "Read More" flowchart. Capture by hand, for personal
 comparison only; automated scraping of their site is not proposed. Researching their docs in depth is its own task
 (P55).
+
+## 2026-09-25 — Dhan stays the engine; NSE's chain becomes the referee for OI (measured)
+The user asked whether NSE's own option chain (nseindia.com/option-chain) or Dhan's is better. Measured on 25 Sep after
+the close. The same NIFTY 29-Sep chain was read from NSE's page (`/api/option-chain-v3`, 15:40 stamp) and from Dhan, and
+both were scored against **NSE's official F&O bhavcopy**. Over the 40 near-ATM legs:
+- **Volume:** NSE 40/40, Dhan 40/40.
+- **LTP:** NSE 40/40, Dhan 40/40.
+- **OI:** **NSE 40/40, Dhan 0/40**, off by up to **21.8%**. Dhan's chain OI equals its own last 1-minute candle (15:39) and misses the exchange's final OI.
+- Both sources picked the same support and resistance strikes all the same.
+
+Why not replace Dhan with NSE:
+- NSE's site answers only a headed Chrome, and its terms restrict automated access.
+- It has no history, no ticks, no Greeks and no orders.
+- Its intraday refresh rate is unmeasured.
+
+Dhan has all of those (3 s chain, WebSocket, `rollingoption` history back to 2024, orders for P35).
+
+**Decision:** Dhan remains the data and trading engine. NSE's chain, and its bhavcopy, are the **referee for OI**. P56 measures whether Dhan's OI is also off **during** the session (Monday), which decides whether OI-based levels need NSE's number.
+
+## 2026-09-25 — LTP Calculator: do not buy now; buy 7 days after P48 and P49 (restated clearly for the user)
+No, not now. Later, yes: 7 days only, as a measuring instrument for our own engine, not as a trading tool. Long-term
+subscriptions and the ₹5,899 community fee are not needed, because the system is being built here.

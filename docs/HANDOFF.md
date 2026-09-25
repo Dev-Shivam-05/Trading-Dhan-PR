@@ -21,6 +21,12 @@
   - Regression all green: train 43, sandbox 17, paper 104, ltp 29, sleep 37, phone 18, backtest 31, session 11. tsc is clean.
 - **Live server on 8787: PID 19840, build `5e8b519`, ARMED, `check` READY.** It was started **detached** (`Start-Process cmd /c npm run dev`), so it outlives the session. The one before it died when the last session's process ended.
 
+- **NSE's chain against Dhan's, measured after the close.** The referee was NSE's official F&O bhavcopy for 25 Sep, over 40 near-ATM NIFTY legs:
+  - Volume and LTP: exact for both.
+  - OI: NSE 40/40, **Dhan 0/40, up to 21.8% off**. Dhan's chain OI stops at its 15:39 candle.
+  - Both sources picked the same support and resistance strikes.
+  - Decision: Dhan stays the engine; NSE is the OI referee (P56).
+
 ## Files changed
 - `src/server/chainrec.ts` (new): the recorder. It is testable with fake pollers and the clock is injected.
 - `src/server/index.ts`: wires the recorder beside the tick recorder, live only.
@@ -33,6 +39,9 @@
 - **LTP Calculator 7-day premium:** buy it only after P48 and P49 exist, to calibrate the reversal price (OQ-1) and the scenario labels against their screen.
 - **No GitHub repo or developer docs were found** for the LTP Calculator. Researching their documentation is P55.
 - ±20 strikes kept per snapshot (a design choice with a reason, in spec row 3).
+- **Dhan remains the data and trading engine; NSE's chain and bhavcopy become the OI referee.** NSE has no history, ticks, Greeks or orders, answers only a headed Chrome, and its terms restrict automation (DECISIONS.md).
+- **LTP Calculator: do not buy now.** Buy 7 days only after P48 and P49, as a calibration instrument.
+- The probe scripts are in `.cache/`: `nse-vs-dhan-chain.ts`, `nse-vs-dhan-atm.ts`, `nse-vs-dhan-oi.ts`, `nse-bhavcopy-oi.ts`, `bhav-vs-both.ts`. The bhavcopy file is in `.cache/fo-bhav-20260925/`.
 
 ## Known broken / deliberately skipped
 - **P47 AC5 (a full live day) is unmeasured until Mon 28 Sep.**
@@ -46,5 +55,5 @@
 
 ## Next session starts here
 - Phase P48: rebuild NIFTY's past minute chains from `rollingoption` and check them against Monday's P47 recording (spec-lock first).
-- First command: `cat .cache/chains/2026-09-28/summary.json` (after 15:31 on Monday; before that, `curl -s http://127.0.0.1:8787/api/health`).
+- First command: during Monday's session, `node --env-file=.env .cache/nse-vs-dhan-chain.ts` (P56: is Dhan's OI off intraday too?). After 15:31, `cat .cache/chains/2026-09-28/summary.json`.
 - Watch out for: the token. If `npm run check` is not READY on Monday morning, nothing records and nothing trades.
