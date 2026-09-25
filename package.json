@@ -31,6 +31,7 @@
     "train": "node --env-file-if-exists=.env scripts/train.ts",
     "train:test": "node scripts/train-test.ts",
     "ticks:pack": "node scripts/ticks-pack.ts",
+    "chainrec:test": "node scripts/chainrec-test.ts",
     "phone:test": "node scripts/phone-test.ts",
     "sandbox:test": "node scripts/sandbox-test.ts"
   },

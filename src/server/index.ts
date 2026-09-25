@@ -25,6 +25,7 @@ import { keepAwake } from './awake.ts';
 import { runBacktest, lastRunDate, saveScan } from './history.ts';
 import { jobDue } from './backtest.ts';
 import { TickRecorder } from './ticks.ts';
+import { ChainRecorder } from './chainrec.ts';
 import { notify } from './notify.ts';
 import { SandboxManager, sandboxDates, SPEEDS, NO_RULES, type Speed } from './sandbox.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
@@ -207,6 +208,20 @@ if (recorder) setInterval(() => {
   recorder.step(Date.now()).catch(e => console.error(`[ticks] step failed: ${(e as Error).message}`));
   const rec = recorder.status().date !== null;
   if (rec !== recorderAwake) { recorderAwake = rec; applyAwake(); }
+}, 1000).unref();
+
+/*
+ * P47 (chain-recorder-v1.md): NIFTY's chain, current and next expiry, every snapshot 09:14-15:31.
+ * It is one more subscriber of the same `ChainPoller` the Option Chain screen uses, so it adds no
+ * endpoint and, for the expiry already on screen, no call at all. Live only, like the tick recorder.
+ */
+const chainRecorder = isReplay() ? null : new ChainRecorder({
+  instrumentId: 'NIFTY',
+  expiries: () => (registry ? findInstrument('NIFTY')?.expiries ?? [] : []),
+  pollerFor: (expiry) => hub.get(findInstrument('NIFTY')!, expiry),
+});
+if (chainRecorder) setInterval(() => {
+  chainRecorder.step(Date.now()).catch(e => console.error(`[chains] step failed: ${(e as Error).message}`));
 }, 1000).unref();
 
 feed.on('tick', (t: Tick) => {
