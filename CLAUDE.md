@@ -611,3 +611,20 @@ To drive the sandbox UI with real history at night, a second live-mode server wa
 `CACHE_DIR=<scratch copy of .cache/history + master>`, `NTFY_TOPIC=` and `TELEGRAM_BOT_TOKEN=` (an existing empty variable
 beats `--env-file`). Without its own CACHE_DIR it writes the live paper ledger. Without the empty topic its sandbox
 trades land on the user's phone at 01:00. It also must not live long enough to hit the token renewal window.
+
+## Dhan's cash history goes back a year — the 90-day limit is per request (measured 2026-09-25)
+`/v2/charts/intraday` for `NSE_EQ` returned 60 sessions of 1-minute candles for each of Jan–Mar and Apr–Jun 2026. P37's
+"58 sessions" was the **futures contract's** life, not Dhan's horizon. `train-data.ts` fetches in 89-day chunks from
+1 Oct 2025. Since August 2026 each day's **cash** 1-minute series stops at **15:14** (360 candles, not 375), whatever the
+request span. Anything priced at 15:15 from cash candles must fall back to the 15:14 close.
+
+## A backtest fill at the level is optimistic exactly where it matters (P44)
+The same rules on 243 sessions: +5.10 lakh with row 7's level fill, **+1.48 lakh** when every fill lands one minute
+late. The difference is band jumps and zero-width ranges (POLICYBZR 24 Sep: model 1700.45, live 1606). Any backtest
+result on this project is quoted under both fill models, or it is not quoted.
+
+## The tick recorder writes ~1.2 GB a day, and D: has ~4 GB free
+`npm run ticks:pack` gzips each **closed** day (~6x smaller), checks the SHA-256 of the decompressed bytes, and only
+then deletes the CSV. The sandbox reads either form. Also, P36's keep-awake holds the PC only while the trader is
+**trading**, not while the recorder records. On 25 Sep the laptop slept from 12:50 to 13:14 and the recording has an
+18-minute hole.
