@@ -54,8 +54,45 @@ by Claude**, marked as such, and open to a one-word veto afterwards. **Nothing h
 | 19 | Is it luck? | For the baseline, the in-sample best and the setting chosen most often: the daily t-statistic (mean ÷ sd × √n), the net without the best day and without the best 3 days, and the net without the best stock. |
 | 20 | One clean split | Choose on the first half of the sessions only, then score on the second half, under both fill models, next to the baseline on the same halves. |
 | 21 | Recommendation | Row 17 also needs the **late-fill** walk-forward to beat the baseline. |
+| 22 | Window moved to **1 Oct 2025** | Measured after the first run: Dhan returns the share's 1-minute candles for Jan–Mar and Apr–Jun 2026 as well (RELIANCE, 60 sessions each). The 90-day limit is per **request**, not a horizon; P37's "58 sessions" was the futures **contract's** life. So `train-data.ts` fetches in 89-day chunks from 1 Oct 2025: 1,050 calls, 0 failed, 27 min, 716 MB. That is **243 sessions** (the Sunday 1 Feb 2026 Budget session included). |
+| 23 | Rolling walk-forward | Next to row 13's expanding window, the same walk-forward trained on only the last 60 sessions, in case the market's behaviour moved within the year. |
 
-## Result, 2026-09-25 (61 sessions, 1 Jul – 24 Sep; 210 stocks; 420 Dhan calls, 0 failed)
+## Result on 243 sessions (1 Oct 2025 – 24 Sep 2026), 2026-09-25 — this supersedes the 61-session result below
+
+| | Level fills (row 7) | Late fills (row 18) |
+|---|---|---|
+| **Baseline** (live rules minus OI): trades · net · daily t | 1,250 · **+5,10,117** · 1.39 | 1,250 · **+1,47,762** · **0.42** |
+| Walk-forward, expanding (233 held-out sessions): tuned vs baseline | **+9,67,226** vs +5,61,404 | **+5,24,816** vs +1,96,015 |
+| Walk-forward, rolling 60 (amendment 23): tuned vs baseline | **+7,32,494** vs +5,61,404 | **+3,98,555** vs +1,96,015 |
+| Choose on Oct–Mar, score on Apr–Sep (row 20): chosen vs baseline | +5,23,323 vs +3,64,099 | +2,86,158 vs +2,27,734 |
+| **Recommended**: `chg0/either/r3/sma20/x3/SL/T2R/nofrz` — trades · net · daily t | 2,081 · **+13,27,290** · **3.01** | 2,081 · **+8,40,190** · **1.88** |
+| … without its best 3 days | +9,80,528 | +5,18,801 |
+
+- **Row 17 now recommends a change:** `chg0/either/r3/sma20/x3/SL/T2R/nofrz`. All four walk-forwards beat the baseline
+  (expanding and rolling, each under both fill models), and the setting is positive in both halves (+8,03,967 / +5,23,323).
+  It is positive in 10 of 12 months (March −29,464, August −4,237).
+- **What that setting changes from live:**
+  - take the 10 biggest movers at 09:20 with **no 2% floor**;
+  - let the **first break of either side** decide the direction;
+  - build the range from **three** five-minute bars (09:15–09:29);
+  - exit on **3 closes against SMA20** instead of 2 against SMA9;
+  - turn the stop and the 2R target **on**. They fired on only 80 of 2,081 trades, so they barely matter.
+- **The live baseline's edge does not survive realistic fills.** Late fills take it from +5.10 lakh to +1.48 lakh
+  (t 0.42), and without its best 3 days it is **−1,19,779**. The live exit, 2 closes against SMA9, is the part that loses:
+  SMA5/9 are the worst exits in the grid under both fill models (row 15).
+- **Why this is still a recommendation and not a change:**
+  - t 1.88 under late fills is suggestive, not proof.
+  - The universe is **today's** 210 F&O stocks, which were not all F&O stocks in Oct 2025, so there is survivorship.
+  - P&L uses today's lot sizes.
+  - The option leg is not modelled.
+  - The live rules change only on the user's word (P37 row 13; the decision in HANDOFF).
+- The first 61-session run below recommended nothing. Its sample was a quarter of this one, and its tendencies (slow SMA
+  exit, 3 closes) were the same.
+- **AC3 on this run:** 99 comparable trades. The exit reason agreed in 97, the mean future − share return was +0.10 pp,
+  and the mean absolute difference 0.31 pp.
+- **AC5:** six trades recomputed to the paisa by `.cache/p44-ac5.ts`: 3 baseline trades, 3 recommended-setting trades.
+
+## First result, 2026-09-25 (61 sessions, 1 Jul – 24 Sep; 210 stocks; 420 Dhan calls, 0 failed)
 - **The walk-forward does not beat the live rules.** Held-out net over 51 sessions: tuning **+2,20,240** against the
   baseline's **+2,57,014** on the same days. With late fills it is **+1,41,918** against **+1,76,214**. So row 17
   recommends **nothing**: the evidence does not support changing a live setting.
