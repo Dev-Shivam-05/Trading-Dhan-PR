@@ -57,7 +57,24 @@ by Claude**, marked as such, and open to a one-word veto afterwards. **Nothing h
 | 22 | Window moved to **1 Oct 2025** | Measured after the first run: Dhan returns the share's 1-minute candles for Jan–Mar and Apr–Jun 2026 as well (RELIANCE, 60 sessions each). The 90-day limit is per **request**, not a horizon; P37's "58 sessions" was the futures **contract's** life. So `train-data.ts` fetches in 89-day chunks from 1 Oct 2025: 1,050 calls, 0 failed, 27 min, 716 MB. That is **243 sessions** (the Sunday 1 Feb 2026 Budget session included). |
 | 23 | Rolling walk-forward | Next to row 13's expanding window, the same walk-forward trained on only the last 60 sessions, in case the market's behaviour moved within the year. |
 
-## Result on 243 sessions (1 Oct 2025 – 24 Sep 2026), 2026-09-25 — this supersedes the 61-session result below
+## Final: 244 sessions (1 Oct 2025 – 25 Sep 2026), run after 16:00 on 2026-09-25
+
+Adding 25 Sep changes no conclusion. `npm run train`: 420 calls, 0 failed.
+
+| | Level fills (row 7) | Late fills (row 18) |
+|---|---|---|
+| **Baseline** (live rules minus OI): trades · net · daily t | 1,251 · **+5,24,087** · 1.43 | 1,251 · **+1,63,037** · **0.47** |
+| Walk-forward, expanding (234 held-out): tuned vs baseline | **+9,32,728** vs +5,75,374 | **+4,82,426** vs +2,11,290 |
+| Walk-forward, rolling 60: tuned vs baseline | **+7,33,763** vs +5,75,374 | **+4,10,229** vs +2,11,290 |
+| Choose on Oct–Mar, score on Apr–Sep: chosen vs baseline | +5,16,939 vs +3,94,096 | +2,78,014 vs +2,57,105 |
+| **Recommended**: `chg0/either/r3/sma20/x3/SL/noT/nofrz`: trades · net · daily t | 2,090 · **+13,07,269** · **2.79** | 2,090 · **+7,86,188** · **1.70** |
+| its twin with the 2R target on (`…/SL/T2R/…`) | +12,92,792 · t 2.92 | **+8,02,415** · t 1.79 |
+
+Row 17's last choice moved from the `T2R` twin to the `noT` twin. The target fires on about 2% of trades, so the two are
+the same strategy for any practical purpose. Month by month the recommended setting is positive in 10 of 12 months
+(March 2026 −32,967, August 2026 −5,182). AC5 was re-run on the new pick: 3/3 PASS.
+
+## Result on 243 sessions (1 Oct 2025 – 24 Sep 2026), 2026-09-25
 
 | | Level fills (row 7) | Late fills (row 18) |
 |---|---|---|
