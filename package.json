@@ -32,6 +32,9 @@
     "train:test": "node scripts/train-test.ts",
     "ticks:pack": "node scripts/ticks-pack.ts",
     "chainrec:test": "node scripts/chainrec-test.ts",
+    "chainhist": "node --env-file-if-exists=.env scripts/chainhist.ts",
+    "chainhist:verify": "node --env-file-if-exists=.env scripts/chainhist-verify.ts",
+    "chainhist:test": "node scripts/chainhist-test.ts",
     "phone:test": "node scripts/phone-test.ts",
     "sandbox:test": "node scripts/sandbox-test.ts"
   },
