@@ -140,10 +140,19 @@ export function weeklyExpiry(d: string, sessions: Set<string>, lastSession: stri
   return e;
 }
 
-export function labelExpiries(sessionList: string[]): ChainIndex['expiries'] {
-  const sessions = new Set(sessionList), last = [...sessions].sort().at(-1) ?? '';
+/**
+ * A special session is never an expiry day. Measured on the rebuild (25 Sep): the three special sessions
+ * (2 Mar 2024, the Diwali Muhurat sessions of 1 Nov 2024 and Tue 21 Oct 2025) had 60-107 candles, and every
+ * regular session had 371 or more. 21 Oct 2025 fell on an expiry Tuesday; the contract expired on Monday
+ * 20 Oct (AC4 found it: the OI broke after the 20th and the cheap ATM leg was 0.05 there, 120.30 on the 21st).
+ */
+export const SHORT_SESSION_CANDLES = 200;
+
+export function labelExpiries(sessionList: string[], short: Set<string> = new Set()): ChainIndex['expiries'] {
+  const all = [...new Set(sessionList)].sort(), last = all.at(-1) ?? '';
+  const sessions = new Set(all.filter(d => !short.has(d)));   // the days an expiry can fall on
   const out: ChainIndex['expiries'] = {};
-  for (const d of [...sessions].sort()) {
+  for (const d of all) {
     const w1 = weeklyExpiry(d, sessions, last);
     out[d] = { W1: w1, W2: weeklyExpiry(addDays(w1, 1), sessions, last) };
   }
@@ -241,12 +250,12 @@ export async function updateChainHistory(creds: Credentials | null, nowMs: numbe
       }
       for (const [d, why] of Object.entries(incomplete)) idx.incomplete[`${d}-W${code}`] = why;
       idx.months[mk] = m.b;
-      idx.expiries = labelExpiries(Object.keys(idx.days));
+      idx.expiries = labelExpiries(Object.keys(idx.days), new Set(Object.entries(idx.days).filter(([, v]) => (v.W1?.candles ?? Infinity) < SHORT_SESSION_CANDLES).map(([d]) => d)));
       await writeIndex(idx);
       say(`${mk}: ${days.length} days written, ${Object.keys(incomplete).length} incomplete, ${log.calls} calls so far`);
     }
   }
-  idx.expiries = labelExpiries(Object.keys(idx.days));
+  idx.expiries = labelExpiries(Object.keys(idx.days), new Set(Object.entries(idx.days).filter(([, v]) => (v.W1?.candles ?? Infinity) < SHORT_SESSION_CANDLES).map(([d]) => d)));
   await writeIndex(idx);
   return { lastDay, idx };
 }

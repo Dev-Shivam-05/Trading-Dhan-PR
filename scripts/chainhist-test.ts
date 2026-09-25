@@ -105,6 +105,11 @@ function all42(dates: string[], opts: { drop?: string; tamperOff?: number } = {}
   // 10 Apr 2025 (a Thursday) is absent from `sessions`: the expiry moves to Wednesday 9 Apr
   ok('a holiday on the expiry day moves it to the previous session', H.weeklyExpiry('2025-04-07', sessions, last) === '2025-04-09');
   ok('...and the session after it rolls on to the next week', H.weeklyExpiry('2025-04-11', sessions, last) === '2025-04-17');
+  // Diwali 2025: Tue 21 Oct was a Muhurat session only. The contract expired on Mon 20 Oct.
+  const diwali = H.labelExpiries(['2025-10-17', '2025-10-20', '2025-10-21', '2025-10-23'], new Set(['2025-10-21']));
+  ok('a special session is never the expiry: Tue 21 Oct 2025 moves to Mon 20 Oct', diwali['2025-10-17']!.W1 === '2025-10-20' && diwali['2025-10-20']!.W1 === '2025-10-20');
+  ok('...and on the special session itself, WEEK 1 is the next week', diwali['2025-10-21']!.W1 === '2025-10-28', diwali['2025-10-21']!.W1);
+  ok('without the rule the calendar would say 21 Oct (the error AC4 found)', H.labelExpiries(['2025-10-17', '2025-10-20', '2025-10-21'])['2025-10-17']!.W1 === '2025-10-21');
   const lab = H.labelExpiries(['2026-09-22', '2026-09-23']);
   ok('WEEK 2 is the expiry after WEEK 1', lab['2026-09-22']!.W1 === '2026-09-22' && lab['2026-09-22']!.W2 === '2026-09-29' && lab['2026-09-23']!.W2 === '2026-10-06');
 }

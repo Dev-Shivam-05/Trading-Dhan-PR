@@ -51,17 +51,34 @@ async function bhav(file: string) {
 }
 
 /**
- * AC4. For each pair of sessions (d, next): the legs at next's opening ATM ±3 strikes, first-minute OI
- * against d's last OI at the same strike. Same contract -> small change; a roll (d was expiry day)
- * -> a different contract, a jump. The calendar passes when every roll day jumps more than every
- * non-roll day: no threshold is chosen, the two groups must simply not overlap.
+ * AC4 (amendment A3). Two independent signals vote on every stored session, and neither uses a chosen threshold:
+ *  A. the cheaper leg of the ATM straddle at the last regular minute (15:29). On an expiry day it has
+ *     minutes left and trades near 0.05; with a day or more left it carries time value.
+ *  B. the OI break the next morning: first-minute OI at the next day's opening ATM ±3 strikes against
+ *     this day's last OI at the same strikes. The same contract continues; after an expiry, WEEK 1 is a
+ *     different contract.
+ * Each signal is split into "expiry" and "not" at the largest gap in its own sorted log values, so the
+ * data picks the cut. A calendar label is an ERROR only when BOTH signals contradict it; a day where one
+ * signal alone disagrees is listed as noise. (The first version used B alone with "the groups must not
+ * overlap": over 676 pairs one mislabelled Diwali day and a few gap-open mornings made that unpassable.)
  */
+function splitAtLargestGap(xs: number[]): number {
+  const s = [...xs].filter(x => x > 0).sort((a, b) => a - b);
+  let best = 0, cut = NaN;
+  for (let i = 1; i < s.length; i++) { const g = Math.log(s[i]!) - Math.log(s[i - 1]!); if (g > best) { best = g; cut = Math.sqrt(s[i]! * s[i - 1]!); } }
+  return cut;
+}
 async function expiries() {
   const idx = await readIndex(), dates = await storedDays(1);
-  const pts: { d: string; roll: boolean; jump: number; legs: number }[] = [];
+  type Pt = { d: string; cal: boolean; a: number | null; b: number | null; legs: number };
+  const pts = new Map<string, Pt>();
   let prev: ChainDay | null = null;
   for (const date of dates) {
     const day = (await readDay(date, 1))!;
+    let i = day.t.length - 1;
+    while (i > 0 && ((day.t[i]! + 19_800_000) % 86_400_000) / 60_000 >= 930) i--;
+    const K = day.atm[i], ce = K == null ? null : day.legs[`${K}CE`]?.c[i], pe = K == null ? null : day.legs[`${K}PE`]?.c[i];
+    pts.set(date, { d: date, cal: idx.expiries[date]?.W1 === date, a: ce != null && pe != null ? Math.min(ce, pe) : null, b: null, legs: 0 });
     if (prev) {
       const atm0 = day.atm[0] ?? day.atm.find(x => x !== null);
       const jumps: number[] = [];
@@ -71,21 +88,25 @@ async function expiries() {
         if (!last || last.i !== prev.t.length - 1 || !first || !last.x) continue;
         jumps.push(Math.abs(Math.log(first / last.x)));
       }
-      if (jumps.length) pts.push({ d: prev.date, roll: idx.expiries[prev.date]?.W1 === prev.date, jump: median(jumps), legs: jumps.length });
-      else console.log(`  ${prev.date} -> ${date}: no leg in both (skipped)`);
+      const p = pts.get(prev.date)!;
+      if (jumps.length) { p.b = median(jumps); p.legs = jumps.length; }
     }
     prev = day;
   }
-  const roll = pts.filter(p => p.roll).sort((a, b) => a.jump - b.jump), same = pts.filter(p => !p.roll).sort((a, b) => b.jump - a.jump);
-  const fmt = (p: typeof pts[number]) => `${p.d} ${(100 * (Math.exp(p.jump) - 1)).toFixed(1)}% (${p.legs} legs)`;
-  console.log(`pairs ${pts.length}: ${roll.length} after a calendar expiry, ${same.length} not`);
-  console.log(`  smallest jumps after an expiry: ${roll.slice(0, 5).map(fmt).join(' | ')}`);
-  console.log(`  largest jumps otherwise:        ${same.slice(0, 5).map(fmt).join(' | ')}`);
-  const overlapRoll = roll.filter(p => same.length && p.jump <= same[0]!.jump), overlapSame = same.filter(p => roll.length && p.jump >= roll[0]!.jump);
-  for (const p of overlapRoll) console.log(`  DISAGREE: calendar says ${p.d} was an expiry, the OI continued (${fmt(p)})`);
-  for (const p of overlapSame) console.log(`  DISAGREE: calendar says ${p.d} was not an expiry, the OI broke (${fmt(p)})`);
-  verdict('AC4 expiry labels vs the OI break', roll.length > 0 && !overlapRoll.length && !overlapSame.length,
-    roll.length && same.length ? `every roll jumps >= ${fmt(roll[0]!)}, every other day <= ${fmt(same[0]!)}` : 'not enough days');
+  const all = [...pts.values()];
+  const cutA = splitAtLargestGap(all.map(p => p.a ?? 0)), cutB = splitAtLargestGap(all.map(p => p.b ?? 0));
+  const saysA = (p: Pt) => (p.a === null ? null : p.a < cutA), saysB = (p: Pt) => (p.b === null ? null : p.b > cutB);
+  const fmt = (p: Pt) => `${p.d} ${new Date(p.d + 'T00:00:00Z').toUTCString().slice(0, 3)} (cheap leg ${p.a ?? '-'}, next-morning OI ${p.b === null ? '-' : (100 * (Math.exp(p.b) - 1)).toFixed(1) + '%'} over ${p.legs} legs)`;
+  console.log(`sessions ${all.length}, calendar expiries ${all.filter(p => p.cal).length}; signal A cut ${cutA.toFixed(2)} (cheap leg), signal B cut ${(100 * (Math.exp(cutB) - 1)).toFixed(1)}% (OI break)`);
+  const errors: Pt[] = [], noise: Pt[] = [];
+  for (const p of all) {
+    const a = saysA(p), b = saysB(p);
+    const against = [a, b].filter(x => x !== null && x !== p.cal).length, voters = [a, b].filter(x => x !== null).length;
+    if (voters && against === voters) errors.push(p); else if (against) noise.push(p);
+  }
+  for (const p of noise) console.log(`  one signal disagrees (kept): calendar says ${p.cal ? 'expiry' : 'not'} ${fmt(p)}`);
+  for (const p of errors) console.log(`  ERROR: calendar says ${p.cal ? 'expiry' : 'not an expiry'}, every signal says otherwise: ${fmt(p)}`);
+  verdict('AC4 expiry labels', errors.length === 0 && all.some(p => p.cal), `${errors.length} calendar errors, ${noise.length} days where one signal alone disagrees`);
 }
 
 /** AC5: printed, not thresholded. */

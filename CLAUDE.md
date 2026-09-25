@@ -639,8 +639,22 @@ then run the usual checks: one listener, zero EADDRINUSE, `build`, `"armed"`.
 `POST /v2/charts/rollingoption` with `{exchangeSegment:'NSE_FNO', interval:'1', securityId:13, instrument:'OPTIDX',
 expiryFlag:'WEEK', expiryCode:1, strike:'ATM'|'ATM+n'|'ATM-n', drvOptionType:'CALL'|'PUT', requiredData:[...], fromDate,
 toDate}` returns `data.ce` / `data.pe` with per-minute `strike, spot, open..close, volume, oi, iv`. It covers 31 days
-per call, back to at least Jan 2024. Still unmeasured: what `expiryCode` selects, the offset limit beyond ±10, and
-whether summed minute volume equals the chain's day volume (P48).
+per call, back to at least Jan 2024. Measured by P48: `expiryCode` starts at **1** (`0` → `DH-905`; `WEEK` n = the nth
+weekly, `MONTH` 1/2 = this/next monthly). On expiry day `WEEK 1` is still the expiring contract. **±10 is the ceiling,
+and `ATM+11` answers ok with ZERO candles, not an error**, so an empty series must be checked. `toDate` is exclusive.
+Volume is in units: summed per day it equals the bhavcopy's `TtlTradgVol` (contracts) × lot to 0.02%. A month of one
+series is ~530 KB and takes 2–3 s. It is **already downloaded**: `.cache/history/chains/NIFTY/`, 680 days, read it
+through `readDay(date)` in `src/server/chainhist.ts` and do not fetch it again.
+
+## An expiry calendar needs the special sessions — Diwali 2025 expired on a Monday
+The weekday rule (NIFTY: Thursday up to 28 Aug 2025, Tuesday from 1 Sep 2025, moved back over a holiday) said Tue
+21 Oct 2025. That day was a one-hour **Muhurat** session, which the data contains as a session, and the contract expired
+**Mon 20 Oct**. A rule that asks only "was the nominal day a session?" gets it wrong. Special sessions (60–107
+candles, every regular day ≥ 371) are never expiry days. P48's AC4 caught it with two data signals: the cheap ATM leg
+at 15:29 and the next morning's OI break.
+
+## `npm run notify:test` sends a real push to the user's phone
+It is not a unit suite. A "run every `*:test`" loop sent two test messages on 25 Sep. Leave it out of regression sweeps.
 
 ## Dhan's end-of-day option OI is not the exchange's — NSE's chain and bhavcopy are (measured 2026-09-25)
 After the close, 40 near-ATM NIFTY legs were scored against NSE's official F&O bhavcopy
