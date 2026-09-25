@@ -181,13 +181,12 @@ Dhan's limit. The source tool's live mode runs on the same ~3 s / 1-minute snaps
 
 ---
 
-## 8. What still needs the owner
+## 8. The owner's answers (2026-09-25)
 
-Few things, on purpose. Everything else is settled by P51/P52's data.
-
-1. **Capital per index trade and lots per trade.** It drives averaging (V30: a single-lot trader must not average) and the loss cap.
-2. **Which indices go to paper first** (recommended: NIFTY, then SENSEX).
-3. **The go-ahead for P47**, which adds pollers to the live server. They run within the documented chain limit, but it is the owner's server.
+1. **₹20,000 per trade**, with lots from the option's price and a minimum of 1 lot: lots = max(1, floor(20,000 / (premium × lot size))). A trade whose single lot costs more than ₹20,000 is flagged `over budget`. With 1 lot, V30 rules averaging out.
+2. **NIFTY only.** The other indices in §6 leave the build. P48 rebuilds NIFTY alone.
+3. **P47 started, and it is built**: `docs/spec/chain-recorder-v1.md`, live from Mon 28 Sep.
+4. **The LTP Calculator's 7-day premium:** buy it once P48 and P49 exist, as ground truth for the reversal price and the scenario labels (DECISIONS.md, 2026-09-25). Researching their documentation is P55.
 
 ## 9. Risks, said plainly
 

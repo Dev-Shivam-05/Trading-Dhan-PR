@@ -656,3 +656,20 @@ plan is the only inbound option and has catches. ntfy was already configured (P1
 Stop, 2R target, frozen-range skip, OI flag and a -Rs 50,000 loss cap are switchable per sandbox
 run. On 24 Sep the frozen-range rule would have skipped the day's winner, so which rules go live is
 the user's call after sandbox evidence.
+
+## 2026-09-25 — LTP index trading: NIFTY only, Rs 20,000 per trade (the user, for P47–P53)
+- "Nifty hi chahiye." FINNIFTY, MIDCPNIFTY, BANKNIFTY and SENSEX drop out of the build for now.
+- "Abhi ke liye 20k ke saath trade kijiye", lots sized by the price of the option being traded, and "1 lot se karege
+  toh bhi chalega". For P53 this becomes: lots = max(1, floor(20,000 / (premium × lot size))). When one lot costs more
+  than Rs 20,000, the trade still takes 1 lot and the ledger flags it `over budget`. That flag is Claude's addition,
+  so the user can see it.
+- "Okay start kijiye": P47 started (the NIFTY chain recorder).
+
+## 2026-09-25 — Do not buy the LTP Calculator yet; buy the 7-day premium only to calibrate
+The user offered to buy 7 days of LTP Calculator premium. Recommendation: **yes, but only once P48 and P49 exist**, and
+only as ground truth. The single biggest risk in the whole plan is the reversal-price formula (OQ-1), which only their
+screen can confirm. Seven days before our engine exists would be spent looking, not comparing. No public GitHub repo
+or developer documentation was found (web search 2026-09-25). There are only the product sites (ltpcalculator.com,
+investingdaddy.com), the apps, the pricing page, and the in-app "Read More" flowchart. Capture by hand, for personal
+comparison only; automated scraping of their site is not proposed. Researching their docs in depth is its own task
+(P55).
