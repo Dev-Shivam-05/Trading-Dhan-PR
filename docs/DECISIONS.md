@@ -695,3 +695,9 @@ Dhan has all of those (3 s chain, WebSocket, `rollingoption` history back to 202
 ## 2026-09-25 — LTP Calculator: do not buy now; buy 7 days after P48 and P49 (restated clearly for the user)
 No, not now. Later, yes: 7 days only, as a measuring instrument for our own engine, not as a trading tool. Long-term
 subscriptions and the ₹5,899 community fee are not needed, because the system is being built here.
+
+## 2026-09-25 — P48: how NIFTY's past chains are rebuilt
+- **`WEEK 1` over the whole history (from 2024-01-01), `WEEK 2` from 2026-09-01 only.** A full `WEEK 2` history doubles the disk, and no boarded phase reads it. It can be added later with one entry in `CODES`.
+- **A CLI (`npm run chainhist`) run by hand after 16:00, not a job inside the live server.** Wiring it in is a second 16:00 job and a board row of its own.
+- **A special session is never an expiry day** (spec A4). Diwali 2025's contract expired on Mon 20 Oct, not on the Muhurat Tuesday 21 Oct. The data found it.
+- The owner approved the spec and the download in one line ("run whatever download you want I approved it — I just want the system to be working").

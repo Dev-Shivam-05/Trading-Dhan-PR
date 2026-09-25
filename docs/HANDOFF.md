@@ -1,59 +1,50 @@
-# HANDOFF — Dhan Terminal — Phase P47 (plus the LTP index plan) — 2026-09-25
+# HANDOFF — Dhan Terminal — Phase P48 — 2026-09-25
 
-> The previous handoff (P44, P41 AC2, P46) is at `beab298`. Branches are stacked:
-> … → `p40-phone-sandbox` → `p44-train-all` → **`p47-nifty-chain-recorder`** (current, pushed).
+> The previous handoff (P47 and the LTP index plan) is at `1b39f9d`. Branches are stacked:
+> … → `p47-nifty-chain-recorder` → **`p48-chain-rebuild`** (current, pushed).
 
 ## Done
-- **The LTP index plan is written:** `docs/plan/ltp-index-intraday.md`.
-  - It is built from the finished `LTP-CALCULATOR/ANALYSIS/`, and no source file is newer than that analysis.
-  - The user's screenshot (CONCOR historical chain) was decoded. Both of its percentages reproduce to 2 dp (787.5/1,036.25 = 76.00%, 178.75/221.25 = 80.79%), which confirms P29's 75% grading.
-  - P47–P55 are boarded.
-- **Dhan's Expired Options Data (`POST /v2/charts/rollingoption`) works.** Three probes returned 1-minute strike, spot, OHLC, volume, OI and IV for ATM through ATM+10, with 31 days in one call, back to at least Jan 2024. So past NIFTY chains can be rebuilt (P48).
-- **P47 is built:** the NIFTY chain recorder. From Monday, from 09:14 to 15:31:
-  - every 3 s `ChainPoller` snapshot of NIFTY's current and next expiry is appended to `.cache/chains/<date>/NIFTY-<expiry>.jsonl`;
-  - it keeps ±20 strikes around the ATM, as tuples, about 30 MB raw per expiry per day;
-  - it calls no new endpoint;
-  - `summary.json` is written at 15:31, and `npm run ticks:pack` packs the day.
-- **Tests:**
-  - `chainrec:test` 18/18.
-  - Two real snapshots mapped with 0 mismatched rows (`.cache/p47-live-shape.ts`).
-  - Pack checked on a scratch CACHE_DIR.
-  - Regression all green: train 43, sandbox 17, paper 104, ltp 29, sleep 37, phone 18, backtest 31, session 11. tsc is clean.
-- **Live server on 8787: PID 19840, build `5e8b519`, ARMED, `check` READY.** It was started **detached** (`Start-Process cmd /c npm run dev`), so it outlives the session. The one before it died when the last session's process ended.
-
-- **NSE's chain against Dhan's, measured after the close.** The referee was NSE's official F&O bhavcopy for 25 Sep, over 40 near-ATM NIFTY legs:
-  - Volume and LTP: exact for both.
-  - OI: NSE 40/40, **Dhan 0/40, up to 21.8% off**. Dhan's chain OI stops at its 15:39 candle.
-  - Both sources picked the same support and resistance strikes.
-  - Decision: Dhan stays the engine; NSE is the OI referee (P56).
+- **NIFTY's past option chains are rebuilt minute by minute:** 680 sessions, 2024-01-01 → 2026-09-25, 163 MB.
+  - Files: `.cache/history/chains/NIFTY/<date>-W1.json.gz`, plus `-W2` from 16 Sep 2026, and `index.json` with each day's summary and expiry labels.
+  - Each day holds ATM−10…+10 strikes × CE/PE, with OHLC, volume, OI and IV per minute, and spot and ATM per minute.
+  - Read a day with `readDay(date)` from `src/server/chainhist.ts`.
+- **`npm run chainhist`** fetches only what is missing (it made 0 calls on the re-run). It refuses in replay mode and below 2 GB free, and it makes up to 3 passes over months that failed.
+- **The endpoint is now measured and documented** (spec M1–M8, CLAUDE.md):
+  - `expiryCode` starts at 1;
+  - ±10 is the ceiling, and ±11 returns empty, not an error;
+  - volume is in units.
+- **AC2 PASS:** summed minute volume vs NSE's bhavcopy is off by at most 0.0104% (W1, 38 legs) and 0.0191% (W2, 36 legs).
+- **AC4 PASS:** 0 calendar errors over 680 sessions and 143 expiries. Before the fix it found a real one: **Diwali 2025 expired Mon 20 Oct, not on the Muhurat Tuesday 21 Oct.**
+- **AC5 printed:**
+  - median 34 legs covered all day;
+  - 7 of 680 days (1.0%) moved more than 10 strikes; the worst was 4 Jun 2024, election results.
+- **Tests:** `chainhist:test` 50/50. Every other suite is green: ltp 29, session 11, paper 104, sleep 37, backtest 31, train 43, chainrec 18, phone 18, sandbox 17, oq1 ok. tsc is clean.
+- **The token renewed itself at 20:38 IST.** It now expires **Sat 26 Sep 20:39 IST**, and the live server on 8787 (PID 19840, ARMED) renews it again from Sat 08:39 if the laptop is awake.
 
 ## Files changed
-- `src/server/chainrec.ts` (new): the recorder. It is testable with fake pollers and the clock is injected.
-- `src/server/index.ts`: wires the recorder beside the tick recorder, live only.
-- `scripts/chainrec-test.ts` (new) and `package.json` (`chainrec:test`).
-- `scripts/ticks-pack.ts`: also packs closed chain days, with the same SHA-256 check.
-- `docs/spec/chain-recorder-v1.md` (new), `docs/plan/ltp-index-intraday.md` (new), `docs/PHASES.md`, `docs/DECISIONS.md`.
+- `src/server/chainhist.ts` (new): fetch, stitch, resume, the expiry calendar (with special sessions) and the pure recording comparison for AC3.
+- `scripts/chainhist.ts` (new): the `npm run chainhist` CLI, with up to 3 passes.
+- `scripts/chainhist-verify.ts` (new): `--bhav`, `--expiries`, `--coverage`, `--recording <date>`.
+- `scripts/chainhist-test.ts` (new): 50 checks without the network.
+- `package.json`: `chainhist`, `chainhist:verify`, `chainhist:test`.
+- `docs/spec/chain-rebuild-v1.md` (new): locked, with amendments A1–A4, results and findings.
+- `docs/PHASES.md`: the P48 row, Now, and Next 3.
+- `CLAUDE.md`: the rollingoption facts, the Diwali expiry lesson, and the `notify:test` trap.
 
 ## Decisions made
-- **The user: NIFTY only.** ₹20,000 per index trade, with lots from the option's price and at least 1 lot. In a formula: lots = max(1, floor(20,000 / (premium × lot))), and a trade is flagged `over budget` when one lot costs more.
-- **LTP Calculator 7-day premium:** buy it only after P48 and P49 exist, to calibrate the reversal price (OQ-1) and the scenario labels against their screen.
-- **No GitHub repo or developer docs were found** for the LTP Calculator. Researching their documentation is P55.
-- ±20 strikes kept per snapshot (a design choice with a reason, in spec row 3).
-- **Dhan remains the data and trading engine; NSE's chain and bhavcopy become the OI referee.** NSE has no history, ticks, Greeks or orders, answers only a headed Chrome, and its terms restrict automation (DECISIONS.md).
-- **LTP Calculator: do not buy now.** Buy 7 days only after P48 and P49, as a calibration instrument.
-- The probe scripts are in `.cache/`: `nse-vs-dhan-chain.ts`, `nse-vs-dhan-atm.ts`, `nse-vs-dhan-oi.ts`, `nse-bhavcopy-oi.ts`, `bhav-vs-both.ts`. The bhavcopy file is in `.cache/fo-bhav-20260925/`.
+- `WEEK 1` over the whole history; `WEEK 2` only from Sep 2026, where P47 records a second expiry. The full `WEEK 2` history would double the disk and nothing reads it yet.
+- It is a CLI run by hand after 16:00, not wired into the live server. That would be a second 16:00 job, and a board row of its own.
+- **A special session (< 200 candles) is never an expiry day** (A4). Measured: special sessions have 60–107 candles, regular ones ≥ 371.
+- AC4 uses two data signals, each cut at its own largest gap, and a label is an error only when both contradict it (A3). The single-signal "no overlap" rule was unpassable noise over 676 pairs.
 
 ## Known broken / deliberately skipped
-- **P47 AC5 (a full live day) is unmeasured until Mon 28 Sep.**
-- **The token expires Sat 26 Sep 08:35 IST.** It renews only if the laptop is awake after about 20:35 tonight or during the weekend. Otherwise paste a new one Monday before 09:10.
-- The laptop was on battery earlier today.
-- P46's display hold is still unproven.
-- A closed lid still sleeps the laptop.
-- The sandbox treats a partial recording as a whole day.
-- The scratch test directory `.cache/p47-test2/` was left in place, because deleting it was refused by the permission check. It is gitignored and harmless.
-- Carried over, waiting on the user: `L` is bound twice; P9 `median20`; post-close candles in SMA9; `w32tm /resync`; the untracked voice recording; P45 (shadow book of P44's recommendation).
+- **AC3 (against P47's recording) is open.** The first recorded session is Mon 28 Sep, so it cannot be measured before 15:31 that day.
+- `WEEK 2` for 1–15 Sep 2026 is not stored. Dhan returned only 14 of 42 series for those days, and nothing needs them.
+- 18 May 2024 (a Saturday DR session) has 90 conflicting cells. It is flagged in `index.json` and left as is.
+- **`npm run notify:test` was run twice in the regression loop, and it sent two real test pushes to the phone.** Recorded in CLAUDE.md.
+- Carried over: P47 AC5; P56 intraday OI; a closed lid still sleeps the laptop; `L` is bound twice; P9 `median20`; `w32tm /resync`; the untracked voice recording; P45; `package-lock.json` is modified but not by this session (left alone).
 
 ## Next session starts here
-- Phase P48: rebuild NIFTY's past minute chains from `rollingoption` and check them against Monday's P47 recording (spec-lock first).
-- First command: during Monday's session, `node --env-file=.env .cache/nse-vs-dhan-chain.ts` (P56: is Dhan's OI off intraday too?). After 15:31, `cat .cache/chains/2026-09-28/summary.json`.
-- Watch out for: the token. If `npm run check` is not READY on Monday morning, nothing records and nothing trades.
+- Phase P48 close (AC3), then P49: the LTP state machine over `readDay()` chains.
+- First command: on **Mon 28 Sep after 16:00**, run `npm run chainhist`, then `npm run chainhist:verify -- --recording 2026-09-28`. During the session, P56's `node --env-file=.env .cache/nse-vs-dhan-chain.ts` runs at 10:00, 11:00 and 12:00.
+- Watch out for: the token. It expires Sat 20:39 IST unless the laptop is awake Saturday morning for the renewal. If `npm run check` is not READY on Monday by 09:10, nothing records and nothing trades.
