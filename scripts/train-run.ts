@@ -115,6 +115,9 @@ export async function runTraining() {
   // Row 18: the same grid with every fill one minute late, and row 19's robustness measures.
   const late = runGrid(stocks, sessions, picks, TRAIN_GRID, new Set([baseKey, best.key, mostChosen]), 'late1m');
   const wfLate = walkForwardTrain(sessions, late.results, baseKey);
+  // Amendment 23: a rolling 60-session window, in case the market's regime moved.
+  const wf60 = walkForwardTrain(sessions, results, baseKey, WF_FIRST_TEST, WF_MIN_TRADES, 60);
+  const wf60Late = walkForwardTrain(sessions, late.results, baseKey, WF_FIRST_TEST, WF_MIN_TRADES, 60);
   const lateBy = new Map(late.results.map(r => [r.key, r]));
   const lateEligible = late.results.filter(r => r.trades >= WF_MIN_TRADES);
   // Row 20: one clean split. Choose on the first half only, score on the second half, both fills.
@@ -153,6 +156,7 @@ export async function runTraining() {
     substitution: sub,
     late1m: { walkForward: wfLate, positiveSettings: lateEligible.filter(r => r.net > 0).length, eligibleSettings: lateEligible.length, marginals: marginals(late.results), baseline: describe(lateBy.get(baseKey)!), best: describe([...lateEligible].sort((a, b) => b.net - a.net)[0]!) },
     robustness: robust,
+    rolling60: { level: { heldOut: wf60.heldOut, baseline: wf60.baseline, switches: wf60.switches }, late1m: { heldOut: wf60Late.heldOut, baseline: wf60Late.baseline, switches: wf60Late.switches } },
     halfSplit: split,
     recommendation: recommend
       ? { key: rec.key, why: `walk-forward held-out ${wf.heldOut} beats the baseline's ${wf.baseline} on the same ${wf.steps.length} sessions, and ${rec.key} is positive in both halves (${recSplit.firstHalf} / ${recSplit.secondHalf})` }
@@ -183,6 +187,9 @@ export async function runTraining() {
   line('best (bias)', report.late1m.best);
   console.log(`  ${report.late1m.positiveSettings} of ${report.late1m.eligibleSettings} settings net positive · walk-forward held-out ${inr(wfLate.heldOut)} vs baseline ${inr(wfLate.baseline)} (${wfLate.switches} switches)`);
   for (const [d, vals] of Object.entries(report.late1m.marginals)) console.log(`  ${d.padEnd(9)} ${vals.map(v => `${v.value}: ${inr(v.netPerTrade)}`).join('   ')}`);
+  console.log(`\n— amendment 23: rolling 60-session walk-forward — level ${inr(wf60.heldOut)} vs baseline ${inr(wf60.baseline)} (${wf60.switches} switches) · late fills ${inr(wf60Late.heldOut)} vs ${inr(wf60Late.baseline)} (${wf60Late.switches} switches)`);
+  console.log('\n— by month, net (level fills) —');
+  for (const [name, d] of [['baseline', report.baseline], ['most chosen', report.mostChosen]] as const) console.log(`  ${name.padEnd(12)} ${Object.entries(d.byMonth).map(([m, v]) => `${m} ${inr(v)}`).join('  ')}`);
   console.log('\n— row 20: choose on the first half, score on the second —');
   for (const [fill, x] of Object.entries(split)) console.log(`  ${fill.padEnd(6)} trained ${x.trainedOn}, tested ${x.testedOn}: chose ${x.chosen} (train ${inr(x.chosenTrain)}) → test ${inr(x.chosenTest)}, rank ${x.chosenTestRank}/${x.of} on the test half · baseline train ${inr(x.baselineTrain)} → test ${inr(x.baselineTest)}`);
   console.log('\n— row 19: is it luck? (daily t-stat; net without the best days; concentration) —');

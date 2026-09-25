@@ -341,7 +341,8 @@ export type TrainWF = {
   heldOut: number; baseline: number; switches: number; chosenCounts: Record<string, number>;
 };
 
-export function walkForwardTrain(sessions: string[], results: ComboResult[], baselineKey: string, first = WF_FIRST_TEST, minTrades = WF_MIN_TRADES): TrainWF {
+/** `window` = 0 trains on every earlier session; otherwise only on the last `window` (row 13, amendment 23). */
+export function walkForwardTrain(sessions: string[], results: ComboResult[], baselineKey: string, first = WF_FIRST_TEST, minTrades = WF_MIN_TRADES, window = 0): TrainWF {
   const order = [...results].sort((a, b) => (a.key === baselineKey ? -1 : b.key === baselineKey ? 1 : a.key.localeCompare(b.key)));
   const base = results.find(r => r.key === baselineKey)!;
   const steps: TrainWF['steps'] = [];
@@ -351,7 +352,7 @@ export function walkForwardTrain(sessions: string[], results: ComboResult[], bas
     let best: ComboResult | null = null, bv = -Infinity;
     for (const r of order) {
       let n = 0, v = 0;
-      for (let j = 0; j < k; j++) { n += r.tradesPerDay[j]!; v += r.perDay[j]!; }
+      for (let j = window ? Math.max(0, k - window) : 0; j < k; j++) { n += r.tradesPerDay[j]!; v += r.perDay[j]!; }
       if (n < minTrades) continue;
       if (v > bv + 1e-9) { bv = v; best = r; }
     }
