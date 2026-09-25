@@ -107,6 +107,11 @@ function refreshFeedSubscriptions() {
  * poll exists. Paper means paper: this object never reaches an order endpoint - it has none.
  */
 const PAPER_CONN = -1;
+// P46: the PC is held awake while EITHER the trader needs it (P36 row 3) OR the recorder is recording.
+// On 25 Sep the trader was armed too late to trade, so nothing held the PC, and the recording has holes.
+let paperAwake = false, recorderAwake = false;
+const applyAwake = () => { if (!isReplay()) keepAwake(paperAwake || recorderAwake); };
+
 const paper = new PaperTrader({
   file: ledgerPath(),
   mode: isReplay() ? 'replay' : 'live',
@@ -153,7 +158,7 @@ const paper = new PaperTrader({
     return res.why ? { bars: [], why: res.why } : { bars: toUCandles(res.candles), why: null };
   },
   // Row 3: live only. Replay trades nothing real and has no reason to hold a laptop awake.
-  onAwake: (hold) => { if (!isReplay()) keepAwake(hold); },
+  onAwake: (hold) => { paperAwake = hold; applyAwake(); },
   // phone-sandbox-v1.md P40 rows 1-2: every entry, exit and the two daily messages go to the
   // phone. Live only: replay's fills are synthetic and would read as real trades on a lock screen.
   onEvent: (e) => {
@@ -200,6 +205,8 @@ const recorder = isReplay() ? null : new TickRecorder({
 // A recorder failure must never take the live trader down with it (it did on 2026-09-25).
 if (recorder) setInterval(() => {
   recorder.step(Date.now()).catch(e => console.error(`[ticks] step failed: ${(e as Error).message}`));
+  const rec = recorder.status().date !== null;
+  if (rec !== recorderAwake) { recorderAwake = rec; applyAwake(); }
 }, 1000).unref();
 
 feed.on('tick', (t: Tick) => {

@@ -8,6 +8,12 @@
  * and then sleeps. Killing the child releases the hold. `powercfg /requests` lists it under SYSTEM.
  *
  * It does not stop a lid close or the power button — only idle sleep.
+ *
+ * P46, measured 2026-09-25: `ES_SYSTEM_REQUIRED` alone (0x80000001) does NOT keep this laptop up.
+ * It uses Modern Standby, which starts when the DISPLAY goes off: with a 0x80000001 hold active from
+ * 13:55, the System log shows Kernel-Power 506 (standby) at 14:08:00, the feed's last tick at
+ * 15:12:33, and 507 (wake) at 16:19:53. So the hold also asks for the display (`ES_DISPLAY_REQUIRED`,
+ * 0x2): 0x80000003. The screen stays on while the hold lasts.
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -19,7 +25,7 @@ let child: ChildProcess | null = null;
 const script = (parentPid: number) => [
   `$sig = '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'`,
   `Add-Type -Name Power -Namespace Dhan -MemberDefinition $sig`,
-  `[Dhan.Power]::SetThreadExecutionState([uint32]'0x80000001') | Out-Null`,
+  `[Dhan.Power]::SetThreadExecutionState([uint32]'0x80000003') | Out-Null`,
   `while (Get-Process -Id ${parentPid} -ErrorAction SilentlyContinue) { Start-Sleep -Seconds 30 }`,
 ].join('; ');
 
