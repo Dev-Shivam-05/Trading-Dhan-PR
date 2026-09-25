@@ -30,6 +30,7 @@
     "backtest:test": "node scripts/backtest-test.ts",
     "train": "node --env-file-if-exists=.env scripts/train.ts",
     "train:test": "node scripts/train-test.ts",
+    "ticks:pack": "node scripts/ticks-pack.ts",
     "phone:test": "node scripts/phone-test.ts",
     "sandbox:test": "node scripts/sandbox-test.ts"
   },

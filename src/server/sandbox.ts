@@ -14,6 +14,7 @@
 
 import { readFile, mkdir, readdir, access } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
+import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
 import { CACHE_DIR } from './paths.ts';
@@ -241,7 +242,10 @@ export async function loadDay(date: string, creds: Credentials | null, say: (m: 
   let ticks: SandboxTick[] = [];
   let source: SandboxDay['source'] = 'synthetic';
   const recDir = path.join(TICK_DIR, date);
-  const recorded = await access(path.join(recDir, 'ticks.csv')).then(() => true, () => false);
+  // A closed day may be gzipped (`scripts/ticks-pack.ts`): a recorded day is ~1.2 GB as CSV, ~10x less packed.
+  const exists = (f: string) => access(path.join(recDir, f)).then(() => true, () => false);
+  const plain = await exists('ticks.csv');
+  const recorded = plain || await exists('ticks.csv.gz');
   if (recorded) {
     source = 'recorded';
     const inst = JSON.parse(await readFile(path.join(recDir, 'instruments.json'), 'utf8')) as RecInstrument[];
@@ -251,7 +255,7 @@ export async function loadDay(date: string, creds: Credentials | null, say: (m: 
       for (const i of mine) want.add(i.securityId);
       options.set(sym, mine.filter(i => i.kind !== 'FUT').map(i => ({ strike: i.strike!, optionType: i.kind as 'CE' | 'PE', securityId: i.securityId, lot: i.lot, expiry: i.expiry })));
     }
-    const rl = createInterface({ input: createReadStream(path.join(recDir, 'ticks.csv')) });
+    const rl = createInterface({ input: plain ? createReadStream(path.join(recDir, 'ticks.csv')) : createReadStream(path.join(recDir, 'ticks.csv.gz')).pipe(createGunzip()) });
     for await (const line of rl) {
       const f = line.split(',');
       const id = Number(f[3]), ltp = Number(f[4]);

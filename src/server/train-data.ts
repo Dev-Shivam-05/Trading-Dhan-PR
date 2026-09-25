@@ -22,12 +22,17 @@ import { HISTORY_DIR, lastComplete } from './history.ts';
 
 const KEY = 'history';
 const CADENCE_MS = 1100;
-/** Row 2: the first session fetched. Dhan's intraday reaches ~90 days back; 1 Jul was measured by P37. */
-export const TRAIN_FROM = '2026-07-01';
+/**
+ * Row 2 (amendment 22): the first session fetched. Dhan answers at most ~90 days per intraday
+ * request, but the share's history goes back further: RELIANCE returned 60 sessions for each of
+ * Jan–Mar and Apr–Jun 2026 (measured 2026-09-25). So older data is fetched in 90-day chunks.
+ */
+export const TRAIN_FROM = '2025-10-01';
 /** Row 2: daily closes from a little earlier, so the first session has a previous close. */
-const CLOSES_FROM = '2026-06-20';
+const CLOSES_FROM = '2025-09-20';
+const CHUNK_DAYS = 89;
 
-export type Series = { fetchedTo: string | null; t: number[]; o: number[]; h: number[]; l: number[]; c: number[] };
+export type Series = { fetchedTo: string | null; from?: string; t: number[]; o: number[]; h: number[]; l: number[]; c: number[] };
 export type Closes = { fetchedTo: string | null; close: Record<string, number> };
 type ContractsFile = Record<string, { futureId: number; lot: number; expiry: string; equityId: number; name: string }[]>;
 
@@ -70,15 +75,44 @@ export async function updateTrainData(creds: Credentials, nowMs: number, log: Fe
     n++;
     const mName = `eq1/${u.symbol}.json`;
     const s = (await readJson<Series>(mName)) ?? { fetchedTo: null, t: [], o: [], h: [], l: [], c: [] };
+    const get = async (from: string, to: string) => {
+      log.calls++;
+      const r = await withRetry(() => fetchIntraday(creds, { securityId: String(u.equityId), seg: 'NSE_EQ', instrument: 'EQUITY', interval: '1', oi: false, fromDate: from, toDate: to, key: KEY, cadenceMs: CADENCE_MS }));
+      if (r.why) log.failed.push(`${u.symbol} 1m ${from}..${to}: ${r.why}`);
+      return r.why ? null : r.candles;
+    };
+    // Older than what is stored: 90-day chunks, prepended. `from` records how far back it reaches.
+    const firstStored = s.from ?? (s.t.length ? istParts(s.t[0]!)!.date : null);
+    if (firstStored !== null && firstStored > TRAIN_FROM) {
+      const older: Series = { fetchedTo: null, t: [], o: [], h: [], l: [], c: [] };
+      let ok = true;
+      for (let a = TRAIN_FROM; a < firstStored; a = addDays(a, CHUNK_DAYS + 1)) {
+        const b = addDays(a, CHUNK_DAYS) < firstStored ? addDays(a, CHUNK_DAYS) : addDays(firstStored, -1);
+        const c = await get(a, addDays(b, 1));
+        if (c === null) { ok = false; break; }
+        mergeSeries(older, c, b);
+      }
+      if (ok) {
+        for (const k of ['t', 'o', 'h', 'l', 'c'] as const) s[k] = [...older[k], ...s[k]];
+        s.from = TRAIN_FROM;
+        await writeJson(mName, s);
+      }
+    }
     if (s.fetchedTo === null || s.fetchedTo < lastDay) {
       const from = s.fetchedTo ? addDays(s.fetchedTo, 1) : TRAIN_FROM;
-      log.calls++;
-      const r = await withRetry(() => fetchIntraday(creds, { securityId: String(u.equityId), seg: 'NSE_EQ', instrument: 'EQUITY', interval: '1', oi: false, fromDate: from, toDate: addDays(lastDay, 1), key: KEY, cadenceMs: CADENCE_MS }));
-      if (r.why) log.failed.push(`${u.symbol} 1m: ${r.why}`);
-      else { mergeSeries(s, r.candles, lastDay); await writeJson(mName, s); }
+      // A first fetch longer than one chunk is split the same way.
+      let ok = true;
+      for (let a = from; a <= lastDay && ok; a = addDays(a, CHUNK_DAYS + 1)) {
+        const b = addDays(a, CHUNK_DAYS) < lastDay ? addDays(a, CHUNK_DAYS) : lastDay;
+        const c = await get(a, addDays(b, 1));
+        if (c === null) ok = false; else mergeSeries(s, c, b);
+      }
+      if (ok) { s.from ??= TRAIN_FROM; await writeJson(mName, s); }
     }
     const dName = `eqd/${u.symbol}.json`;
     const d = (await readJson<Closes>(dName)) ?? { fetchedTo: null, close: {} };
+    const closesReach = Object.keys(d.close).sort()[0];
+    if (closesReach !== undefined && closesReach > TRAIN_FROM) d.fetchedTo = null;   // too short: fetch the whole span again
     if (d.fetchedTo === null || d.fetchedTo < lastDay) {
       log.calls++;
       const call = await dhanPost<Candles & { data?: Candles }>('/v2/charts/historical',
