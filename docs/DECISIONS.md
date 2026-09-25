@@ -701,3 +701,11 @@ subscriptions and the ₹5,899 community fee are not needed, because the system 
 - **A CLI (`npm run chainhist`) run by hand after 16:00, not a job inside the live server.** Wiring it in is a second 16:00 job and a board row of its own.
 - **A special session is never an expiry day** (spec A4). Diwali 2025's contract expired on Mon 20 Oct, not on the Muhurat Tuesday 21 Oct. The data found it.
 - The owner approved the spec and the download in one line ("run whatever download you want I approved it — I just want the system to be working").
+
+## 2026-09-25 — P49: the LTP state machine's rules (spec `ltp-state-v1.md`, locked with one `go`)
+- **Pressure is stored and the WTT/WTB label is derived from it** (V112). Weak before any shift: WTT = bullish, WTB = bearish. After a shift, the last shift's direction wins.
+- **Rules stay in strike space** (P29 row 5), even though V75 (V2) calls 25,000 → 24,900 "bottom to top … bullish". If the tool shows otherwise, shifted-up and shifted-down swap.
+- **No debounce on a shift.** The tool clears its warning at 74.99 immediately; any N-minute debounce would be an invented number.
+- **Both sides bearish = scenario 6 (blood bath)**, per V13 and V37 over V47 (OQ-14).
+- **Three GUESSes, open to a one-word veto:** a re-seat (price through the level) counts as a shift; the Game of Percentage looks back 5 minutes with a 1.0-point dead-band; IV counts as moving at 2.0 points from 09:20.
+- **History only.** No UI, no live wiring. The live read waits until the rules are checked against the tool's banner.

@@ -1,50 +1,50 @@
-# HANDOFF — Dhan Terminal — Phase P48 — 2026-09-25
+# HANDOFF — Dhan Terminal — Phase P49 — 2026-09-25
 
-> The previous handoff (P47 and the LTP index plan) is at `1b39f9d`. Branches are stacked:
-> … → `p47-nifty-chain-recorder` → **`p48-chain-rebuild`** (current, pushed).
+> The previous handoff (P48) is at `3e8997c`. Branches are stacked:
+> … → `p48-chain-rebuild` → **`p49-ltp-state`** (current, pushed).
 
 ## Done
-- **NIFTY's past option chains are rebuilt minute by minute:** 680 sessions, 2024-01-01 → 2026-09-25, 163 MB.
-  - Files: `.cache/history/chains/NIFTY/<date>-W1.json.gz`, plus `-W2` from 16 Sep 2026, and `index.json` with each day's summary and expiry labels.
-  - Each day holds ATM−10…+10 strikes × CE/PE, with OHLC, volume, OI and IV per minute, and spot and ATM per minute.
-  - Read a day with `readDay(date)` from `src/server/chainhist.ts`.
-- **`npm run chainhist`** fetches only what is missing (it made 0 calls on the re-run). It refuses in replay mode and below 2 GB free, and it makes up to 3 passes over months that failed.
-- **The endpoint is now measured and documented** (spec M1–M8, CLAUDE.md):
-  - `expiryCode` starts at 1;
-  - ±10 is the ceiling, and ±11 returns empty, not an error;
-  - volume is in units.
-- **AC2 PASS:** summed minute volume vs NSE's bhavcopy is off by at most 0.0104% (W1, 38 legs) and 0.0191% (W2, 36 legs).
-- **AC4 PASS:** 0 calendar errors over 680 sessions and 143 expiries. Before the fix it found a real one: **Diwali 2025 expired Mon 20 Oct, not on the Muhurat Tuesday 21 Oct.**
-- **AC5 printed:**
-  - median 34 legs covered all day;
-  - 7 of 680 days (1.0%) moved more than 10 strikes; the worst was 4 Jun 2024, election results.
-- **Tests:** `chainhist:test` 50/50. Every other suite is green: ltp 29, session 11, paper 104, sleep 37, backtest 31, train 43, chainrec 18, phone 18, sandbox 17, oq1 ok. tsc is clean.
-- **The token renewed itself at 20:38 IST.** It now expires **Sat 26 Sep 20:39 IST**, and the live server on 8787 (PID 19840, ARMED) renews it again from Sat 08:39 if the laptop is awake.
+- **`npm run ltpstate -- <date>`** prints the LTP state machine's timeline for any rebuilt NIFTY day.
+  - Each line shows both levels: strike, grade, state, pressure, percentage and SOC.
+  - Then the COA 1.0 verdict, the Game of Percentage (on scenarios 8/9) and the IV gate.
+  - `npm run ltpstate` (no date) prints counts over all 680 stored days in about 40 s.
+- **`npm run ltpstate:test` 45/45.**
+  - AC1–AC6: hand-built minutes for every rule, each rule also shown rejecting something.
+  - AC7: a second, look-back implementation agrees on **254,080 minutes over 680 days with 0 mismatches**, and the comparison is shown to catch a swapped rule.
+  - AC8: every state, scenario, SOC stage, shift cause, GoP value and IV value occurs on real data (26/26).
+  - AC9: 4 Jun 2024 turns IV `moving` at 09:22.
+  - AC10: deterministic, no Dhan call, no clock.
+- AC11: tsc clean, `ltp:test` 29/29, `chainhist:test` 50/50.
+- **Findings, recorded in the spec's Result section:**
+  - Confirmed SOC on 504 of 679 days.
+  - V104's one-point IV rule reads `unbalanced` 70% of minutes.
+  - 44% of shifts are re-seats.
+  - Scenarios 6/7/9 are 77% of minutes; neutral is 1%.
 
 ## Files changed
-- `src/server/chainhist.ts` (new): fetch, stitch, resume, the expiry calendar (with special sessions) and the pure recording comparison for AC3.
-- `scripts/chainhist.ts` (new): the `npm run chainhist` CLI, with up to 3 passes.
-- `scripts/chainhist-verify.ts` (new): `--bhav`, `--expiries`, `--coverage`, `--recording <date>`.
-- `scripts/chainhist-test.ts` (new): 50 checks without the network.
-- `package.json`: `chainhist`, `chainhist:verify`, `chainhist:test`.
-- `docs/spec/chain-rebuild-v1.md` (new): locked, with amendments A1–A4, results and findings.
-- `docs/PHASES.md`: the P48 row, Now, and Next 3.
-- `CLAUDE.md`: the rollingoption facts, the Diwali expiry lesson, and the `notify:test` trap.
+- `docs/spec/ltp-state-v1.md` (new): 22 rows, 11 ACs, measurements before the spec, Result section.
+- `src/server/ltp-state.ts` (new): the pure engine — `observeDay`, `stepSide`, `stepDay`, `runDay`. It reuses P29's `readChain()` unchanged.
+- `scripts/ltp-state.ts` (new): the `ltpstate` CLI (one day's timeline, or counts over all stored days).
+- `scripts/ltp-state-test.ts` (new): AC1–AC10, including the look-back second implementation.
+- `package.json`: `ltpstate`, `ltpstate:test`.
+- `docs/PHASES.md` (P49 row, Now, Next 3), `docs/DECISIONS.md`, `docs/spec/GLOSSARY.md` (pressure, shift / re-seat, SOC).
 
 ## Decisions made
-- `WEEK 1` over the whole history; `WEEK 2` only from Sep 2026, where P47 records a second expiry. The full `WEEK 2` history would double the disk and nothing reads it yet.
-- It is a CLI run by hand after 16:00, not wired into the live server. That would be a second 16:00 job, and a board row of its own.
-- **A special session (< 200 candles) is never an expiry day** (A4). Measured: special sessions have 60–107 candles, regular ones ≥ 371.
-- AC4 uses two data signals, each cut at its own largest gap, and a label is an error only when both contradict it (A3). The single-signal "no overlap" rule was unpassable noise over 676 pairs.
+- The pressure is stored and the label derived from it. Rules stay in strike space (P29 row 5), despite V75's "25,000 → 24,900 bottom to top".
+- No debounce on shifts. Both sides bearish = scenario 6.
+- Three GUESS rows, open to veto:
+  - row 8: a re-seat counts as a shift;
+  - row 16: the Game of Percentage looks back 5 min with a 1.0-point dead-band;
+  - row 20: IV counts as moving at 2.0 points from its 09:20 value.
+- History only: no UI, no live wiring, until the rules are checked against the tool's banner.
 
 ## Known broken / deliberately skipped
-- **AC3 (against P47's recording) is open.** The first recorded session is Mon 28 Sep, so it cannot be measured before 15:31 that day.
-- `WEEK 2` for 1–15 Sep 2026 is not stored. Dhan returned only 14 of 42 series for those days, and nothing needs them.
-- 18 May 2024 (a Saturday DR session) has 90 conflicting cells. It is flagged in `index.json` and left as is.
-- **`npm run notify:test` was run twice in the regression loop, and it sent two real test pushes to the phone.** Recorded in CLAUDE.md.
-- Carried over: P47 AC5; P56 intraday OI; a closed lid still sleeps the laptop; `L` is bound twice; P9 `median20`; `w32tm /resync`; the untracked voice recording; P45; `package-lock.json` is modified but not by this session (left alone).
+- **There is no ground truth.** Every AC proves the code does what the spec says, not that the spec matches the LTP Calculator. Rows 8, 15 and 19 are the likeliest to be wrong, given the frequencies above.
+- **P48 AC3 is still open**: Mon 28 Sep after 16:00.
+- Skipped on purpose: the UI panel, live poller wiring, OQ-3 (how far an SOC runs, withheld by the source), OQ-12 (V39's WTB constraint, one file only), and W2 chains.
+- Carried over from P48: P47 AC5; P56 intraday OI; a closed lid still sleeps the laptop; `L` is bound twice; P9 `median20`; `w32tm /resync`; the untracked voice recording; P45; `package-lock.json` modified but not by this session (left alone).
 
 ## Next session starts here
-- Phase P48 close (AC3), then P49: the LTP state machine over `readDay()` chains.
-- First command: on **Mon 28 Sep after 16:00**, run `npm run chainhist`, then `npm run chainhist:verify -- --recording 2026-09-28`. During the session, P56's `node --env-file=.env .cache/nse-vs-dhan-chain.ts` runs at 10:00, 11:00 and 12:00.
-- Watch out for: the token. It expires Sat 20:39 IST unless the laptop is awake Saturday morning for the renewal. If `npm run check` is not READY on Monday by 09:10, nothing records and nothing trades.
+- **Phase:** Mon 28 Sep's measurements (P56 at 10/11/12, then P47/P46/P41 after 15:31, then P48 AC3 after 16:00). After that, P50 (line sets) or the ground-truth check of P49, whichever the user picks.
+- **First command:** `npm run check`, on Monday before 09:10. It must say READY or nothing records.
+- **Watch out for:** the token expires **Sat 26 Sep 20:39 IST** unless the laptop is awake on Saturday morning for the renewal (live server on 8787, PID 19840).

@@ -77,6 +77,34 @@ UI panel, live poller wiring and an `/api` route; line sets (P50); trades and ba
 | AC10 | `ltp-state.ts` imports nothing from `dhan.ts` and never calls `Date.now()`; two runs give byte-identical output |
 | AC11 | tsc clean; `ltp:test` 29/29 and `chainhist:test` 50/50 still pass |
 
+## Result (2026-09-25, built on `p49-ltp-state`)
+`npm run ltpstate:test` **45/45**: AC1–AC6 on hand-built minutes (every rule also shown rejecting), AC7 **0 mismatches
+over 254,080 minutes / 680 days** against a look-back implementation, and the comparison shown to catch a swapped rule
+(279 minutes differ when the abandoned pressures are inverted). AC8 26/26 values occur on real data. AC9: 4 Jun 2024
+turns `moving` at 09:22 (ATM IV 48.5/54.5 at 09:20 → 57.9/60.8). AC10 byte-identical, no `dhan.ts`, no clock.
+AC11: tsc clean, `ltp:test` 29/29, `chainhist:test` 50/50. A full pass over the 680 days takes ~40 s.
+
+**What the history says** (`npm run ltpstate`, 679 days with session minutes; the Muhurat evening of 1 Nov 2024 has none):
+| Measure | Value |
+|---|---|
+| Scenario share of minutes | 1: 1.0% · 2: 5.0% · 3: 4.3% · 4: 2.3% · 5: 4.0% · **6: 24.4%** · **7: 23.8%** · 8: 6.4% · **9: 28.8%** |
+| Shifts per day, both sides | median **13**, max 55; 5,602 volume shifts and **4,360 re-seats** (44%) |
+| Days with a confirmed SOC | resistance side (bullish) **302**, support side (bearish) **202**, of 679 |
+| IV balance (row 19) | `unbalanced` **70%** of minutes, `settled` 30% |
+| IV move (row 20) | `moving` 30% of minutes |
+| Coverage | `partial` 1.7% of side-minutes, `edge` 0.1%, no reading 230 minutes |
+
+**Read these before trusting the verdicts:**
+- **SOC confirms on most days.** One side weak for an hour while the other is strong is ordinary on this data, so
+  row 15 as written is not a rare event. Either that is the real market, or minute-level cumulative volume keeps a
+  challenger above 75% far longer than the tool's 3 s picture does. Only a comparison with the tool can say which.
+- **Row 19's one-point rule calls the IV unbalanced 70% of the time** on Dhan's per-leg minute IV. V104's "within one
+  point" may assume a smoother IV (the tool's own, or an average) than a single leg's minute value.
+- **Re-seats are 44% of all shifts** — the level moving because price traded through it, not because volume moved.
+  Row 8 counts them as shifts. If that is wrong, the shifted-* pressures change on almost half the events.
+- Scenario 1 (neutral) is only 1% of minutes: a level that has once been weak never returns to `stable` (row 9, the
+  last transition holds).
+
 ## Risks
 - **No ground truth.** No LTP Calculator screen exists for any of these days; a wrong rule can pass every AC. Cheapest
   check: the tool's 7-day premium, comparing its banner on 2–3 days.
