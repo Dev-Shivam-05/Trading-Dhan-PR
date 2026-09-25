@@ -47,6 +47,37 @@ by Claude**, marked as such, and open to a one-word veto afterwards. **Nothing h
 | 16 | Output | `npm run train` prints the report and writes `.cache/history/train-report.json`. A panel on the Paper tab is P38's job. |
 | 17 | Applying it | **Never automatic.** A recommendation is printed only if the walk-forward's held-out net beats the baseline's on the same days **and** the chosen setting is positive in both halves. Otherwise the report says so and recommends nothing. |
 
+### Amendments made while building (also by delegation)
+| # | Row | Value |
+|---|---|---|
+| 18 | Late fills (stress test) | The whole grid is run a second time with every fill **one minute late**: entry at the break candle's close, stop and target at their candle's close, and the SMA / 15:15 exit at the close of the candle starting at that instant (falling back to row 8's price). **Why:** row 7's level fill is what priced POLICYBZR on 24 Sep at 1700.45 when the live fill was 1606, and a zero-width range such as KPITTECH's on 1 Jul (604.4 / 604.4, then 570.8 one minute after the break) is the same trap. |
+| 19 | Is it luck? | For the baseline, the in-sample best and the setting chosen most often: the daily t-statistic (mean ÷ sd × √n), the net without the best day and without the best 3 days, and the net without the best stock. |
+| 20 | One clean split | Choose on the first half of the sessions only, then score on the second half, under both fill models, next to the baseline on the same halves. |
+| 21 | Recommendation | Row 17 also needs the **late-fill** walk-forward to beat the baseline. |
+
+## Result, 2026-09-25 (61 sessions, 1 Jul – 24 Sep; 210 stocks; 420 Dhan calls, 0 failed)
+- **The walk-forward does not beat the live rules.** Held-out net over 51 sessions: tuning **+2,20,240** against the
+  baseline's **+2,57,014** on the same days. With late fills it is **+1,41,918** against **+1,76,214**. So row 17
+  recommends **nothing**: the evidence does not support changing a live setting.
+- **The live rules make money on this sample, but it is not proven.** Baseline, level fills: 307 trades, win 41.7%,
+  net **+3,33,863** after ₹70,106 of costs, 30 of 61 days green, daily t = **1.57**. With late fills: net +2,22,606, t = 1.20.
+  **Without the best 3 days it is +59,368** (late fills: **−7,881**). POLICYBZR on 24 Sep is the largest single contributor
+  (+1,51,181).
+- **The clean split (row 20) is mixed.** Level fills: the first-half pick (`chg0/gap/r2/sma13/x3`) made +1,47,415 on the
+  second half against the baseline's +91,025. Late fills: +55,831 against +56,224, so no gain.
+- **These tendencies agree under both fill models (row 15), but the walk-forward did not confirm them:**
+  - direction `gap` beats `either`, and minChg 2 beats 0 and 1. Both of those are the live rules.
+  - 2 range bars beat 1 and 3.
+  - a slower exit helps: SMA 13 or 20 beats 9, and 3 closes beat 2.
+  - **all three P42 rules lower the net**: stop, 2R target and the frozen-range skip. They stay off live.
+  - The setting chosen most often, `chg2/gap/r2/sma20/x3/noSL/T2R`, is the most robust: t 2.07 (late fills 1.73),
+    and +1,69,680 without its best 3 days.
+- **AC3, the share as a stand-in for the future:** 99 baseline trades replayed on both 5-minute series. The exit reason
+  agreed in 98 of 99, the exit bar in 66 of 99, and the mean return difference was **+0.012 pp** (mean absolute
+  0.22 pp). There is no bias. The other 208 trades predate P37's futures cache (26 Aug).
+- **AC5:** six trades (baseline and the most-chosen setting, first, middle and last) recomputed from the raw candles
+  by a separate script (`.cache/p44-ac5.ts`): range, break minute, gross, costs and net all equal to the paisa.
+
 ## Out of scope
 Option legs (row 10). The OI filter (above). Any change to the live rules. Brokerage-plan specifics beyond row 9.
 Real orders.

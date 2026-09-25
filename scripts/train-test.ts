@@ -186,5 +186,18 @@ const P = (x: Partial<TrainParams> = {}): TrainParams => ({ ...BASELINE, ...x })
   ok('row 11: with the frozen rule, B is counted as frozen instead', g.results[1]!.skips.frozen === 1);
 }
 
+// Row 18: the one-minute-late fill model.
+{
+  const s = stock(day(101, { ...RANGE, '10:00': [100, 101.2, 100, 101.1], '10:30': [100, 100, 98.5, 98.6] }));
+  const lv = tradeOne(s, D, { symbol: 'X', chg: 3 }, P({ stop: true, sma: 20, closes: 3 }), new Map(), 'level');
+  const lt = tradeOne(s, D, { symbol: 'X', chg: 3 }, P({ stop: true, sma: 20, closes: 3 }), new Map(), 'late1m');
+  ok('row 18: late fill enters at the break candle close (101.1, not 101.05)', !('skip' in lt) && lt.entryPx === 101.1 && !('skip' in lv) && lv.entryPx === 101.05);
+  ok('row 18: late fill stops at the stop candle close (98.6, not 99)', !('skip' in lt) && lt.reason === 'stop' && lt.exitPx === 98.6);
+  const e = stock(day(101, { ...RANGE, '10:00': [100, 101.2, 100, 101.1], '15:14': [101, 101.4, 101, 101.3] }));
+  ok('row 18: with no 15:15 candle the late fill falls back to the 15:14 close', (r => !('skip' in r) && r.exitPx === 101.3)(tradeOne(e, D, { symbol: 'X', chg: 3 }, P({ sma: 20, closes: 3 }), new Map(), 'late1m')));
+  const e2 = stock(day(101, { ...RANGE, '10:00': [100, 101.2, 100, 101.1], '15:15': [101, 102, 101, 101.8] }, '15:29'));
+  ok('row 18: … and takes the 15:15 candle close when it exists', (r => !('skip' in r) && r.exitPx === 101.8)(tradeOne(e2, D, { symbol: 'X', chg: 3 }, P({ sma: 20, closes: 3 }), new Map(), 'late1m')));
+}
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

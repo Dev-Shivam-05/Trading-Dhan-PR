@@ -33,6 +33,14 @@ for (const minChg of [0, 1, 2] as const) for (const dir of ['gap', 'either'] as 
     for (const stop of [false, true]) for (const target of [false, true]) for (const frozen of [false, true])
       TRAIN_GRID.push({ minChg, dir, rangeBars, sma, closes, stop, target, frozen });
 
+/**
+ * Row 18: how fills are priced. `level` is row 7/8's model. `late1m` is the stress test: every fill
+ * lands one minute late, at the close of the minute it was due in (the break candle, the stop or
+ * target candle, the candle starting at the SMA / 15:15 instant). A band jump such as POLICYBZR's
+ * on 24 Sep (model 1700.45, live 1606) is exactly what `level` gets wrong and `late1m` does not.
+ */
+export type FillModel = 'level' | 'late1m';
+
 /** Row 13: the walk-forward's first test session, and the trade floor for a choice. */
 export const WF_FIRST_TEST = 10;
 export const WF_MIN_TRADES = 20;
@@ -166,11 +174,19 @@ export function priceAt(s: StockData, date: string, T: number): number | null {
   return best >= 0 ? s.m1.c[best]! : null;
 }
 
+/** Row 18's late fill: the close of the candle starting at `T`, if there is one. */
+function closeOfMinute(s: StockData, date: string, T: number): number | null {
+  const d = s.m1Day.get(date);
+  if (!d) return null;
+  for (let i = d[0]; i < d[1]; i++) { const t = s.m1.t[i]!; if (t === T) return s.m1.c[i]!; if (t > T) break; }
+  return null;
+}
+
 type Break = { side: Side; i: number; level: number; entryPx: number; range: { high: number; low: number } } | { skip: Skip };
 
 /** Row 7: the range and the first strict break. Memoised per (stock, day, rangeBars, dir, side). */
-function findBreak(s: StockData, date: string, rangeBars: number, frozen: boolean, want: Side | null, memo: Map<string, Break>): Break {
-  const key = `${date}|${rangeBars}|${frozen}|${want ?? 'E'}`;
+function findBreak(s: StockData, date: string, rangeBars: number, frozen: boolean, want: Side | null, memo: Map<string, Break>, fill: FillModel): Break {
+  const key = `${date}|${rangeBars}|${frozen}|${want ?? 'E'}|${fill}`;
   const hit = memo.get(key);
   if (hit) return hit;
   const res = ((): Break => {
@@ -197,7 +213,8 @@ function findBreak(s: StockData, date: string, rangeBars: number, frozen: boolea
       const level = side === 'BUY' ? high : low;
       const o = s.m1.o[i]!;
       const beyond = side === 'BUY' ? o > level : o < level;
-      return { side, i, level, entryPx: beyond ? o : r2(level + (side === 'BUY' ? TICK : -TICK)), range: { high, low } };
+      const entryPx = fill === 'late1m' ? s.m1.c[i]! : beyond ? o : r2(level + (side === 'BUY' ? TICK : -TICK));
+      return { side, i, level, entryPx, range: { high, low } };
     }
     return { skip: 'no-break' };
   })();
@@ -225,9 +242,9 @@ function smaDue(s: StockData, date: string, side: Side, entryT: number, sma: num
 }
 
 /** Rows 7-9: one stock, one day, one setting. */
-export function tradeOne(s: StockData, date: string, pick: Pick, p: TrainParams, memo: Map<string, Break>): TTrade | { skip: Skip } {
+export function tradeOne(s: StockData, date: string, pick: Pick, p: TrainParams, memo: Map<string, Break>, fill: FillModel = 'level'): TTrade | { skip: Skip } {
   const want: Side | null = p.dir === 'gap' ? (pick.chg > 0 ? 'BUY' : 'SELL') : null;
-  const b = findBreak(s, date, p.rangeBars, p.frozen, want, memo);
+  const b = findBreak(s, date, p.rangeBars, p.frozen, want, memo, fill);
   if ('skip' in b) return b;
   const { side, i: bi, entryPx, range } = b;
   const entryT = s.m1.t[bi]!;
@@ -245,10 +262,11 @@ export function tradeOne(s: StockData, date: string, pick: Pick, p: TrainParams,
       const o = s.m1.o[i]!, h = s.m1.h[i]!, l = s.m1.l[i]!;
       const hitStop = p.stop && (side === 'BUY' ? l <= stopPx : h >= stopPx);
       const hitTgt = p.target && (side === 'BUY' ? h >= tgtPx : l <= tgtPx);
-      if (hitStop) { exitT = t; reason = 'stop'; exitPx = (side === 'BUY' ? o < stopPx : o > stopPx) ? o : stopPx; break; }
-      if (hitTgt) { exitT = t; reason = 'target'; exitPx = (side === 'BUY' ? o > tgtPx : o < tgtPx) ? o : tgtPx; break; }
+      if (hitStop) { exitT = t; reason = 'stop'; exitPx = fill === 'late1m' ? s.m1.c[i]! : (side === 'BUY' ? o < stopPx : o > stopPx) ? o : stopPx; break; }
+      if (hitTgt) { exitT = t; reason = 'target'; exitPx = fill === 'late1m' ? s.m1.c[i]! : (side === 'BUY' ? o > tgtPx : o < tgtPx) ? o : tgtPx; break; }
     }
   }
+  if (exitPx === null && fill === 'late1m') exitPx = closeOfMinute(s, date, exitT);
   if (exitPx === null) exitPx = priceAt(s, date, exitT);
   if (exitPx === null) return { skip: 'no-exit-price' };
   const gross = r2((exitPx - entryPx) * s.lot * (side === 'BUY' ? 1 : -1));
@@ -284,7 +302,7 @@ export function dayPicks(stocks: StockData[], sessions: string[]): Map<string, P
   return out;
 }
 
-export function runGrid(stocks: StockData[], sessions: string[], picks: Map<string, Pick[]>, grid: TrainParams[] = TRAIN_GRID, keepTrades: Set<string> = new Set()) {
+export function runGrid(stocks: StockData[], sessions: string[], picks: Map<string, Pick[]>, grid: TrainParams[] = TRAIN_GRID, keepTrades: Set<string> = new Set(), fill: FillModel = 'level') {
   const bySym = new Map(stocks.map(s => [s.symbol, s]));
   const memos = new Map<string, Map<string, Break>>(stocks.map(s => [s.symbol, new Map()]));
   const results: ComboResult[] = [];
@@ -300,7 +318,7 @@ export function runGrid(stocks: StockData[], sessions: string[], picks: Map<stri
       const date = sessions[k]!;
       for (const pk of selectDay(picks.get(date) ?? [], p.minChg, p.dir)) {
         const s = bySym.get(pk.symbol)!;
-        const t = tradeOne(s, date, pk, p, memos.get(pk.symbol)!);
+        const t = tradeOne(s, date, pk, p, memos.get(pk.symbol)!, fill);
         if ('skip' in t) { r.skips[t.skip]++; continue; }
         r.trades++; r.tradesPerDay[k]!++;
         if (t.net > 0) r.wins++;

@@ -63,6 +63,27 @@ async function substitution(stocks: StockData[], trades: TTrade[]) {
   return { compared: n, notComparable: noFut, sameExitBar, sameReason, meanDiffPct: n ? Math.round(diffSum / n * 1000) / 1000 : null, meanAbsDiffPct: n ? Math.round(absDiffSum / n * 1000) / 1000 : null, rows };
 }
 
+/** Row 19: daily t-statistic, the total without the best days, and how concentrated it is. */
+export function robustness(trades: TTrade[], sessions: string[]) {
+  const byDay = new Map(sessions.map(d => [d, 0]));
+  for (const t of trades) byDay.set(t.date, (byDay.get(t.date) ?? 0) + t.net);
+  const days = [...byDay.values()];
+  const n = days.length, mean = days.reduce((s, x) => s + x, 0) / n;
+  const sd = Math.sqrt(days.reduce((s, x) => s + (x - mean) ** 2, 0) / (n - 1));
+  const sorted = [...days].sort((a, b) => b - a);
+  const total = days.reduce((s, x) => s + x, 0);
+  const bySym = new Map<string, number>();
+  for (const t of trades) bySym.set(t.symbol, (bySym.get(t.symbol) ?? 0) + t.net);
+  const top = [...bySym].sort((a, b) => b[1] - a[1]);
+  const r = (x: number) => Math.round(x);
+  return {
+    tStat: Math.round(mean / sd * Math.sqrt(n) * 100) / 100, meanDay: r(mean), sdDay: r(sd),
+    withoutBest1: r(total - sorted[0]!), withoutBest3: r(total - sorted.slice(0, 3).reduce((s, x) => s + x, 0)),
+    topSymbols: top.slice(0, 5).map(([symbol, net]) => ({ symbol, net: r(net) })), withoutTopSymbol: r(total - (top[0]?.[1] ?? 0)),
+    bottomSymbols: top.slice(-5).map(([symbol, net]) => ({ symbol, net: r(net) })),
+  };
+}
+
 export async function runTraining() {
   const t0 = Date.now();
   const { stocks, missing } = await loadStocks();
@@ -91,10 +112,34 @@ export async function runTraining() {
   });
   const sub = await substitution(stocks, trades.get(baseKey)!);
 
-  // Row 17: recommend only on held-out evidence, and only a setting positive in both halves.
+  // Row 18: the same grid with every fill one minute late, and row 19's robustness measures.
+  const late = runGrid(stocks, sessions, picks, TRAIN_GRID, new Set([baseKey, best.key, mostChosen]), 'late1m');
+  const wfLate = walkForwardTrain(sessions, late.results, baseKey);
+  const lateBy = new Map(late.results.map(r => [r.key, r]));
+  const lateEligible = late.results.filter(r => r.trades >= WF_MIN_TRADES);
+  // Row 20: one clean split. Choose on the first half only, score on the second half, both fills.
+  const half = Math.floor(sessions.length / 2);
+  const splitTest = (rs: ComboResult[]) => {
+    const sum = (r: ComboResult, f: number, t: number) => Array.from(r.perDay.slice(f, t)).reduce((x, y) => x + y, 0);
+    const cnt = (r: ComboResult, f: number, t: number) => Array.from(r.tradesPerDay.slice(f, t)).reduce((x, y) => x + y, 0);
+    const pick = rs.filter(r => cnt(r, 0, half) >= WF_MIN_TRADES).sort((a, b) => sum(b, 0, half) - sum(a, 0, half) || (a.key === baseKey ? -1 : 1))[0]!;
+    const b = rs.find(r => r.key === baseKey)!;
+    const rank = [...rs].sort((x, y) => sum(y, half, sessions.length) - sum(x, half, sessions.length)).findIndex(r => r.key === pick.key) + 1;
+    return { trainedOn: `${sessions[0]} → ${sessions[half - 1]}`, testedOn: `${sessions[half]} → ${sessions.at(-1)}`, chosen: pick.key,
+      chosenTrain: Math.round(sum(pick, 0, half)), chosenTest: Math.round(sum(pick, half, sessions.length)), chosenTestRank: rank, of: rs.length,
+      baselineTrain: Math.round(sum(b, 0, half)), baselineTest: Math.round(sum(b, half, sessions.length)) };
+  };
+  const split = { level: splitTest(results), late1m: splitTest(late.results) };
+
+  const robust = {
+    level: Object.fromEntries([baseKey, best.key, mostChosen].map(k => [k, robustness(trades.get(k)!, sessions)])),
+    late1m: Object.fromEntries([baseKey, best.key, mostChosen].map(k => [k, { net: lateBy.get(k)!.net, ...robustness(late.kept.get(k)!, sessions) }])),
+  };
+
+  // Row 17: recommend only on held-out evidence, under BOTH fill models, and only a setting positive in both halves.
   const rec = byKey.get(lastChosen)!;
   const recSplit = splitNet(rec, sessions);
-  const recommend = wf.heldOut > wf.baseline && recSplit.firstHalf > 0 && recSplit.secondHalf > 0;
+  const recommend = wf.heldOut > wf.baseline && wfLate.heldOut > wfLate.baseline && recSplit.firstHalf > 0 && recSplit.secondHalf > 0;
 
   const report = {
     ranAt: new Date().toISOString(), seconds: Math.round((Date.now() - t0) / 1000),
@@ -106,9 +151,12 @@ export async function runTraining() {
     positiveSettings: eligible.filter(r => r.net > 0).length, eligibleSettings: eligible.length,
     marginals: marginals(results),
     substitution: sub,
+    late1m: { walkForward: wfLate, positiveSettings: lateEligible.filter(r => r.net > 0).length, eligibleSettings: lateEligible.length, marginals: marginals(late.results), baseline: describe(lateBy.get(baseKey)!), best: describe([...lateEligible].sort((a, b) => b.net - a.net)[0]!) },
+    robustness: robust,
+    halfSplit: split,
     recommendation: recommend
       ? { key: rec.key, why: `walk-forward held-out ${wf.heldOut} beats the baseline's ${wf.baseline} on the same ${wf.steps.length} sessions, and ${rec.key} is positive in both halves (${recSplit.firstHalf} / ${recSplit.secondHalf})` }
-      : { key: null, why: `no setting qualifies: held-out ${wf.heldOut} vs baseline ${wf.baseline}; last choice ${rec.key} halves ${recSplit.firstHalf} / ${recSplit.secondHalf}` },
+      : { key: null, why: `no setting qualifies: held-out ${wf.heldOut} vs baseline ${wf.baseline} (late fills: ${wfLate.heldOut} vs ${wfLate.baseline}); last choice ${rec.key} halves ${recSplit.firstHalf} / ${recSplit.secondHalf}` },
     trades: Object.fromEntries(trades),
   };
   await writeFile(path.join(HISTORY_DIR, 'train-report.json'), JSON.stringify(report));
@@ -130,6 +178,17 @@ export async function runTraining() {
   for (const [d, vals] of Object.entries(report.marginals)) console.log(`  ${d.padEnd(9)} ${vals.map(v => `${v.value}: ${inr(v.netPerTrade)}`).join('   ')}`);
   console.log(`\n— AC3 substitution (baseline trades, share vs future, 5-minute bars): ${sub.compared} compared, ${sub.notComparable} without a future series —`);
   console.log(`  same exit bar ${sub.sameExitBar}/${sub.compared} · same exit reason ${sub.sameReason}/${sub.compared} · mean (future − share) return ${sub.meanDiffPct} pp · mean |diff| ${sub.meanAbsDiffPct} pp`);
+  console.log(`\n— row 18: every fill one minute late —`);
+  line('baseline', report.late1m.baseline);
+  line('best (bias)', report.late1m.best);
+  console.log(`  ${report.late1m.positiveSettings} of ${report.late1m.eligibleSettings} settings net positive · walk-forward held-out ${inr(wfLate.heldOut)} vs baseline ${inr(wfLate.baseline)} (${wfLate.switches} switches)`);
+  for (const [d, vals] of Object.entries(report.late1m.marginals)) console.log(`  ${d.padEnd(9)} ${vals.map(v => `${v.value}: ${inr(v.netPerTrade)}`).join('   ')}`);
+  console.log('\n— row 20: choose on the first half, score on the second —');
+  for (const [fill, x] of Object.entries(split)) console.log(`  ${fill.padEnd(6)} trained ${x.trainedOn}, tested ${x.testedOn}: chose ${x.chosen} (train ${inr(x.chosenTrain)}) → test ${inr(x.chosenTest)}, rank ${x.chosenTestRank}/${x.of} on the test half · baseline train ${inr(x.baselineTrain)} → test ${inr(x.baselineTest)}`);
+  console.log('\n— row 19: is it luck? (daily t-stat; net without the best days; concentration) —');
+  for (const [fill, m] of Object.entries(robust)) for (const [k, r] of Object.entries(m as Record<string, ReturnType<typeof robustness>>)) {
+    console.log(`  ${fill.padEnd(6)} ${k.padEnd(40)} t ${r.tStat} · mean/day ${inr(r.meanDay)} · without best day ${inr(r.withoutBest1)} · without best 3 ${inr(r.withoutBest3)} · without top stock (${r.topSymbols[0]?.symbol} ${inr(r.topSymbols[0]?.net)}) ${inr(r.withoutTopSymbol)}`);
+  }
   console.log(`\n— recommendation (row 17) —\n  ${report.recommendation.key ?? 'NONE'}: ${report.recommendation.why}`);
   console.log(`\nwritten .cache/history/train-report.json · ${report.seconds} s`);
   return report;
