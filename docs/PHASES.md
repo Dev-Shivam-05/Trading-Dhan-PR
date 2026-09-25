@@ -198,7 +198,12 @@ run lost 6 of 10 contracts to `DH-904` and would have concluded from the 4 that 
 paced now.
 
 ## Next 3
-*(Updated at P40-P42 close, 2026-09-25 00:40.)*
+*(Updated at P47 close, 2026-09-25 19:10.)*
+1. **Mon 28 Sep after 15:31:** close P47 AC5 (`cat .cache/chains/2026-09-28/summary.json`, both expiries, largest gap ≤ 10 s), P46 (Kernel-Power 506/507 between 09:14 and 15:31), P41 on a full tick day (`node .cache/p41-ac2.ts 2026-09-28`), and the live paper day. Then `npm run ticks:pack`.
+2. **P48:** rebuild NIFTY's past minute chains from `/v2/charts/rollingoption` (spec-lock first; measure what `expiryCode` selects, the offset limit, and whether summed minute volume equals the chain's day volume).
+3. **P49** (the LTP state machine), and then the LTP Calculator 7-day premium for ground truth, once P48 and P49 exist.
+
+*(P40-P42's list, kept for the record:)*
 1. **Fri 25 Sep after 15:31:** read `.cache/ticks/2026-09-25/summary.json` (P41 AC2), replay today in the Sandbox on recorded ticks and compare with the live ledger, confirm `[backtest] done` after 16:00 and the saved scan in `.cache/history/scans/2026-09-25.json`.
 2. **User calls owed:** Arm the live trader (it is disarmed); which P42 rules go live after sandbox runs; how the calculators combine (P43); `w32tm /resync`.
 3. **P38** (backtest panel) or **P34** (LTP Calculator on NIFTY) — whichever the user picks next.

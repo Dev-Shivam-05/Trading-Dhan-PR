@@ -628,3 +628,16 @@ result on this project is quoted under both fill models, or it is not quoted.
 then deletes the CSV. The sandbox reads either form. Also, P36's keep-awake holds the PC only while the trader is
 **trading**, not while the recorder records. On 25 Sep the laptop slept from 12:50 to 13:14 and the recording has an
 18-minute hole.
+
+## A server started from a Claude background task dies with the session — start it detached
+On 25 Sep the live server started with a background `npm run dev` ended with the session's process at ~18:40, and 8787
+was dead until the next session noticed. Start the live server with PowerShell
+`Start-Process -FilePath cmd.exe -ArgumentList '/c','npm run dev > .cache\live-<tag>.log 2>&1' -WorkingDirectory D:\Temp\Dhan -WindowStyle Hidden`,
+then run the usual checks: one listener, zero EADDRINUSE, `build`, `"armed"`.
+
+## Dhan's Expired Options Data works: past option chains can be rebuilt (probed 2026-09-25)
+`POST /v2/charts/rollingoption` with `{exchangeSegment:'NSE_FNO', interval:'1', securityId:13, instrument:'OPTIDX',
+expiryFlag:'WEEK', expiryCode:1, strike:'ATM'|'ATM+n'|'ATM-n', drvOptionType:'CALL'|'PUT', requiredData:[...], fromDate,
+toDate}` returns `data.ce` / `data.pe` with per-minute `strike, spot, open..close, volume, oi, iv`. It covers 31 days
+per call, back to at least Jan 2024. Still unmeasured: what `expiryCode` selects, the offset limit beyond ±10, and
+whether summed minute volume equals the chain's day volume (P48).

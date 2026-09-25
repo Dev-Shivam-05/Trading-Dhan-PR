@@ -1,57 +1,50 @@
-# HANDOFF — Dhan Terminal — P44 (training), P41 AC2, P46 — 2026-09-25
+# HANDOFF — Dhan Terminal — Phase P47 (plus the LTP index plan) — 2026-09-25
 
-> The previous handoff (P31–P42) is in git history at `0cfccdd`.
-> Branches are stacked: … → `p40-phone-sandbox` → **`p44-train-all`** (current, pushed).
+> The previous handoff (P44, P41 AC2, P46) is at `beab298`. Branches are stacked:
+> … → `p40-phone-sandbox` → `p44-train-all` → **`p47-nifty-chain-recorder`** (current, pushed).
 
 ## Done
-- **P44, training on history** (the user's request: "this week, last week, full August … train our system … assume all the answers"):
-  - **Data:** the share's 1-minute candles for all 210 F&O stocks, **1 Oct 2025 – 25 Sep 2026**, which is **244 sessions**, plus the official daily closes. That took 1,890 Dhan calls, 0 failed, and 716 MB in `.cache/history/eq1` and `eqd`.
-  - **Why the share and not the future:** the August futures have expired, and Dhan's 90-day limit is per request rather than a horizon.
-  - **Grid:** 1,728 settings of the ORB and SMA rules, each scored net of costs.
-  - **Checks:** walk-forward (expanding and rolling 60), a first-half/second-half split, and a stress test where every fill lands one minute late. The robustness numbers are a daily t, the net without the best days, and the net without the top stock.
-  - **Result:** the live rules minus the OI filter net +5.24 lakh, but only **+1.63 lakh (t 0.47) with late fills**, and they are negative without their best 3 days.
-  - **Recommended, NOT applied:** `chg0/either/r3/sma20/x3/SL`, which beats the baseline in all 4 walk-forwards. With late fills it nets +7.86 lakh (t 1.70) and is positive in 10 of 12 months.
-  - Spec: `docs/spec/train-all-v1.md`; its "Final" section has the whole table.
-- **NSE's OI Spurts figure** was measured again. `prevOI` matches no sum of Dhan's futures and options OI (POLICYBZR, FORTIS, MFSL), so the 09:20 scan cannot be rebuilt for past days. That is why P44 selects stocks by price only.
-- **P41 AC2: PASS on counts.** 19,335,431 ticks from 2,310/2,310 instruments; an independent CSV count agrees with `summary.json` for every instrument.
-  - Coverage was only **10:45:54 → 15:12:33, with a hole at 12:56–13:14.** The laptop rebooted and slept in the morning, and fell into Modern Standby twice later.
-  - There was no 09:20 scan and no live trade today, so the day has nothing to compare with a live ledger.
-  - The day is packed: 1,118 MB → 190 MB (`npm run ticks:pack`, SHA-256 verified). The sandbox reads `.gz`.
-- **P46 is built and live.** The keep-awake now covers the recorder, and it asks for the display (0x80000003).
-  - Why: on this laptop Modern Standby ignored the old system-only hold (standby at 14:08 while it was held).
-  - Live server restarted on it: **8787 = PID 11204, build `0a412e4`, ARMED**. There is one listener and 0 EADDRINUSE.
-- **Tests:** `train:test` 43/43 (AC2: the trainer equals P37's `replayDay` on 24 Sep's real candles). AC5: 9 trades recomputed to the paisa. tsc is clean.
+- **The LTP index plan is written:** `docs/plan/ltp-index-intraday.md`.
+  - It is built from the finished `LTP-CALCULATOR/ANALYSIS/`, and no source file is newer than that analysis.
+  - The user's screenshot (CONCOR historical chain) was decoded. Both of its percentages reproduce to 2 dp (787.5/1,036.25 = 76.00%, 178.75/221.25 = 80.79%), which confirms P29's 75% grading.
+  - P47–P55 are boarded.
+- **Dhan's Expired Options Data (`POST /v2/charts/rollingoption`) works.** Three probes returned 1-minute strike, spot, OHLC, volume, OI and IV for ATM through ATM+10, with 31 days in one call, back to at least Jan 2024. So past NIFTY chains can be rebuilt (P48).
+- **P47 is built:** the NIFTY chain recorder. From Monday, from 09:14 to 15:31:
+  - every 3 s `ChainPoller` snapshot of NIFTY's current and next expiry is appended to `.cache/chains/<date>/NIFTY-<expiry>.jsonl`;
+  - it keeps ±20 strikes around the ATM, as tuples, about 30 MB raw per expiry per day;
+  - it calls no new endpoint;
+  - `summary.json` is written at 15:31, and `npm run ticks:pack` packs the day.
+- **Tests:**
+  - `chainrec:test` 18/18.
+  - Two real snapshots mapped with 0 mismatched rows (`.cache/p47-live-shape.ts`).
+  - Pack checked on a scratch CACHE_DIR.
+  - Regression all green: train 43, sandbox 17, paper 104, ltp 29, sleep 37, phone 18, backtest 31, session 11. tsc is clean.
+- **Live server on 8787: PID 19840, build `5e8b519`, ARMED, `check` READY.** It was started **detached** (`Start-Process cmd /c npm run dev`), so it outlives the session. The one before it died when the last session's process ended.
 
 ## Files changed
-- `src/server/train.ts` (new, pure engine) and `src/server/train-data.ts` (new, Dhan I/O, 89-day chunks, refuses replay).
-- `scripts/train.ts`, `scripts/train-run.ts`, `scripts/train-test.ts` (new); `package.json` (`train`, `train:test`, `ticks:pack`).
-- `scripts/ticks-pack.ts` (new); `src/server/sandbox.ts` (reads `ticks.csv.gz`).
-- `src/server/awake.ts` (0x80000003) and `src/server/index.ts` (hold = trader OR recorder).
-- `docs/spec/train-all-v1.md` (new), `docs/PHASES.md` (P41, P44, P45, P46, Now), `CLAUDE.md` (3 lessons).
+- `src/server/chainrec.ts` (new): the recorder. It is testable with fake pollers and the clock is injected.
+- `src/server/index.ts`: wires the recorder beside the tick recorder, live only.
+- `scripts/chainrec-test.ts` (new) and `package.json` (`chainrec:test`).
+- `scripts/ticks-pack.ts`: also packs closed chain days, with the same SHA-256 check.
+- `docs/spec/chain-recorder-v1.md` (new), `docs/plan/ltp-index-intraday.md` (new), `docs/PHASES.md`, `docs/DECISIONS.md`.
 
-## Decisions made (by delegation: the user said "assume all the answers, do not ask")
-- Every unmeasured value in P44 is marked **GUESS** in the spec (costs, stop-wins-ties, the 20-trade floor, 10 held-out starts).
-- **The live rules were NOT changed.** The standing decision is that nothing learned changes live without the user's word, and a t of 1.70 is suggestive, not proof. P45 (a shadow paper book of the recommendation) is boarded.
-- The live server was restarted after the market closed, with no positions open, so that Monday runs with P46.
+## Decisions made
+- **The user: NIFTY only.** ₹20,000 per index trade, with lots from the option's price and at least 1 lot. In a formula: lots = max(1, floor(20,000 / (premium × lot))), and a trade is flagged `over budget` when one lot costs more.
+- **LTP Calculator 7-day premium:** buy it only after P48 and P49 exist, to calibrate the reversal price (OQ-1) and the scenario labels against their screen.
+- **No GitHub repo or developer docs were found** for the LTP Calculator. Researching their documentation is P55.
+- ±20 strikes kept per snapshot (a design choice with a reason, in spec row 3).
 
 ## Known broken / deliberately skipped
-- **The token expires Sat 26 Sep 08:35 IST.** The server renews it only while the PC is awake (under 12 h left; the weekend counts as outside market hours). If the laptop sleeps from tonight to Monday, **the token dies and Monday's 09:20 does nothing.** Keep it awake and plugged in some time over the weekend, or paste a fresh token Monday before 09:10.
-- **The laptop was on battery** at 16:30 today (`PowerOnline False`).
-- On battery the display turns off after 60 min, and on AC after 3 min. P46's display hold covers only 09:10–15:35 on weekdays, and only if the server is running.
-- A closed lid still sleeps it.
-- P46 is unmeasured until Monday. Check the Kernel-Power 506/507 events for 09:14–15:31.
-- **P44's caveats:**
-  - Today's 210-stock universe is used for all of the past year, which means survivorship.
-  - Today's lot sizes are used throughout.
-  - No option leg is modelled.
-  - The OI filter can't be tested at all.
-- The sandbox treats a partial recording as a whole day. A day that starts after 09:25 has no range, and the sandbox says so nowhere.
-- The nightly backtest had one `NETWORK` failure (360ONE 5m, right after the wake). It is retried incrementally tomorrow.
-- The ntfy 15:20 summary failed (`fetch failed`) because the PC was asleep.
-- Still waiting for the user, as before: `L` is bound twice; P9 `median20`; the post-close candles in SMA9; `w32tm /resync`; the untracked voice recording.
-- The `.cache` probes behind the numbers above: `p39-oi-identity.ts`, `p41-ac2.ts`, `p44-ac5.ts`, `p44-probe*.ts`.
+- **P47 AC5 (a full live day) is unmeasured until Mon 28 Sep.**
+- **The token expires Sat 26 Sep 08:35 IST.** It renews only if the laptop is awake after about 20:35 tonight or during the weekend. Otherwise paste a new one Monday before 09:10.
+- The laptop was on battery earlier today.
+- P46's display hold is still unproven.
+- A closed lid still sleeps the laptop.
+- The sandbox treats a partial recording as a whole day.
+- The scratch test directory `.cache/p47-test2/` was left in place, because deleting it was refused by the permission check. It is gitignored and harmless.
+- Carried over, waiting on the user: `L` is bound twice; P9 `median20`; post-close candles in SMA9; `w32tm /resync`; the untracked voice recording; P45 (shadow book of P44's recommendation).
 
 ## Next session starts here
-- Next session: **Monday 28 Sep after 15:31.** Read the first full recorded day and the live paper day. Then give the user the P44 recommendation to decide on (P45 shadow book, yes or no).
-- First command: `curl -s http://127.0.0.1:8787/api/paper` (it must say `"armed":true` and show today's scan), then `node .cache/p41-ac2.ts 2026-09-28` and the Kernel-Power 506/507 events for the session (P46).
-- Watch out for: the token (Sat 08:35 expiry). If `npm run check` does not say READY on Monday morning, nothing trades.
+- Phase P48: rebuild NIFTY's past minute chains from `rollingoption` and check them against Monday's P47 recording (spec-lock first).
+- First command: `cat .cache/chains/2026-09-28/summary.json` (after 15:31 on Monday; before that, `curl -s http://127.0.0.1:8787/api/health`).
+- Watch out for: the token. If `npm run check` is not READY on Monday morning, nothing records and nothing trades.
