@@ -197,7 +197,10 @@ const recorder = isReplay() ? null : new TickRecorder({
     refreshFeedSubscriptions();
   },
 });
-if (recorder) setInterval(() => { void recorder.step(Date.now()); }, 1000).unref();
+// A recorder failure must never take the live trader down with it (it did on 2026-09-25).
+if (recorder) setInterval(() => {
+  recorder.step(Date.now()).catch(e => console.error(`[ticks] step failed: ${(e as Error).message}`));
+}, 1000).unref();
 
 feed.on('tick', (t: Tick) => {
   const id = underlyingOf.get(`${t.seg}:${t.securityId}`);

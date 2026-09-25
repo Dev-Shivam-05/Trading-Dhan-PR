@@ -56,6 +56,7 @@ export class TickRecorder {
   private writing: Promise<void> = Promise.resolve();
   private lastFlush = 0;
   private wantsKey = '';
+  private stepping = false;
 
   constructor(o: { universe: () => RecStock[]; onWants: (subs: Subscription[]) => void }) {
     this.universe = o.universe;
@@ -64,8 +65,19 @@ export class TickRecorder {
 
   private dir() { return path.join(TICK_DIR, this.date!); }
 
-  /** Called every second by the server. */
+  /**
+   * Called every second by the server. Measured 2026-09-25: at boot the event loop is busy, so
+   * the 1 s timer fired a second `step()` while the first was still awaiting `mkdir` — the second
+   * saw `this.date` already set, wrote `instruments.json` into a folder that did not exist yet,
+   * and the unhandled ENOENT killed the whole live server (trader included). One step at a time.
+   */
   async step(nowMs: number) {
+    if (this.stepping) return;
+    this.stepping = true;
+    try { await this.stepOnce(nowMs); } finally { this.stepping = false; }
+  }
+
+  private async stepOnce(nowMs: number) {
     const { date, minutes, weekday } = istOf(nowMs);
     const inWindow = weekday >= 1 && weekday <= 5 && minutes >= RECORD_FROM_MIN && minutes < RECORD_UNTIL_MIN;
     if (!inWindow) {
@@ -74,8 +86,11 @@ export class TickRecorder {
     }
     if (this.date !== date) {
       if (this.date) await this.finish();
+      // The folder first: if the universe or mkdir throws, `date` stays unset and the next step retries.
+      const stocks = this.universe();
+      await mkdir(path.join(TICK_DIR, date), { recursive: true });
       this.date = date;
-      this.stocks = new Map(this.universe().map(s => [s.futureId, s]));
+      this.stocks = new Map(stocks.map(s => [s.futureId, s]));
       this.set = new Map([...this.stocks.values()].map(s => [s.futureId, { securityId: s.futureId, symbol: s.symbol, kind: 'FUT' as const, strike: null, expiry: s.expiry, lot: s.lot }]));
       this.chosen.clear(); this.counts.clear(); this.lastLtp.clear();
       await mkdir(this.dir(), { recursive: true });
