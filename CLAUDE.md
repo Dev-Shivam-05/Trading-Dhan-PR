@@ -641,3 +641,11 @@ expiryFlag:'WEEK', expiryCode:1, strike:'ATM'|'ATM+n'|'ATM-n', drvOptionType:'CA
 toDate}` returns `data.ce` / `data.pe` with per-minute `strike, spot, open..close, volume, oi, iv`. It covers 31 days
 per call, back to at least Jan 2024. Still unmeasured: what `expiryCode` selects, the offset limit beyond ±10, and
 whether summed minute volume equals the chain's day volume (P48).
+
+## Dhan's end-of-day option OI is not the exchange's — NSE's chain and bhavcopy are (measured 2026-09-25)
+After the close, 40 near-ATM NIFTY legs were scored against NSE's official F&O bhavcopy
+(`https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_<YYYYMMDD>_F_0000.csv.zip`, fetched through the
+headed Chrome's `page.request` after one nseindia.com page load). OI: NSE's option chain (`/api/option-chain-v3`) 40/40,
+**Dhan 0/40, up to 21.8% off**. Volume and LTP: 40/40 for both. Dhan's chain OI equals its own last (15:39) 1-minute
+candle, so it misses the final exchange OI. Intraday agreement is unmeasured (P56). NSE OI is in **lots**, Dhan's in
+**units** (× 65 for NIFTY). NSE's chain gives no Greeks, and its IV differs from Dhan's by up to 4.3 points near ATM.
