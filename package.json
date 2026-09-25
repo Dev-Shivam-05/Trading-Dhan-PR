@@ -28,6 +28,8 @@
     "sleep:test": "node scripts/sleep-test.ts",
     "backtest": "node --env-file-if-exists=.env scripts/backtest.ts",
     "backtest:test": "node scripts/backtest-test.ts",
+    "train": "node --env-file-if-exists=.env scripts/train.ts",
+    "train:test": "node scripts/train-test.ts",
     "phone:test": "node scripts/phone-test.ts",
     "sandbox:test": "node scripts/sandbox-test.ts"
   },
