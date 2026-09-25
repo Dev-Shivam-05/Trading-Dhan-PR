@@ -1,6 +1,7 @@
 # P48 — NIFTY historical chain rebuild
 
-**PROPOSED 2026-09-25, not locked.** It waits for one word from the owner. The plan is
+**Locked 2026-09-25.** The owner's answer: "run whatever download you want I approved it — I just want the system to
+be working". Two amendments made during the build are listed at the end. The plan is
 `docs/plan/ltp-index-intraday.md` §5 (P48 row), narrowed to **NIFTY only** by the 2026-09-25 decision (§8.2).
 Values that were not stated by the owner or measured are marked **GUESS**.
 
@@ -47,3 +48,9 @@ sat at a given offset from the ATM. Stitching ATM−10…ATM+10 on both sides ba
 ## Files
 `src/server/chainhist.ts` (new), `scripts/chainhist.ts` (new CLI), `scripts/chainhist-verify.ts` (new),
 `scripts/chainhist-test.ts` (new), `package.json`, this spec, `docs/PHASES.md`.
+
+## Amendments (build, 2026-09-25)
+| # | Row | Change | Why |
+|---|---|---|---|
+| A1 | 5, 8 | The expiry label lives in `index.json` (`expiries[date].W1/W2`), not inside each day file | A holiday-moved expiry depends on whether a **later** day was a session. The day is written before that later day has been fetched, so the label is recomputed across all stored days after each month |
+| A2 | AC3 (b), (c) | **Every** snapshot is judged, not only the last one in each minute. A snapshot's receive time gets **+4.6 s** (this PC's measured clock lag, CLAUDE.md 24 Sep), and snapshots within **3 s** of a minute boundary are left out | Which candle a snapshot belongs to is uncertain by the clock lag plus the round trip. Judging all the others is a stronger check than judging one per minute |
