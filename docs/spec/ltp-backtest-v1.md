@@ -39,7 +39,7 @@ earns. History only: no paper book (that is P53), no UI.
 | AC3 | Busy: a second eligible signal while a book is open is `busy`, and an eligible signal after the exit trades |
 | AC4 | Accounting on all days: `trades + busy + no-price + price-vetoed = eligible`, where eligible is counted independently from P50's signals |
 | AC5 | No look-ahead: every option close **after** a trade's exit minute ×2 leaves that trade identical |
-| AC6 | A second implementation of the 920 trade walk (`touch`, `structure`) agrees on every trade over all days, **0 mismatches**, and is shown to catch a swapped rule (target checked before stop) |
+| AC6 | A second implementation of the 920 trade walk (`touch`, `structure`) agrees on every trade over all days, **0 mismatches**, and is shown to catch a changed rule (amended at build: *no 14:29 time exit*. The first choice, target checked before stop, changed nothing on real data because a structural stop and target never fall in the same minute. The stop-first tie is exercised by AC1's fixture) |
 | AC7 | The report prints both fill models for both books, the V117 table with every claim scored, and the walk-forward out-of-sample figure |
 | AC8 | `ltp-backtest.ts` imports nothing from `dhan.ts`, never calls `Date.now()`, and two runs are byte-identical |
 | AC9 | tsc clean; `ltplines:test` 65/65, `ltpstate:test` 45/45, `ltp:test` 29/29, `chainhist:test` 50/50 |
@@ -47,3 +47,44 @@ earns. History only: no paper book (that is P53), no UI.
 ## Out of scope
 Averaging; partial exits at divergences; limit-order fill modelling (a premium pre-computed at the line needs a pricer);
 indices other than NIFTY (no rebuilt chains); the paper book (P53).
+
+## Result (2026-09-26, built on `p51-index-backtest`)
+`npm run ltpbt:test` **27/27**:
+- AC1–AC3 on hand-built days (every exit, both fills, costs to the paisa, lots at the boundary, busy).
+- AC4 balances in all 48 runs (24 configurations × 2 fills, 7,760 eligible signals).
+- AC5: 314 trades, and none moves when every later option close is doubled.
+- AC6: a clock-driven second implementation agrees on all **157** 920 trades, 0 mismatches, and catches the changed
+  rule on 42 days.
+- AC8 byte-identical, no `dhan.ts`, no clock.
+- AC9: tsc clean, `ltplines:test` 65/65, `ltpstate:test` 45/45, `ltp:test` 29/29, `chainhist:test` 50/50.
+
+`npm run ltpbt` (679 days, 2024-01-01 → 2026-09-25; the report is in `.cache/ltp-backtest-report.json`):
+| Book, P34 rules (structure stop and target) | Trades | Target hit | ₹ net, touch | ₹ net, late1m |
+|---|---|---|---|---|
+| **920** | 157 | 17.8% | **−61,375** | **−85,917** |
+| **AI LTP** | 11 | 27.3% | +57,078 | +56,078 |
+
+**V117's shape** (920 book, a 50-point target and stop):
+| Claim | V117 window (Jan–7 Apr 2024, 24 trades) | All history (217 trades) |
+|---|---|---|
+| C1 the extension lines hit more often than ±1 | not measurable (the ±1 lines had < 5 trades) | not measurable (4 and 5 trades: the book is usually already open when a ±1 line is touched) |
+| C2 gaps > 100 lose, and do worse than ≤ 100 | not measurable | **not reproduced** |
+| C3 lose at 9 and 12, earn 10–11 | not measurable | not measurable (no trade starts at 12: the window closes at 11:29) |
+| C4 Thursday is the worst weekday | not measurable | **not reproduced** |
+| C5 the day after expiry is the strongest | not reproduced | **REPRODUCED** (both fills) |
+| C6 the strategy is net positive (+127) | **not reproduced** (−362 index points) | **not reproduced** (−1,121) |
+
+The one shape that does agree: **EOR outscores EOS**. Our figures are 52% target hits and +452 index points at EOR, against
+37% and −1,504 at EOS. V117 has 70% vs 60% on Nifty, and EOS "still lost 182 points".
+
+**Walk-forward** (train 6 months, trade the next, 27 test months): out-of-sample **+₹64,589 with the touch fill, −₹47,503
+with late1m** (about 105 trades each). The fill model flips the sign, so **no configuration is recommended**. The in-sample best is
+AI with a 50/50 target and stop (+₹1.15 lakh, 138 trades); the fitted edge it shows is not real.
+
+**Read these before trusting any of it:**
+- The lines are the P50 lines, and P50 found them ~3× further from price than the corpus's own numbers (OQ-1). A
+  backtest cannot validate levels it is not sure are the tool's. Until the reversal price is checked against the
+  tool, these results measure **our reconstruction**, not the LTP Calculator.
+- Lot = 65 for every day (row 7). Rupee figures are at today's lot; the premium points are exact.
+- Neither fill is a limit order at the line (the data has no premium at the line), so an edge smaller than the gap
+  between the two fills is not an edge.

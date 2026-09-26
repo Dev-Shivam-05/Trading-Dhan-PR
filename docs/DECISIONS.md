@@ -723,3 +723,12 @@ every unsourced value marked GUESS (memory: delegated decisions).
   14:29; the IV gate is a veto that is off by default.
 - **Not changed, recorded instead:** the reversal formula. The lines' distances disagree with the corpus's two published
   numbers (V09, V117) by about 3×. P29 row 12 stays as approved until the tool's own numbers settle it.
+
+## 2026-09-26 — P51: the index backtest, and no recommendation from it
+- **One position per book, no averaging** (V117 "take the fresh trade at the next line rather than averaging").
+- **The option bought is the strike nearest the line**, a CE for support lines and a PE for resistance lines (P34). Its
+  price comes from its own minute candle: the close of the touch minute, or of the next minute. Both are always quoted.
+- **Lot 65 on every day** (today's master); NIFTY's past lot changes are not modelled. Option costs follow the published
+  NSE/Dhan schedule (GUESS).
+- **No configuration is recommended.** The walk-forward's out-of-sample net is +₹65k with one fill model and −₹48k with
+  the other. The P34 rules lose under both. Nothing changes in any live or paper setting.
