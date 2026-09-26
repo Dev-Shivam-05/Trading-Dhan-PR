@@ -38,7 +38,10 @@
     "ltpstate": "node scripts/ltp-state.ts",
     "ltpstate:test": "node scripts/ltp-state-test.ts",
     "phone:test": "node scripts/phone-test.ts",
-    "sandbox:test": "node scripts/sandbox-test.ts"
+    "sandbox:test": "node scripts/sandbox-test.ts",
+    "idxhist": "node --env-file-if-exists=.env scripts/idxhist.ts",
+    "ltplines": "node scripts/ltp-lines.ts",
+    "ltplines:test": "node scripts/ltp-lines-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
