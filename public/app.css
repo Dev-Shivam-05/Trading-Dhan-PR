@@ -737,6 +737,14 @@ body.ucmode .lineonly{display:none!important}
 .cs-actions{margin-top:auto;padding-top:12px;display:grid;gap:8px;border-top:1px solid var(--border)}
 .cs-sma{margin-bottom:12px}
 .sma-hint{display:flex;align-items:center;padding:0 6px;font-size:11px;line-height:1.35;color:var(--fg-faint)}
+/* P57 row 15 (amended) — the indicator chips under the preview: the SMA switch, compacted */
+.cs-indbar{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.cs-indt{font-size:12px;color:var(--fg-faint)}
+.cs-ind{display:flex;flex-wrap:wrap;gap:6px}
+.sma.ind{height:30px;padding:0 8px 0 10px;gap:6px}
+.sma.ind i{flex:0 0 14px}
+.sma.ind input{width:28px;margin-left:0;font-size:12px}
+.sma.ind input + input{width:30px}
 .cs-save,.cs-reset{
   height:40px;border:0;border-radius:999px;cursor:pointer;font:600 14px Inter,system-ui,sans-serif;
   transition:opacity 120ms var(--ease),background 120ms var(--ease);

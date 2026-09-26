@@ -480,6 +480,12 @@
         <svg id="csSvg" preserveAspectRatio="none" aria-label="Chart style preview"></svg>
         <div class="chart-empty" id="csMsg" hidden></div>
       </div>
+      <!-- P57 row 15 (amended): the indicators sit under the preview. The controls card had no
+           height left, and P19 fixes the frame at 1040 x 640 with a card that does not scroll. -->
+      <div class="cs-indbar" role="group" aria-labelledby="csIndLabel">
+        <span class="cs-indt" id="csIndLabel">Indicators</span>
+        <div class="cs-ind" id="csInd"></div>
+      </div>
     </div>
   </div>
 </div>

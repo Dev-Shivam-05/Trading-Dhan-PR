@@ -47,7 +47,8 @@
     "ltpoq": "node scripts/ltp-oq.ts",
     "ltpoq:test": "node scripts/ltp-oq-test.ts",
     "ltprange": "node scripts/ltp-range.ts",
-    "ltprange:test": "node scripts/ltp-range-test.ts"
+    "ltprange:test": "node scripts/ltp-range-test.ts",
+    "ind:test": "node scripts/indicators-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",

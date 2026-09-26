@@ -1,7 +1,8 @@
 /* P19 — underlying candles. Spec: docs/spec/underlying-candles-v1.md.
 
    The chip's own underlying as OHLC candles in the main chart strip (and in the Chart Style
-   dialog's preview). This module is a LEAF: it imports nothing, so app.js and chart-style.js can
+   dialog's preview). This module is a LEAF: it imports only the indicator math (P57's
+   indicators.js, itself a leaf), so app.js and chart-style.js can
    both import it without a cycle. It owns three things:
 
    - the data: one `/api/ucandles` payload for the current chip and interval, re-fetched every
@@ -10,6 +11,8 @@
    - the markup: one SVG string, drawn through whatever X()/Y() the caller hands in, so the strip
      (which borrows chart-tools' X/Y, keeping P6 drawings anchored) and the preview (its own X/Y)
      can never draw the same candle two different ways */
+
+import { emaSeries, vwapSeries, supertrendSeries, bollingerSeries, hasVolume } from '/indicators.js';
 
 /** Row 3. */
 export const INTERVALS = ['1', '5', '15'];
@@ -299,6 +302,7 @@ export function buildView(data, style, zoom = (a, b) => [a, b], timeWin = (a, b)
   const smas = (style?.sma ?? []).filter(x => x.on).map(x => ({
     color: x.color, period: x.period, vals: smaSeries(all, x.period),
   }));
+  const ind = indicatorsFor(all, style?.ind);
 
   // chart-nav-v1.md rows 1 and 9: the time window first, then the price range of what that
   // window actually contains. Fitting price to the whole session while showing ten minutes of
@@ -315,7 +319,8 @@ export function buildView(data, style, zoom = (a, b) => [a, b], timeWin = (a, b)
     if (k.l < lo) lo = k.l;
     if (k.h > hi) hi = k.h;
   }
-  for (const m of smas) {
+  // P57 row 13: every drawn indicator joins the price fit, as the SMAs do.
+  for (const m of [...smas, ...ind.lines]) {
     for (let i = s; i < all.length; i++) {
       const v = m.vals[i];
       if (v === null || (!whole && !inWin(all[i].t))) continue;
@@ -334,12 +339,50 @@ export function buildView(data, style, zoom = (a, b) => [a, b], timeWin = (a, b)
   const [loV, hiV] = zoom(lo - pad, hi + pad);
 
   return {
-    all, s, vis, ivMs, smas,
+    all, s, vis, ivMs, smas, ind,
     t0, t1, T0, T1,
     lo: loV, hi: hiV,
     // the crosshair snaps to these (row 11)
     pts: vis.map(k => ({ t: k.t, p: k.c })),
   };
+}
+
+/**
+ * P57: the active indicators as drawable lines (`vals` aligned to `all`, like an SMA's) plus what
+ * the legend needs. Supertrend is one line whose colour follows its direction (`dir`).
+ */
+export function indicatorsFor(all, cfg) {
+  const lines = [];
+  const legend = [];
+  if (!cfg) return { lines, legend };
+  if (cfg.vwap?.on) {
+    if (hasVolume(all)) {
+      const vals = vwapSeries(all);
+      lines.push({ key: 'vwap', color: cfg.vwap.color, width: 1.5, vals });
+      legend.push({ key: 'vwap', name: 'VWAP', color: cfg.vwap.color, vals });
+    } else {
+      legend.push({ key: 'vwap', name: 'VWAP', color: cfg.vwap.color, vals: null, note: 'no volume' });
+    }
+  }
+  for (const [n, e] of (cfg.ema ?? []).entries()) {
+    if (!e?.on) continue;
+    const vals = emaSeries(all, e.period);
+    lines.push({ key: `ema${n}`, color: e.color, width: 1.5, vals });
+    legend.push({ key: `ema${n}`, name: `EMA ${e.period}`, color: e.color, vals });
+  }
+  if (cfg.bb?.on) {
+    const b = bollingerSeries(all, cfg.bb.period, cfg.bb.mult);
+    lines.push({ key: 'bbU', color: cfg.bb.color, width: 1, vals: b.upper });
+    lines.push({ key: 'bbB', color: cfg.bb.color, width: 1, dash: '4 3', vals: b.basis });
+    lines.push({ key: 'bbL', color: cfg.bb.color, width: 1, vals: b.lower });
+    legend.push({ key: 'bb', name: `BB ${cfg.bb.period},${cfg.bb.mult}`, color: cfg.bb.color, vals: b.upper, lower: b.lower });
+  }
+  if (cfg.st?.on) {
+    const st = supertrendSeries(all, cfg.st.period, cfg.st.mult);
+    lines.push({ key: 'st', trend: st.dir, width: 1.6, vals: st.line });
+    legend.push({ key: 'st', name: `ST ${cfg.st.period},${cfg.st.mult}`, trend: st.dir, vals: st.line });
+  }
+  return { lines, legend };
 }
 
 /** Index into `view.vis` of the candle under a plot x, or -1. */
@@ -431,6 +474,32 @@ export function renderSvg(view, o) {
     }
   }
 
+  /* P57 indicators, over the SMAs. A Supertrend is split into runs of one direction, each in the
+     candle colour of that direction, with a break at every flip (indicators-v1.md row 7). */
+  let inds = '';
+  for (const m of o.line ? [] : (view.ind?.lines ?? [])) {
+    const runs = [];
+    let d = '', runDir = null;
+    for (let i = s; i < all.length; i++) {
+      const v = m.vals[i];
+      const dir = m.trend ? m.trend[i] : 0;
+      if (v === null || (m.trend && dir !== runDir)) {
+        if (d) runs.push({ d, dir: runDir });
+        d = '';
+        runDir = dir;
+        if (v === null) continue;
+      }
+      d += `${d ? 'L' : 'M'}${f1(X(all[i].t))} ${f1(Y(v))}`;
+    }
+    if (d) runs.push({ d, dir: runDir });
+    for (const r of runs) {
+      const col = m.trend ? (r.dir === 1 ? up : down) : m.color;
+      inds += `<path data-ind="${m.key}" d="${r.d}" fill="none" stroke="${col}" stroke-width="${m.width}" `
+        + (m.dash ? `stroke-dasharray="${m.dash}" ` : '')
+        + `stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+  }
+
   /* last price: dashed rule + pill in the last candle's colour (row 10) */
   const last = vis[vis.length - 1];
   const lastCol = last.c >= last.o ? up : down;
@@ -484,6 +553,38 @@ export function renderSvg(view, o) {
     + (chg === null ? '' : ` <tspan fill="${kc}">${chg > 0 ? '+' : ''}${inr(chg)} (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)</tspan>`)
     + '</text>';
 
+  /* P57 row 11: the indicator legend, one line under the readout, values at the same candle. */
+  let legend = '';
+  const lg = o.line ? [] : (view.ind?.legend ?? []);
+  if (lg.length) {
+    const j = s + hi;
+    const parts = lg.map(x => {
+      const nameCol = x.trend ? (x.trend[j] === 1 ? up : x.trend[j] === -1 ? down : 'var(--fg-faint)') : x.color;
+      const name = `<tspan fill="${nameCol}">${esc(x.name)}</tspan>`;
+      if (x.note) return `${name} <tspan fill="var(--fg-faint)">— ${esc(x.note)}</tspan>`;
+      const v = x.vals?.[j];
+      if (v === null || v === undefined) return `${name} <tspan fill="var(--fg-faint)">—</tspan>`;
+      const arrow = x.trend ? (x.trend[j] === 1 ? '▲ ' : '▼ ') : '';
+      const val = x.lower ? `${inr(v)} / ${inr(x.lower[j])}` : inr(v);
+      return `${name} <tspan fill="var(--fg-muted)">${arrow}${val}</tspan>`;
+    });
+    // Wrap onto a second (third…) line rather than run under the price labels: the dialog's preview
+    // is narrower than the strip (seen in P57's first screenshots). 6px a character over-estimates
+    // Inter 10px, so the estimate errs towards an early wrap, never an overlap.
+    const plain = (h) => h.replace(/<[^>]+>/g, '');
+    const lines = [[]];
+    let used = 0;
+    for (const part of parts) {
+      const w = (plain(part).length + 3) * 6;
+      if (used && used + w > plotW - 8) { lines.push([]); used = 0; }
+      lines[lines.length - 1].push(part);
+      used += w;
+    }
+    legend = lines.map((ln, n) => `<text data-legend="${n + 1}" x="0" y="${25 + n * 12}" font-family="${MONO}" font-size="10" `
+      + `paint-order="stroke" stroke="var(--chart-bg)" stroke-width="3" stroke-linejoin="round">`
+      + ln.join('<tspan fill="var(--fg-faint)"> · </tspan>') + '</text>').join('');
+  }
+
   /* session note on the time-axis row, right-aligned (ui-type-v1 row 7; amendment 28 had it in
      the plot's top-right, where it sat on the day's highs) */
   const note = o.note
@@ -503,9 +604,9 @@ export function renderSvg(view, o) {
   return `<defs><clipPath id="${clip}"><rect x="0" y="0" width="${f1(plotW)}" height="${f1(plotH)}"/>`
     + `</clipPath></defs>`
     + axis
-    + `<g clip-path="url(#${clip})">${candles}${smas}${rule}</g>`
+    + `<g clip-path="url(#${clip})">${candles}${smas}${inds}${rule}</g>`
     + (o.drawings ?? '')
-    + guide + pill + times + readout + note
+    + guide + pill + times + readout + legend + note
     + (o.crosshair ?? '');
 }
 
@@ -523,5 +624,5 @@ window.__ucandles = {
   retryStep: () => store.retryStep,
   retryInMs: () => Math.max(0, store.retryAt - Date.now()),
   retryNow, onReconnect,
-  mergeTick, smaSeries, niceStep, buildView, istDate,
+  mergeTick, smaSeries, niceStep, buildView, istDate, indicatorsFor,
 };

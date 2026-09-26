@@ -1,7 +1,8 @@
 /* P19 — Chart Style. Spec: docs/spec/underlying-candles-v1.md rows 12-20, 22.
 
    The saved look of the UNDERLYING chart: mode (Candle / Line), background, up and down candle
-   colours, and three SMA slots. The dialog edits a DRAFT and paints it into its own preview;
+   colours, three SMA slots, and P57's indicators (VWAP, two EMAs, Supertrend, Bollinger —
+   docs/spec/indicators-v1.md). The dialog edits a DRAFT and paints it into its own preview;
    nothing reaches the strip until Save (row 19). Option candles never read any of this (row 22):
    blue and yellow mean something there.
 
@@ -53,7 +54,33 @@ export const DEFAULTS = Object.freeze({
     { on: true, period: 20, color: '#F5A524' },
     { on: false, period: 50, color: '#8B7CFF' },
   ],
+  // P57 rows 9-10 (GUESS defaults and colours): VWAP, EMA 9 and Supertrend on; EMA 21 and BB off.
+  ind: {
+    vwap: { on: true, color: '#38BDF8' },
+    ema: [
+      { on: true, period: 9, color: '#F472B6' },
+      { on: false, period: 21, color: '#C084FC' },
+    ],
+    st: { on: true, period: 10, mult: 3 },
+    bb: { on: false, period: 20, mult: 2, color: '#A1A1AA' },
+  },
 });
+
+/** P57 row 8: the ranges an indicator input snaps back into. */
+export const LIMITS = {
+  ema: { min: 2, max: 200, step: 1 },
+  stPeriod: { min: 2, max: 100, step: 1 },
+  stMult: { min: 0.5, max: 10, step: 0.5 },
+  bbPeriod: { min: 2, max: 200, step: 1 },
+  bbMult: { min: 0.5, max: 5, step: 0.5 },
+};
+/** A value inside `lim` on its step grid, or null. */
+export function inLimit(v, lim) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  const q = Math.round(n / lim.step) * lim.step;
+  return q >= lim.min && q <= lim.max ? Math.round(q * 100) / 100 : null;
+}
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const clone = (s) => JSON.parse(JSON.stringify(s));
@@ -66,6 +93,27 @@ function sanitize(raw) {
   if (raw.mode === 'candle' || raw.mode === 'line') d.mode = raw.mode;
   for (const k of ['bg', 'up', 'down']) {
     if (raw[k] === 'theme' || HEX.test(raw[k] ?? '')) d[k] = raw[k];
+  }
+  // P57 row 14: an older saved style has no `ind`; it gets the defaults, field by field.
+  const ri = raw.ind && typeof raw.ind === 'object' ? raw.ind : {};
+  if (ri.vwap && typeof ri.vwap === 'object') d.ind.vwap.on = !!ri.vwap.on;
+  if (Array.isArray(ri.ema)) {
+    ri.ema.slice(0, 2).forEach((x, i) => {
+      if (!x) return;
+      d.ind.ema[i].on = !!x.on;
+      const p = inLimit(x.period, LIMITS.ema);
+      if (p !== null) d.ind.ema[i].period = p;
+    });
+  }
+  if (ri.st && typeof ri.st === 'object') {
+    d.ind.st.on = !!ri.st.on;
+    d.ind.st.period = inLimit(ri.st.period, LIMITS.stPeriod) ?? d.ind.st.period;
+    d.ind.st.mult = inLimit(ri.st.mult, LIMITS.stMult) ?? d.ind.st.mult;
+  }
+  if (ri.bb && typeof ri.bb === 'object') {
+    d.ind.bb.on = !!ri.bb.on;
+    d.ind.bb.period = inLimit(ri.bb.period, LIMITS.bbPeriod) ?? d.ind.bb.period;
+    d.ind.bb.mult = inLimit(ri.bb.mult, LIMITS.bbMult) ?? d.ind.bb.mult;
   }
   if (Array.isArray(raw.sma)) {
     raw.sma.slice(0, 3).forEach((x, i) => {
@@ -343,6 +391,7 @@ function renderControls() {
   swatchRow($('csUp'), UP, 'up', (o) => candleGlyph(o.v === 'theme' ? 'var(--up)' : o.v));
   swatchRow($('csDown'), DOWN, 'down', (o) => candleGlyph(o.v === 'theme' ? 'var(--down)' : o.v));
   renderSma();
+  renderInd();
   dirty = true;
   if (refocus?.group && refocus.group !== 'csMode') {
     const g = $(refocus.group);
@@ -452,6 +501,74 @@ function renderSma() {
   hint.className = 'sma-hint';
   hint.textContent = 'Click to show or hide · type a period, 2–200';
   wrap.appendChild(hint);
+}
+
+/**
+ * P57 row 15: the Indicators section, the same switch-cell pattern as the SMA slots. A cell with
+ * two parameters spans both columns. Inputs never toggle their cell; an out-of-range value snaps
+ * back to the last good one (row 8).
+ */
+function renderInd() {
+  const wrap = $('csInd');
+  const a = document.activeElement;
+  const keep = a && wrap.contains(a) ? (a.dataset.k ?? a.closest('[data-k]')?.dataset.k) + '|' + (a.dataset.f ?? '') : null;
+  wrap.textContent = '';
+  const I = draft.ind;
+  const cell = (k, obj, label, color, inputs, wide) => {
+    const b = document.createElement('div');
+    b.className = 'sma ind';
+    b.dataset.k = k;
+    b.setAttribute('role', 'switch');
+    b.setAttribute('aria-checked', String(obj.on));
+    b.setAttribute('aria-label', { ST: 'Supertrend', BB: 'Bollinger Bands' }[label] ?? label);
+    b.title = { ST: 'Supertrend (ATR period, multiplier)', BB: 'Bollinger Bands (period, deviations)', VWAP: 'VWAP (session)', EMA: 'EMA (period)' }[label];
+    b.tabIndex = 0;
+    b.innerHTML = `<i style="background:${color}"></i><span>${label}</span>`;
+    for (const f of inputs) {
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.min = String(f.lim.min); inp.max = String(f.lim.max); inp.step = String(f.lim.step);
+      inp.value = String(obj[f.field]);
+      inp.className = 'mono';
+      inp.dataset.k = k; inp.dataset.f = f.field;
+      inp.setAttribute('aria-label', `${label} ${f.name}`);
+      inp.title = f.name;
+      inp.addEventListener('click', (e) => e.stopPropagation());
+      // Space/Enter must not toggle the cell, but Tab and Esc have to reach the dialog's focus trap: the
+      // last of these inputs is the dialog's last focusable, and a swallowed Tab walked out of it.
+      inp.addEventListener('keydown', (e) => { if (e.key !== 'Tab' && e.key !== 'Escape') e.stopPropagation(); });
+      inp.addEventListener('change', () => {
+        const v = inLimit(inp.value, f.lim);
+        if (v !== null) obj[f.field] = v;
+        inp.value = String(obj[f.field]);
+        dirty = true;
+      });
+      b.appendChild(inp);
+    }
+    const toggle = () => { obj.on = !obj.on; b.setAttribute('aria-checked', String(obj.on)); dirty = true; };
+    b.addEventListener('click', toggle);
+    b.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+    });
+    wrap.appendChild(b);
+  };
+  cell('vwap', I.vwap, 'VWAP', I.vwap.color, [], false);
+  I.ema.forEach((e, n) => cell(`ema${n}`, e, 'EMA', e.color, [{ field: 'period', name: 'period', lim: LIMITS.ema }], false));
+  const trend = `linear-gradient(90deg, ${cssVar(els.preview, '--up')} 50%, ${cssVar(els.preview, '--down')} 50%)`;
+  cell('st', I.st, 'ST', trend, [
+    { field: 'period', name: 'ATR period', lim: LIMITS.stPeriod },
+    { field: 'mult', name: 'multiplier', lim: LIMITS.stMult },
+  ], true);
+  cell('bb', I.bb, 'BB', I.bb.color, [
+    { field: 'period', name: 'period', lim: LIMITS.bbPeriod },
+    { field: 'mult', name: 'deviations', lim: LIMITS.bbMult },
+  ], true);
+  // Hand focus back to the rebuilt control (CLAUDE.md: a re-render takes focus to <body> with it).
+  if (keep) {
+    const [k, f] = keep.split('|');
+    const el = f ? wrap.querySelector(`input[data-k="${k}"][data-f="${f}"]`) : wrap.querySelector(`[data-k="${k}"][role="switch"]`);
+    el?.focus();
+  }
 }
 
 /* ---------------------------------------------------------------- keyboard */
