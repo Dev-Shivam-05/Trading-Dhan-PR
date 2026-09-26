@@ -284,6 +284,7 @@ const STATIC: Record<string, { file: string; type: string }> = {
   '/panes.js': { file: 'panes.js', type: 'text/javascript; charset=utf-8' },
   '/telemetry.js': { file: 'telemetry.js', type: 'text/javascript; charset=utf-8' },
   '/ucandles.js': { file: 'ucandles.js', type: 'text/javascript; charset=utf-8' },
+  '/indicators.js': { file: 'indicators.js', type: 'text/javascript; charset=utf-8' },
   '/chart-style.js': { file: 'chart-style.js', type: 'text/javascript; charset=utf-8' },
   '/ltp.js': { file: 'ltp.js', type: 'text/javascript; charset=utf-8' },
   '/paper.js': { file: 'paper.js', type: 'text/javascript; charset=utf-8' },

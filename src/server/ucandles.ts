@@ -49,6 +49,8 @@ export type UCandle = {
   /** IST date of the open, so the client can tell the drawn session from context days. */
   d: string;
   o: number; h: number; l: number; c: number;
+  /** P57 row 6: the candle's volume, 0 when Dhan sends none (an index). VWAP needs it. */
+  v: number;
 };
 
 export type UCandleResult = {
@@ -83,13 +85,15 @@ export function toUCandles(c: Candles | null | undefined): UCandle[] {
   const ts = c?.timestamp;
   if (!Array.isArray(ts) || !ts.length) return [];
   const o = c?.open ?? [], h = c?.high ?? [], l = c?.low ?? [], cl = c?.close ?? [];
+  const vol = c?.volume ?? [];
   const n = Math.min(ts.length, o.length, h.length, l.length, cl.length);
   const out: UCandle[] = [];
   for (let i = 0; i < n; i++) {
     const k = { o: num(o[i]), h: num(h[i]), l: num(l[i]), c: num(cl[i]) };
     if (![k.o, k.h, k.l, k.c].every(Number.isFinite)) continue;
     const p = istParts(ts[i]!);
-    out.push({ t: toMs(ts[i]!), at: p?.time ?? '', d: p?.date ?? '', ...k });
+    const v = num(vol[i]);
+    out.push({ t: toMs(ts[i]!), at: p?.time ?? '', d: p?.date ?? '', ...k, v: Number.isFinite(v) && v > 0 ? v : 0 });
   }
   return out;
 }

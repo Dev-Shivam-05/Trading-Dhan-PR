@@ -260,7 +260,7 @@ for (const path_ of ['restart', 'sleep'] as const) {
 /* ------------------------------------------------------------ row 5, unit */
 
 {
-  const k = (d: string, hhmm: string): UCandle => ({ t: 0, at: hhmm, d, o: 1, h: 1, l: 1, c: 1 });
+  const k = (d: string, hhmm: string): UCandle => ({ t: 0, at: hhmm, d, o: 1, h: 1, l: 1, c: 1, v: 0 });
   const nse = inSession([k(DAY, '15:25'), k(DAY, '15:39'), k(DAY, '15:40'), k(DAY, '17:55')], 'NSE_BSE_FNO').map(x => x.at);
   ok('row 5: NSE keeps 15:25 and 15:39, drops 15:40 and 17:55', nse.join(',') === '15:25,15:39', nse.join(','));
   // MCX closes 23:30 in US summer time (Sep) and 23:55 in winter (Dec).
