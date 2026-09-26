@@ -29,3 +29,8 @@ candles for exactly this reason.
 | AC3 | Accounting: priced + no-price = the trades whose stock-month is on disk, counted independently |
 | AC4 | Two pricing runs are byte-identical; the fetch refuses replay; nothing is imported that can place an order |
 | AC5 | The bounded fetch completes (or names every failure), and the report prints for the pick and the baseline under both fills |
+
+## Amendment at build (2026-09-26)
+- **Row 3's bounded fetch is the top 10 symbols, not 20.** The stock-option months answered at about 2 calls a minute
+  (about 30 s a call, against P48's 2–3 s for index months), so 480 calls would have taken about 4 hours. The five
+  stock-months already written were kept, since the fetch resumes by month. `--top 20` or `--all` fetches more.

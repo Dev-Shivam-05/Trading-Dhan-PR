@@ -51,7 +51,11 @@
     "ind:test": "node scripts/indicators-test.ts",
     "ipaper:test": "node scripts/index-paper-test.ts",
     "shadow": "node --env-file-if-exists=.env scripts/shadow.ts",
-    "shadow:test": "node scripts/shadow-test.ts"
+    "shadow:test": "node scripts/shadow-test.ts",
+    "opthist": "node --env-file-if-exists=.env scripts/opthist.ts",
+    "opthist:test": "node scripts/opthist-test.ts",
+    "combine": "node scripts/combine.ts",
+    "combine:test": "node scripts/combine-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
