@@ -48,7 +48,8 @@
     "ltpoq:test": "node scripts/ltp-oq-test.ts",
     "ltprange": "node scripts/ltp-range.ts",
     "ltprange:test": "node scripts/ltp-range-test.ts",
-    "ind:test": "node scripts/indicators-test.ts"
+    "ind:test": "node scripts/indicators-test.ts",
+    "ipaper:test": "node scripts/index-paper-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
