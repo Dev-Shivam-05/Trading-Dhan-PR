@@ -35,7 +35,7 @@ function day(opts: { bars?: Record<string, { h?: number; l?: number; c?: number 
     h: HMS.map(hm => bars[hm]?.h ?? 23200), l: HMS.map(hm => bars[hm]?.l ?? 23200), c: HMS.map(hm => bars[hm]?.c ?? 23200),
     permit: HMS.map(hm => opts.permit?.(hm) ?? { CE: true, PE: true }),
     signals: opts.signals.map(s => ({ kind: '920', line: 'EOS', i: at(s.hm!), t: 0, hm: s.hm!, buy: 'CE', entry: 23150, stop: 23100, target: 23250, scenario: 7, verdict: 'bull run', veto: null, ...s } as Signal)),
-    step: 50, gapWidth: 120,
+    step: 50, gapWidth: 120, l920: { 'EOR+1': 23300, EOR: 23250, EOS: 23150, 'EOS-1': 23100 }, R920: 23200, S920: 23200, ivBad: HMS.map(() => false),
     legs: { '23150CE': col, '23200CE': col, '23150PE': col, '23100PE': col, '23250PE': col },
   };
 }

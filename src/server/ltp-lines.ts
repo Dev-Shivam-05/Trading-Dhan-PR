@@ -60,10 +60,16 @@ export type Lines920 = {
   gapWidth: number | null;
   /** Row 9. */
   coincide: string[];
+  /** P52 (OQ-2): which factor placed each level at 09:20. Output only. */
+  rBasis: Basis | null; sBasis: Basis | null;
 };
+
+export type Basis = 'volume' | 'oi' | 'both';
+const basisOf = (l: Level): Basis => (l.builtOn.length === 2 ? 'both' : l.builtOn[0]!);
 
 export type AiLines = {
   R: number; S: number; step: number;
+  rBasis: Basis; sBasis: Basis;
   value: Record<AiName, number | null>;
   /** Row 16: which of the eight are drawn under this minute's verdict. */
   drawn: Set<AiName>;
@@ -83,6 +89,8 @@ export type Signal = {
   /** Index levels. */
   entry: number; stop: number | null; target: number | null;
   scenario: number | null; verdict: string | null;
+  /** P52 (OQ-2): the factor that placed the level this line is read from (R for puts, S for calls). Output only. */
+  basis: Basis | null;
   veto: Veto | null;
 };
 
@@ -147,7 +155,7 @@ function nextBeyond(values: number[], from: number, up: boolean): number | null 
 
 export function lines920(reading: LtpReading | null, rows: Row[], close: number | null): Lines920 {
   const step = rows.length ? stepOf(rows) : 50;
-  const empty = (note: string): Lines920 => ({ ready: false, note, R: null, S: null, step, close, lines: [], stopPut: null, stopCall: null, divergences: [], gapWidth: null, coincide: [] });
+  const empty = (note: string): Lines920 => ({ ready: false, note, R: null, S: null, step, close, lines: [], stopPut: null, stopCall: null, divergences: [], gapWidth: null, coincide: [], rBasis: null, sBasis: null });
   if (!reading || !reading.resistance || !reading.support) return empty(reading?.note ?? 'no reading at 09:20');
   const R = reading.resistance.strike, S = reading.support.strike;
   const stopPut = rev(rows, R + 2 * step, 'call');
@@ -177,7 +185,8 @@ export function lines920(reading: LtpReading | null, rows: Row[], close: number 
     if (x !== null && y !== null && Math.abs(x - y) < TICK - 1e-9) coincide.push(`${raw[a]!.name}=${raw[b]!.name}`);
   }
   const eor = lines[1]!.value, eos = lines[2]!.value;
-  return { ready: true, note: null, R, S, step, close, lines, stopPut, stopCall, divergences, gapWidth: eor !== null && eos !== null ? eor - eos : null, coincide };
+  return { ready: true, note: null, R, S, step, close, lines, stopPut, stopCall, divergences, gapWidth: eor !== null && eos !== null ? eor - eos : null, coincide,
+    rBasis: basisOf(reading.resistance), sBasis: basisOf(reading.support) };
 }
 
 /* ------------------------------------------------------------------ L7/L8: the AI lines (rows 11-17) */
@@ -238,7 +247,7 @@ export function aiLines(reading: LtpReading | null, rows: Row[], state: MinuteOu
   value['S Max Gain'] = Number.isFinite(sTop) ? (nextBeyond(divs, sTop, true) ?? value['R Moderate']) : null;
   value['R Max Gain'] = Number.isFinite(rBot) ? (nextBeyond(divs, rBot, false) ?? value['S Moderate']) : null;
   const { drawn, permit } = drawnFor(state?.scenario ?? null, state?.verdict ?? null);
-  return { R, S, step, value, drawn, permit };
+  return { R, S, step, rBasis: basisOf(reading.resistance), sBasis: basisOf(reading.support), value, drawn, permit };
 }
 
 /* ------------------------------------------------------------------ L9: vetoes (row 21) */
@@ -320,7 +329,7 @@ export function daySignals(day: ChainDay, idx: IdxDay | undefined, opts: Opts = 
       const stop = L.buy === 'PE' ? l920.stopPut : l920.stopCall;
       const veto = vetoOf({ hm: m.hm, lastHm: L920_LAST_ENTRY_HM, usedBefore: used.has(key), permitted: true, buy: L.buy, entry: L.value, stop, target: L.target, ivBad: false });
       used.add(key);
-      signals.push({ ...base, kind: '920', line: L.name, buy: L.buy, entry: L.value, stop, target: L.target, veto });
+      signals.push({ ...base, kind: '920', line: L.name, buy: L.buy, entry: L.value, stop, target: L.target, veto, basis: L.buy === 'PE' ? l920.rBasis : l920.sBasis });
     }
 
     // The AI lines: the value visible BEFORE this minute started (row 18), drawn under that minute's verdict.
@@ -335,7 +344,7 @@ export function daySignals(day: ChainDay, idx: IdxDay | undefined, opts: Opts = 
       const ivBad = !!opts.ivGate && st?.iv.balance === 'unbalanced' && st.iv.move === 'moving';
       const veto = vetoOf({ hm: m.hm, lastHm: AI_LAST_ENTRY_HM, usedBefore: used.has(key), permitted: A.permit[buy], buy, entry: v, stop, target, ivBad });
       used.add(key);
-      signals.push({ ...base, kind: 'ai', line: name, buy, entry: v, stop, target, veto });
+      signals.push({ ...base, kind: 'ai', line: name, buy, entry: v, stop, target, veto, basis: buy === 'PE' ? A.rBasis : A.sBasis });
     }
   }
   return { date: day.date, minutes, states, l920, ai, signals };

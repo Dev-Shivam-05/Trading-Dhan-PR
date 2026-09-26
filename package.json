@@ -43,7 +43,9 @@
     "ltplines": "node scripts/ltp-lines.ts",
     "ltplines:test": "node scripts/ltp-lines-test.ts",
     "ltpbt": "node scripts/ltp-backtest.ts",
-    "ltpbt:test": "node scripts/ltp-backtest-test.ts"
+    "ltpbt:test": "node scripts/ltp-backtest-test.ts",
+    "ltpoq": "node scripts/ltp-oq.ts",
+    "ltpoq:test": "node scripts/ltp-oq-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",

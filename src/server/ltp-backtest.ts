@@ -27,6 +27,8 @@ export const MECH_PTS = 50;
 export const EXIT_HM = '14:29';
 /** Row 8 (GUESS): options, per round trip. */
 export const COSTS = { brokeragePerOrder: 20, stt: 0.001, exchange: 0.0003503, sebi: 0.000001, stamp: 0.00003, gst: 0.18 };
+/** P52 (OQ-9): the deepest in-the-money strike tried. */
+export const MAX_DEPTH = 4;
 /** Row 1: the vetoes a different stop/target can change. */
 export const PRICE_VETOES: Veto[] = ['no-stop', 'stop-on-entry', 'target', 'ratio'];
 
@@ -34,7 +36,16 @@ export const PRICE_VETOES: Veto[] = ['no-stop', 'stop-on-entry', 'target', 'rati
 
 export type Fill = 'touch' | 'late1m';
 export type Book = '920' | 'ai';
-export type Cfg = { book: Book; lines: 'all' | 'ext' | 'outer'; target: 'structure' | 'mech50'; stop: 'structure' | 'mech50' };
+export type Cfg = {
+  book: Book;
+  /** A preset, or (P52) one line's name to trade that line on its own. */
+  lines: 'all' | 'ext' | 'outer' | string;
+  /** P52 adds 'nextline' (V48: the next 920 line in the trade's direction). */
+  target: 'structure' | 'mech50' | 'nextline';
+  stop: 'structure' | 'mech50';
+  /** P52 variants. Index points for a mechanical target / stop (V99's grid); strikes in the money (OQ-9); the IV gate. */
+  tgtPts?: number; stopPts?: number; depth?: number; ivGate?: boolean;
+};
 export const DEFAULT_CFG: Cfg = { book: '920', lines: 'all', target: 'structure', stop: 'structure' };
 
 /** One day, reduced to what a trade needs: the index path, which side each minute permits, and option closes. */
@@ -47,12 +58,18 @@ export type DayBook = {
   signals: Signal[];
   step: number;
   gapWidth: number | null;
+  /** P52: the four 920 values (for the `nextline` target), and P49's IV verdict per minute (unbalanced AND moving). */
+  l920: Record<string, number | null>;
+  /** P52 (Q11): the 09:20 resistance and support strikes. */
+  R920: number | null; S920: number | null;
+  ivBad: boolean[];
   /** `${strike}CE` -> the leg's close at each session minute. */
   legs: Record<string, (number | null)[]>;
 };
 
 export type Trade = {
   date: string; book: Book; line: string; buy: Buy; strike: number;
+  basis: Signal['basis'];
   i: number; hm: string;
   /** Index levels. */
   entryLevel: number; stop: number; target: number;
@@ -66,7 +83,7 @@ export type Trade = {
   gapWidth: number | null;
 };
 
-export type DayResult = { trades: Trade[]; eligible: number; busy: number; noPrice: number; priceVetoed: number };
+export type DayResult = { trades: Trade[]; eligible: number; busy: number; noPrice: number; priceVetoed: number; ivVetoed: number };
 
 /* ------------------------------------------------------------------ rows 7-8 */
 
@@ -105,8 +122,9 @@ export function prepareDay(dl: DayLines, day: ChainDay): DayBook {
   const want = new Set<string>();
   for (const s of dl.signals) {
     if (s.veto !== null && !PRICE_VETOES.includes(s.veto)) continue;
-    const k = nearestStrike(s.entry, step);
-    want.add(`${k}${s.buy}`); want.add(`${k + (s.buy === 'CE' ? step : -step)}${s.buy}`);
+    // Row 3's strike and its fallback, at every depth P52 tries (0-4 strikes in the money).
+    const k0 = nearestStrike(s.entry, step), itm = s.buy === 'CE' ? -step : step;
+    for (let d = 0; d <= MAX_DEPTH; d++) { const k = k0 + d * itm; want.add(`${k}${s.buy}`); want.add(`${k - itm}${s.buy}`); }
   }
   const legs: Record<string, (number | null)[]> = {};
   for (const k of want) { const l = day.legs[k]; if (l) legs[k] = at.map(i => l.c[i] ?? null); }
@@ -114,6 +132,9 @@ export function prepareDay(dl: DayLines, day: ChainDay): DayBook {
     date: dl.date, hm,
     h: dl.minutes.map(m => m.h), l: dl.minutes.map(m => m.l), c: dl.minutes.map(m => m.c),
     permit, signals: dl.signals, step, gapWidth: dl.l920.gapWidth, legs,
+    l920: Object.fromEntries(dl.l920.lines.map(l => [l.name, l.value])),
+    R920: dl.l920.R, S920: dl.l920.S,
+    ivBad: dl.states.map(st => st.iv.balance === 'unbalanced' && st.iv.move === 'moving'),
   };
 }
 
@@ -126,7 +147,8 @@ const LINES: Record<Book, Record<Cfg['lines'], string[]>> = {
 
 /** Row 1: the signals this config may trade, before its own stop/target is priced. */
 export function eligibleSignals(b: DayBook, cfg: Cfg): Signal[] {
-  return b.signals.filter(s => s.kind === cfg.book && LINES[cfg.book][cfg.lines].includes(s.line) && (s.veto === null || PRICE_VETOES.includes(s.veto)));
+  const set = LINES[cfg.book][cfg.lines as 'all'] ?? [cfg.lines];
+  return b.signals.filter(s => s.kind === cfg.book && set.includes(s.line) && (s.veto === null || PRICE_VETOES.includes(s.veto)));
 }
 
 /** A close at minute j, or the next one that exists (a leg can miss a minute). */
@@ -137,7 +159,7 @@ function closeFrom(col: (number | null)[] | undefined, j: number): { px: number;
 }
 
 export function tradeDay(b: DayBook, cfg: Cfg, fill: Fill): DayResult {
-  const out: DayResult = { trades: [], eligible: 0, busy: 0, noPrice: 0, priceVetoed: 0 };
+  const out: DayResult = { trades: [], eligible: 0, busy: 0, noPrice: 0, priceVetoed: 0, ivVetoed: 0 };
   const last = b.hm.length - 1;
   const timeExit = (() => { const k = b.hm.indexOf(EXIT_HM); return k < 0 ? last : k; })();
   let freeAfter = -1;                                   // the book is open through this minute index
@@ -145,13 +167,17 @@ export function tradeDay(b: DayBook, cfg: Cfg, fill: Fill): DayResult {
     out.eligible++;
     if (s.i <= freeAfter) { out.busy++; continue; }
     const up = s.buy === 'CE';
-    const stop = cfg.stop === 'mech50' ? s.entry + (up ? -MECH_PTS : MECH_PTS) : s.stop;
-    const target = cfg.target === 'mech50' ? s.entry + (up ? MECH_PTS : -MECH_PTS) : s.target;
+    const sp = cfg.stopPts ?? (cfg.stop === 'mech50' ? MECH_PTS : null), tp = cfg.tgtPts ?? (cfg.target === 'mech50' ? MECH_PTS : null);
+    const stop = sp !== null ? s.entry + (up ? -sp : sp) : s.stop;
+    const target = tp !== null ? s.entry + (up ? tp : -tp)
+      : cfg.target === 'nextline' && s.kind === '920' ? nextLine(b.l920, s.entry, up) : s.target;
     if (priceVeto(s.buy, s.entry, stop, target)) { out.priceVetoed++; continue; }
+    // P52: P49's IV gate, read from the minute before the touch like every other input (P50 row 18).
+    if (cfg.ivGate && b.ivBad[s.i - 1]) { out.ivVetoed++; continue; }
     // Row 4: the fill minute; row 3: the strike, with one fallback toward the price.
     const fi = fill === 'touch' ? s.i : s.i + 1;
     if (fi > timeExit) { out.noPrice++; continue; }
-    const k0 = nearestStrike(s.entry, b.step);
+    const k0 = nearestStrike(s.entry, b.step) + (cfg.depth ?? 0) * (up ? -b.step : b.step);
     let strike = k0, px = b.legs[`${k0}${s.buy}`]?.[fi] ?? null;
     if (px === null) { strike = k0 + (up ? b.step : -b.step); px = b.legs[`${strike}${s.buy}`]?.[fi] ?? null; }
     if (px === null || px <= 0) { out.noPrice++; continue; }
@@ -173,7 +199,7 @@ export function tradeDay(b: DayBook, cfg: Cfg, fill: Fill): DayResult {
     const points = r2(exitPx - px);
     const gross = r2(points * units), cost = costOf(px, exitPx, units);
     out.trades.push({
-      date: b.date, book: cfg.book, line: s.line, buy: s.buy, strike, i: s.i, hm: s.hm,
+      date: b.date, book: cfg.book, line: s.line, buy: s.buy, strike, basis: s.basis ?? null, i: s.i, hm: s.hm,
       entryLevel: s.entry, stop: stop!, target: target!, entryPx: px, exitPx, exitI: exitJ, exitHm: b.hm[exitJ]!, reason,
       lots, units, overBudget, points, idxPoints: r2(up ? exitLevel - s.entry : s.entry - exitLevel),
       gross, cost, net: r2(gross - cost), minutes: exitJ - fi, gapWidth: b.gapWidth,
@@ -181,6 +207,16 @@ export function tradeDay(b: DayBook, cfg: Cfg, fill: Fill): DayResult {
     freeAfter = exitJ;
   }
   return out;
+}
+
+/** P52 (OQ-15, V48): the next 920 line beyond the entry in the trade's direction. */
+function nextLine(l920: Record<string, number | null>, entry: number, up: boolean): number | null {
+  let best: number | null = null;
+  for (const v of Object.values(l920)) {
+    if (v === null || (up ? v <= entry + 0.05 - 1e-9 : v >= entry - 0.05 + 1e-9)) continue;
+    if (best === null || (up ? v < best : v > best)) best = v;
+  }
+  return best;
 }
 
 /* ------------------------------------------------------------------ the report (rows 9-11) */
@@ -210,7 +246,8 @@ export const CONFIGS: Cfg[] = [];
 for (const book of ['920', 'ai'] as const) for (const lines of ['all', 'ext', 'outer'] as const)
   for (const target of ['structure', 'mech50'] as const) for (const stop of ['structure', 'mech50'] as const)
     CONFIGS.push({ book, lines, target, stop });
-export const cfgKey = (c: Cfg) => `${c.book}/${c.lines}/t-${c.target}/s-${c.stop}`;
+export const cfgKey = (c: Cfg) => `${c.book}/${c.lines}/t-${c.tgtPts ?? c.target}/s-${c.stopPts ?? c.stop}`
+  + (c.depth ? `/itm${c.depth}` : '') + (c.ivGate ? '/iv' : '');
 
 /** Row 11 (GUESS windows): train on the previous 6 months, trade the next one; <10 trades -> the P34 default. */
 export const WF_TRAIN_MONTHS = 6;
