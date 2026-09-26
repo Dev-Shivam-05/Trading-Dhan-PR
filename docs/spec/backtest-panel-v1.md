@@ -21,3 +21,16 @@ changes no setting.
 | AC2 | Each number the panel prints for P37's current settings equals the one in `report.json`. The per-day table's gross sums to `current.all.gross` |
 | AC3 | The panel renders on a replay server with zero console errors. **Screenshot**, read before calling it done |
 | AC4 | No button on the panel changes anything: it holds no form controls, and no POST route is added |
+
+## Result (2026-09-26, built on `p38-backtest-panel`)
+`.cache/p38-verify.js` **9/9** on a replay server:
+- The payload is 3.9 KB with all three sources.
+- The current settings' all/real/proxy figures equal `report.json`, and the per-day gross sums to `current.all.gross`
+  (2,64,916.25).
+- The panel prints that figure and shows the shadow's empty state.
+- There are no form controls, and zero console errors.
+
+Two screenshots were read. The first showed the "real 09:20 scan days" label truncated in its column, so it was
+shortened. The second shows the P37 split, the walk-forward line, the calibration table (POLICYBZR's 94.45-point model
+error on 24 Sep), P44's recommendation with "a recommendation, not a change", and the shadow line. Live on 8787 (build
+`7c20f4b`).

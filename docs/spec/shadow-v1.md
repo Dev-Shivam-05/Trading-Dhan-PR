@@ -22,3 +22,13 @@ live or paper rule changes** (P37 row 13; memory: delegated decisions).
 | AC3 | `/api/shadow` answers from a replay server, and the Paper tab card shows the empty state ("first forward session: Mon 28 Sep, after 16:00"). **Screenshot** |
 | AC4 | The shadow code imports nothing that can place an order, and the nightly step refuses replay mode |
 | AC5 | **Live, Mon 28 Sep after 16:00:** the report holds 28 Sep for all 3 × 2 rows. Measured in the next session, not claimed here |
+
+## Result (2026-09-26, built on `p45-shadow`; the panel in P38)
+- `npm run shadow:test` **6/6**.
+  - **AC1:** `computeShadow` over 11–25 Sep equals `runGrid` for 3 settings × 2 fills to the paisa (10 sessions, 452 trades).
+  - **AC2:** no session on or before the since-date enters the shadow; with the real date, 0 forward sessions are on disk.
+  - **AC4:** only a type comes from `dhan.ts`, and the step refuses replay.
+- **AC3:** `/api/shadow` answers on a replay server, and the Paper tab shows "First forward session: Mon 28 Sep, after
+  16:00" (P38's check, 9/9).
+- **Live:** 8787 restarted on build `7c20f4b`. The shadow runs inside the nightly job after the backtest (at or after
+  16:00 on a weekday). **AC5 is open until Mon 28 Sep after 16:00.**
