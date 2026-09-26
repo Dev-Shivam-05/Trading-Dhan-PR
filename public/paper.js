@@ -31,6 +31,8 @@ const state = {
   sb: { dates: null, view: null, busy: false, notice: null },
   /** index-paper-v1.md (P53): the NIFTY index book, read from /api/index-paper. */
   ix: { view: null, error: null, busy: false },
+  /** backtest-panel-v1.md (P38): the three nightly reports, read every 60 s. */
+  bt: { view: null, error: null, at: 0 },
 };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
@@ -126,6 +128,59 @@ async function load() {
   render();
   loadSandbox();
   loadIndex();
+  if (Date.now() - state.bt.at > 60_000) loadBacktest();   // row 6
+}
+
+/* ---------------------------------------------------------------- the backtest panel (P38) */
+
+async function loadBacktest() {
+  state.bt.at = Date.now();
+  try {
+    const res = await fetch('/api/backtest');
+    if (res.status === 404) throw new Error('this server predates the panel — restart it to see the reports');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.bt.view = await res.json();
+    state.bt.error = null;
+  } catch (e) {
+    state.bt.error = e.message ?? String(e);
+  }
+  renderBacktest();
+}
+
+const inr0 = (v) => (typeof v === 'number' && Number.isFinite(v) ? (v < 0 ? '−' : '') + Math.abs(Math.round(v)).toLocaleString('en-IN') : '—');
+
+function renderBacktest() {
+  const body = $('btBody');
+  if (!body) return;
+  const v = state.bt.view;
+  if (!v) { body.innerHTML = `<p class="scan-none">${esc(state.bt.error ?? 'Loading…')}</p>`; return; }
+  const r = v.report, t = v.train, sh = v.shadow;
+  const row = (name, x) => x ? `<tr><td class="l">${esc(name)}</td><td>${int(x.sessions)}</td><td>${int(x.trades)}</td><td>${num(x.winPct, 1)}%</td>
+    <td class="${dirClass(x.gross)}">${inr0(x.gross)}</td><td>${inr0(x.maxDrawdown)}</td><td class="l">${x.worstDay ? `${esc(x.worstDay.date)} ${inr0(x.worstDay.pnl)}` : '—'}</td></tr>` : '';
+  const p37 = !r ? '<p class="scan-none">The nightly backtest has not run yet (<code>npm run backtest</code>, or the server at 16:00).</p>' : `
+    <p class="pp-hint">P37, run ${esc((r.ranAt ?? '').slice(0, 16).replace('T', ' '))} UTC, window ${int(r.window.sessions)} sessions (${int(r.window.real)} with a real 09:20 scan, ${int(r.window.proxy)} proxy) to ${esc(r.lastDay)}. Current settings: top ${esc(r.params?.topN)}, SMA${esc(r.params?.sma)}, ${esc(r.params?.closes)} closes against, ${esc(r.params?.rangeBars)} range bars. Gross, before charges.</p>
+    <table class="scan-t pp-t"><thead><tr><th class="l">Current settings</th><th>Sessions</th><th>Trades</th><th>Win</th><th>Gross ₹</th><th>Max DD ₹</th><th class="l">Worst day</th></tr></thead>
+      <tbody>${row('All days', r.all)}${row('Real 09:20 scan days', r.real)}${row('Proxy days', r.proxy)}</tbody></table>
+    <p class="pp-hint">Walk-forward held-out ₹${inr0(r.walkForward?.heldOut)} against the current settings' ₹${inr0(r.walkForward?.current)}. Best cell now: ${esc(r.walkForward?.bestNow?.key ?? '—')} (₹${inr0(r.walkForward?.bestNow?.gross)}).</p>
+    <details class="pp-nt"><summary>Per day (${r.perDay.length})</summary><table class="scan-t pp-t"><thead><tr><th class="l">Date</th><th class="l">Scan</th><th>Signals</th><th>Trades</th><th>Gross ₹</th></tr></thead><tbody>${
+      r.perDay.map((d) => `<tr><td class="l">${esc(d.date)}</td><td class="l">${esc(d.kind)}</td><td>${int(d.signals)}</td><td>${int(d.trades)}</td><td class="${dirClass(d.gross)}">${inr0(d.gross)}</td></tr>`).join('')
+    }</tbody></table></details>
+    <details class="pp-nt"><summary>Calibration: live fill vs model fill (${r.calibration.length})</summary><table class="scan-t pp-t"><thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Side</th><th>Live</th><th>Model</th><th>Diff</th></tr></thead><tbody>${
+      r.calibration.map((c) => `<tr><td class="l">${esc(c.date)}</td><td class="l">${esc(c.symbol)}</td><td class="l">${esc(c.side)}</td><td>${num(c.live)}</td><td>${num(c.model)}</td><td>${num(c.diff)}</td></tr>`).join('')
+    }</tbody></table></details>`;
+  const pick = (name, x) => x ? `<tr><td class="l">${esc(name)} <span class="pp-sub">${esc(x.key)}</span></td><td>${int(x.trades)}</td><td>${num(x.winPct, 1)}%</td>
+    <td class="${dirClass(x.net)}">${inr0(x.net)}</td><td>${inr0(x.netPerTrade)}</td><td>${inr0(x.firstHalf)} / ${inr0(x.secondHalf)}</td></tr>` : '';
+  const p44 = !t ? '<p class="scan-none">P44 has not been run (<code>npm run train</code>).</p>' : `
+    <p class="pp-hint">P44, ${esc(t.sessions)} sessions × ${esc(t.stocks)} stocks. <b>A recommendation, not a change:</b> ${esc(t.recommendation?.key ?? 'none')}${t.recommendation?.why ? ` — ${esc(t.recommendation.why)}` : ''}.</p>
+    <table class="scan-t pp-t"><thead><tr><th class="l">Level fills, net of costs</th><th>Trades</th><th>Win</th><th>Net ₹</th><th>Per trade ₹</th><th>Halves ₹</th></tr></thead>
+      <tbody>${pick('Baseline (live rules minus OI)', t.baseline)}${pick('Recommended', t.recommended)}</tbody></table>
+    <p class="pp-hint">Walk-forward held-out: level ₹${inr0(t.walkForward?.heldOut)} vs baseline ₹${inr0(t.walkForward?.baseline)} · late fills ₹${inr0(t.late1m?.walkForward?.heldOut)} vs ₹${inr0(t.late1m?.walkForward?.baseline)}.</p>`;
+  const p45 = !sh.sessions.length
+    ? `<p class="pp-hint">Shadow (P45): the recommended setting on days it has never seen. First forward session: Mon 28 Sep, after 16:00.</p>`
+    : `<table class="scan-t pp-t"><thead><tr><th class="l">Shadow since ${esc(sh.after)} (P45)</th><th class="l">Fill</th><th>Sessions</th><th>Trades</th><th>Net ₹</th></tr></thead><tbody>${
+      sh.rows.map((x) => `<tr><td class="l">${esc(x.label)}</td><td class="l">${esc(x.fill)}</td><td>${int(x.days.length)}</td><td>${int(x.trades)}</td><td class="${dirClass(x.net)}">${inr0(x.net)}</td></tr>`).join('')
+    }</tbody></table>`;
+  body.innerHTML = p37 + p44 + p45;
 }
 
 /* ---------------------------------------------------------------- the index book (P53) */
@@ -493,6 +548,7 @@ window.__paper = {
   notice: () => state.notice,
   sandbox: () => state.sb.view,
   index: () => state.ix.view,
+  backtest: () => state.bt.view,
   reload: load,
 };
 

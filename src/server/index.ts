@@ -28,6 +28,8 @@ import { TickRecorder } from './ticks.ts';
 import { ChainRecorder } from './chainrec.ts';
 import { IndexPaper } from './index-paper.ts';
 import { runShadow, readShadow } from './shadow.ts';
+import { trimReport, trimTrain } from './backtest-panel.ts';
+import { readHistoryJson } from './history.ts';
 import { CACHE_DIR } from './paths.ts';
 import { notify } from './notify.ts';
 import { SandboxManager, sandboxDates, SPEEDS, NO_RULES, type Speed } from './sandbox.ts';
@@ -621,6 +623,13 @@ app.get('/api/paper', async () => paper.view());
 
 app.get('/api/index-paper', async () => indexPaper.view());
 app.get('/api/shadow', async () => readShadow());
+// P38 (backtest-panel-v1.md row 2): the three reports, trimmed. Read-only: there is no POST beside it.
+app.get('/api/backtest', async () => {
+  const [report, train, shadow] = await Promise.all([
+    readHistoryJson<Record<string, unknown>>('report.json'), readHistoryJson<Record<string, unknown>>('train-report.json'), readShadow(),
+  ]);
+  return { report: trimReport(report), train: trimTrain(train), shadow };
+});
 app.post('/api/index-paper/arm', async (req, reply) => {
   const b = bodyWith(req.body, ['armed']);
   if (!b || typeof b.armed !== 'boolean') return reply.code(400).send({ error: 'body must be {"armed": true|false}' });
