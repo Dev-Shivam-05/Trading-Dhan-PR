@@ -227,58 +227,11 @@ run lost 6 of 10 contracts to `DH-904` and would have concluded from the 4 that 
 paced now.
 
 ## Next 3
-*(Updated at P49 close, 2026-09-25 late.)*
-0. **Mon 28 Sep, 10:00–14:00 (P56):** run `node --env-file=.env .cache/nse-vs-dhan-chain.ts` three times, an hour apart, to see whether Dhan's OI matches NSE's **during** the session. (After Friday's close it was 0/40, against NSE's 40/40.)
-1. **Mon 28 Sep after 15:31:** close P47 AC5 (`cat .cache/chains/2026-09-28/summary.json`, both expiries, largest gap ≤ 10 s), P46 (Kernel-Power 506/507 between 09:14 and 15:31), P41 on a full tick day (`node .cache/p41-ac2.ts 2026-09-28`), and the live paper day. Then `npm run ticks:pack`.
-2. **Mon 28 Sep after 16:00 (P48 AC3):** `npm run chainhist` (it adds 28 Sep, about 84 calls), then `npm run chainhist:verify -- --recording 2026-09-28`. P48 closes on that verdict. Then `npm run ltpstate -- 2026-09-28` for the first day that also has a 3 s recording.
-3. **Ground truth for P49, the user's call:** the LTP Calculator 7-day premium, and the tool's banner (scenario, SOC, levels) written down for 2–3 days, compared against `npm run ltpstate -- <date>`. That decides rows 8, 15, 19 before P50 (line sets) builds on them.
-
-*(P48's list, kept for the record:)* 0–2 as above; 3. P49, then the 7-day premium for ground truth.
-
-*(P40-P42's list, kept for the record:)*
-1. **Fri 25 Sep after 15:31:** read `.cache/ticks/2026-09-25/summary.json` (P41 AC2), replay today in the Sandbox on recorded ticks and compare with the live ledger, confirm `[backtest] done` after 16:00 and the saved scan in `.cache/history/scans/2026-09-25.json`.
-2. **User calls owed:** Arm the live trader (it is disarmed); which P42 rules go live after sandbox runs; how the calculators combine (P43); `w32tm /resync`.
-3. **P38** (backtest panel) or **P34** (LTP Calculator on NIFTY) — whichever the user picks next.
-
-1. **Thu 24 Sep after 15:15:** read `.cache/paper-ledger.json`. Recompute every range, entry, SMA9 exit and P&L from Dhan's real 5-minute candles (`.cache/p33-live-candles.ts <SYMBOL>`), and close P33 AC6. Also read `.cache/p30-open-run.log` and close P31's open-session criteria.
-2. **P34 spec-lock:** LTP Calculator trades on NIFTY options. The user's answers are on the board row. Still undefined: the touch rule, which snapshot's level, the entry window, lots and the square-off.
-3. **User calls owed:** `exclude` or keep the post-15:30 candles in SMA9; add a hard stop (`change 10`); who owns `L`.
-
-*(P32's list, kept for the record:)*
-1. **Restart 8787 on the P32 build, then arm Paper.** The live server (PID 16036) was started before P32, so `/paper.js` 404s on it and the Paper tab is dead on the live screen. Restarting it was refused by this session's permission classifier, so the user restarts it: `taskkill //F //PID 16036`, then `npm run dev`. Then open Paper and press **Arm auto-trading** before 09:20 Thu, with the laptop awake. This measures AC10 and keeps the P31 runner's live server.
-2. **Decide who owns `L`**: the telemetry drawer (`app.js:729`, terminal-redesign-v1) or the LTP Calculator (`ltp.js:290`, no spec row). p10b is 29/1 until then.
-3. **P31:** after Thu 24 Sep's session, `cat .cache/p30-open-run.log` and `.cache/paper-ledger.json`, and close the open-session criteria plus P32's AC10.
-
-*(P31's list, kept for the record:)*
-1. **P32: auto paper-trading from the front page.** Run `spec-lock` first: strategy/signal, exit, size, instruments, UI. Paper only, with no Dhan order endpoint and separate replay and live ledgers.
-2. **P31:** after Thu 24 Sep's session, `cat .cache/p30-open-run.log` and close the open-session criteria.
-3. **Merge the stacked branches in order** (p6 -> ... -> p25 -> p29 -> p30 -> p31).
-
-*(P30's list, kept for the record:)*
-1. **Thu 24 Sep, before 09:36:** make sure 8787 is a live `npm run dev` built from P30 or later. Then read `.cache/p30-open-run.log` and close the open-session criteria (P8 AC5, P12b, P19/P9 on NSE, P21, NSE `last_price` lag).
-2. **P9's opening-candle decision:** 2 of 36 signals fell in 09:15-09:34 on 22 Sep. Add 24 Sep's count, then decide or close.
-3. **Merge the stacked branches in order** (p6 -> ... -> p25 -> p29 -> p30), then spec L4-L10 of the LTP Calculator.
-
-1. **Answer spec row 12 (OQ-1) in one word** — `go` / `theoretical` / `api` / `hold` — and the
-   rest of `docs/spec/ltp-calculator-v1.md` with one `go`. Then build L0–L3 + L6.
-   *(Superseded item, kept for the record: "Decide OQ-1, OQ-35 and OQ-33 - then, and only then,
-   P29: lock the LTP Calculator spec." OQ-35 is closed and OQ-33 is deferred to L10 with a
-   recommendation; the spec is written.)*
-   OQ-1 is the reversal-price formula: either the app's API exposes it, or it is reconstructed from
-   V18's hypothesis (the spot level at which a strike's time value peaks) and validated against the
-   dozens of worked strike-to-reversal pairs in the notes, or it ships as a documented pluggable
-   approximation. OQ-35 and OQ-39/OQ-30 need a video and the *published* LTP Swing flowchart
-   respectively - neither is answerable from this repo. Everything downstream is already written up.
-2. **The next trading morning, 09:15 — `npm run dev`, then `npm run open:checks`.** It drives
-   `/api/scan?source=dhan` live and recomputes the funnel from the scan's own per-stock trace,
-   measures P8's AC5 (no two chain calls closer than 3000 ms while that scan runs), records the
-   clock time `NSE_EQ` `net_change` first leaves zero, re-checks P21 on NSE with the session on,
-   and answers the one question P25 left open: **whether NSE's option-chain `last_price` lags its
-   own quote the way MCX's does.** Also read `.cache/scan-task.log` for the 09:20 task. The
-   21 Sep run fired on time (09:20:04, prices as-of 09:19:48 — 16 s stale, `status=ok`).
-3. **P9's opening-candle decision, then the PRs.** Ask whether `median20` should stay inside the
-   session — every live blue fires in the first 20 minutes because `median20` at the open reaches
-   back into yesterday's quiet tail. Then merge the stack in order.
+*(Updated at the close of the 26 Sep session.)*
+0. **Mon 28 Sep, before 09:10:** `npm run check` (READY), and make sure 8787 is up. It renews the token and runs the P53 index book.
+1. **Mon 28 Sep, open and close:** P53 AC8 (the 920 lines at 09:21, touches and trades on the Paper tab). P56 at 10/11/12. After 15:31: P47 AC5, P46, P41, the live paper day. After 16:00: P48 AC3 and P45 AC5 (`/api/shadow` holds 28 Sep).
+2. **Ground truth for the LTP track (the user's call):** the tool's 7-day premium, to capture `calReversal` / `putReversal` for 2–3 days (P55 found the app receives them from its server). That settles OQ-1: our extensions sit 2.7× too far out (P52 Q11). Then re-run P50–P52.
+3. **Optional, long:** `npm run opthist -- --all` (P39 for the whole year, several hours) before any live change based on P44.
 
 ## Session log
 | Date | Phase | What happened |
