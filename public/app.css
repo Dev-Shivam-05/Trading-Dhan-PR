@@ -1046,6 +1046,10 @@ body:has(#paper:not([hidden])) .optwin{display:none!important}
 .sb-rules label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .sb-status{margin:0;padding:0 16px 12px;font-size:12px;color:var(--fg-muted);font-variant-numeric:tabular-nums}
 .sb-status.bad{color:var(--warn)}
+/* P53: the index book's notes line up with its tables, and its status sits inside the control row */
+.pp-ix h3 span{font-weight:400;color:var(--fg-faint)}
+.pp-ix .pp-hint,.pp-ix .scan-none{padding:8px 16px}
+.pp-ix .sb-ctl .sb-status{padding:0}
 .sb-sub{padding:0 16px 8px;font-size:11px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:.06em}
 .pp-flag{color:var(--warn);font-size:11px;margin-left:6px;cursor:help}
 @media (max-width:1100px){ .pp-two{grid-template-columns:1fr} }

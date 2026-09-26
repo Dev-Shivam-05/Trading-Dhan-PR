@@ -29,6 +29,8 @@ const state = {
   timer: null,
   /** phone-sandbox-v1.md P41 row 7: the sandbox's own state, read from /api/sandbox. */
   sb: { dates: null, view: null, busy: false, notice: null },
+  /** index-paper-v1.md (P53): the NIFTY index book, read from /api/index-paper. */
+  ix: { view: null, error: null, busy: false },
 };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
@@ -123,6 +125,90 @@ async function load() {
   }
   render();
   loadSandbox();
+  loadIndex();
+}
+
+/* ---------------------------------------------------------------- the index book (P53) */
+
+async function loadIndex() {
+  try {
+    const res = await fetch('/api/index-paper');
+    // A server started before P53 has no such route; public/ is read per request, so this file can reach it first.
+    if (res.status === 404) throw new Error('this server predates the index book — restart it to start the book');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.ix.view = await res.json();
+    state.ix.error = null;
+  } catch (e) {
+    state.ix.error = e.message ?? String(e);
+  }
+  renderIndex();
+}
+
+async function ixPost(path, body = {}) {
+  if (state.ix.busy) return;
+  state.ix.busy = true;
+  try {
+    const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (res.ok) state.ix.view = await res.json();
+  } finally {
+    state.ix.busy = false;
+    renderIndex();
+  }
+}
+
+const IX_REASON = { target: 'Target', stop: 'Stop', time: '14:30 time exit', state: 'Scenario turned against', manual: 'Squared off by hand' };
+const IX_OUTCOME = {
+  accepted: 'traded', used: 'second touch', window: 'outside the window', side: 'scenario forbids this side',
+  'no-stop': 'no stop line', 'stop-on-entry': 'stop on the entry', target: 'no target', ratio: 'stop wider than target',
+  iv: 'IV gate', busy: 'book already open', 'no-price': 'no option price', disarmed: 'disarmed',
+};
+
+function renderIndex() {
+  const body = $('ixBody');
+  if (!body) return;
+  const v = state.ix.view;
+  if (!v) {
+    $('ixStatus').textContent = state.ix.error ? `Not reachable: ${state.ix.error}` : 'Loading…';
+    body.innerHTML = '';
+    return;
+  }
+  const armBtn = $('ixArm');
+  armBtn.setAttribute('aria-pressed', String(v.armed));
+  armBtn.textContent = v.armed ? 'Armed' : 'Disarmed';
+  armBtn.title = v.armed ? 'Disarm: no new index trades; open ones run to their exit.' : 'Arm: trade the next first touch of a drawn line.';
+  armBtn.disabled = state.ix.busy;
+  const open = v.positions.filter((p) => p.status === 'open');
+  $('ixExitAll').disabled = state.ix.busy || !open.length;
+  $('ixStatus').textContent = v.holding
+    ? `Watching the NIFTY chain · ${v.minutes} minute${v.minutes === 1 ? '' : 's'} built today${v.verdict ? ` · ${v.verdict}` : ''}`
+    : `Idle until 09:14 on the next trading day · ${v.mode === 'replay' ? 'REPLAY' : 'LIVE'}`;
+
+  const lines = v.lines920
+    ? `<table class="scan-t pp-t"><thead><tr><th class="l">920 line</th><th>Level</th><th class="l">Buy</th><th class="l">Note</th></tr></thead><tbody>${
+      v.lines920.map((l) => `<tr><td class="l">${esc(l.name)}</td><td>${num(l.value)}</td><td class="l">${l.name.startsWith('EOR') ? 'PE' : 'CE'}</td><td class="l">${l.missing ? `missing (${esc(l.missing)})` : ''}</td></tr>`).join('')
+    }</tbody></table><p class="pp-hint">Gap width ${num(v.gapWidth)} points (V117 found gaps over 100 lose on NIFTY).</p>`
+    : '<p class="scan-none">The 920 lines are drawn at 09:21 from the 09:20 chain.</p>';
+  const drawn = v.drawn.length
+    ? `<p class="pp-hint">Drawn now: ${v.drawn.map((d) => `${esc(d.book === '920' ? '920' : 'AI')} ${esc(d.line)} ${num(d.level)}${d.permitted ? '' : ' (side not permitted)'}`).join(' · ')}</p>` : '';
+  const pos = v.positions.length
+    ? `<table class="scan-t pp-t"><thead><tr><th class="l">Book</th><th class="l">Line</th><th class="l">Option</th><th>Lots</th><th>Entry</th><th>Now / exit</th><th class="l">Status</th><th>Net ₹</th></tr></thead><tbody>${
+      v.positions.map((p) => `<tr><td class="l">${esc(p.book === '920' ? '920' : 'AI')}</td><td class="l">${esc(p.line)} <span class="pp-sub">${hms(p.entryAt)}</span></td>
+        <td class="l">${num(p.strike, 0)} ${esc(p.buy)}${p.fill === 'chain' ? ' <span class="pp-sub">chain fill</span>' : ''}</td><td>${int(p.lots)}${p.overBudget ? ' ⚠' : ''}</td>
+        <td>${num(p.entryPx)}</td><td>${num(p.status === 'open' ? p.ltp : p.exitPx)}</td>
+        <td class="l">${p.status === 'open' ? `open · stop ${num(p.stop)} · target ${num(p.target)}` : esc(IX_REASON[p.reason] ?? p.reason)}${p.blind ? ' · <b>blind</b>' : ''}</td>
+        <td class="${dirClass(p.net)}">${p.net === null ? '—' : signed(p.net)}</td></tr>`).join('')
+    }</tbody></table><p class="pp-hint">Today: ${int(v.totals.trades)} trade(s), gross ${signed(v.totals.gross)}, costs ${num(v.totals.cost)}, net ${signed(v.totals.net)}.</p>`
+    : '<p class="scan-none">No index trade today.</p>';
+  // Most touches land after the entry window; listing them one by one buries the ones that decided something.
+  const late = v.touches.filter((t) => t.outcome === 'window');
+  const told = v.touches.filter((t) => t.outcome !== 'window');
+  const touches = v.touches.length
+    ? `<details class="pp-nt"><summary>Touches today (${v.touches.length})</summary><ul>${
+      told.map((t) => `<li>${esc(t.hm)} <b>${esc(t.book === '920' ? '920' : 'AI')} ${esc(t.line)}</b> at ${num(t.level)} — ${esc(IX_OUTCOME[t.outcome] ?? t.outcome)}</li>`).join('')
+    }${late.length ? `<li>${late.length} more after the entry window (920 until 11:29, AI until 14:29), not traded</li>` : ''}</ul></details>` : '';
+  const hist = v.history.length
+    ? `<p class="pp-hint">Earlier: ${v.history.map((h) => `${esc(h.date)} ${int(h.trades)} trade(s) ${signed(h.net)}`).join(' · ')}</p>` : '';
+  body.innerHTML = lines + drawn + pos + touches + hist;
 }
 
 /* ---------------------------------------------------------------- sandbox (P41) */
@@ -378,6 +464,8 @@ document.addEventListener('ws', (e) => { if (e.detail !== 'paper') close(false);
 $('ppArm')?.addEventListener('click', () => post('/api/paper/arm', { armed: !(state.view?.armed) }));
 $('ppExitAll')?.addEventListener('click', () => post('/api/paper/exit-all'));
 $('ppRun')?.addEventListener('click', () => post('/api/paper/run'));
+$('ixArm')?.addEventListener('click', () => ixPost('/api/index-paper/arm', { armed: !(state.ix.view?.armed) }));
+$('ixExitAll')?.addEventListener('click', () => ixPost('/api/index-paper/exit-all'));
 $('ppBody')?.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-exit]');
   if (b && !b.disabled) post('/api/paper/exit', { id: b.dataset.exit });
@@ -404,6 +492,7 @@ window.__paper = {
   closed: () => state.view?.closed ?? [],
   notice: () => state.notice,
   sandbox: () => state.sb.view,
+  index: () => state.ix.view,
   reload: load,
 };
 

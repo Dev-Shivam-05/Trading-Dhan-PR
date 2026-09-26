@@ -26,6 +26,8 @@ import { runBacktest, lastRunDate, saveScan } from './history.ts';
 import { jobDue } from './backtest.ts';
 import { TickRecorder } from './ticks.ts';
 import { ChainRecorder } from './chainrec.ts';
+import { IndexPaper } from './index-paper.ts';
+import { CACHE_DIR } from './paths.ts';
 import { notify } from './notify.ts';
 import { SandboxManager, sandboxDates, SPEEDS, NO_RULES, type Speed } from './sandbox.ts';
 import { FeedClient, TickHistory, type Subscription, type Tick, type FeedState } from './feed.ts';
@@ -224,7 +226,49 @@ if (chainRecorder) setInterval(() => {
   chainRecorder.step(Date.now()).catch(e => console.error(`[chains] step failed: ${(e as Error).message}`));
 }, 1000).unref();
 
+/*
+ * P53 (index-paper-v1.md): the NIFTY index paper book. One more subscriber of the nearest-expiry NIFTY poller (row 1,
+ * no new Dhan call) and its own reserved feed key for the index and the legs it may buy. Paper only: it is handed no
+ * order endpoint, because none exists.
+ */
+const INDEX_CONN = -3;
+const niftyExpiry = (): string | null => {
+  const e = registry ? findInstrument('NIFTY')?.expiries?.filter(x => x >= todayIso()).sort()[0] : undefined;
+  return e ?? null;
+};
+// The master holds ~170,000 rows; the book asks for its legs every second, so each expiry's map is built once.
+let niftyOptions: { expiry: string; map: Map<string, number> } | null = null;
+const indexPaper = new IndexPaper({
+  dir: CACHE_DIR,
+  mode: isReplay() ? 'replay' : 'live',
+  lot: () => (registry ? findInstrument('NIFTY')?.lot : null) ?? 65,
+  expiry: niftyExpiry,
+  optionId: (expiry, strike, type) => {
+    if (niftyOptions?.expiry !== expiry) {
+      niftyOptions = { expiry, map: new Map(optionContracts('NIFTY', expiry).map(c => [`${c.strike}${c.optionType}`, c.securityId])) };
+    }
+    return niftyOptions.map.get(`${strike}${type}`) ?? null;
+  },
+  indexId: 13,
+  poller: () => {
+    const inst = registry ? findInstrument('NIFTY') : undefined, e = niftyExpiry();
+    return inst && e ? hub.get(inst, e) : null;
+  },
+  onWants: (subs) => {
+    if (subs.length) feedWants.set(INDEX_CONN, subs);
+    else feedWants.delete(INDEX_CONN);
+    refreshFeedSubscriptions();
+  },
+  // Row 12: live only, like the stock book (P40): replay's fills would read as real trades on a lock screen.
+  onEvent: (e) => {
+    if (isReplay()) return;
+    void notify(`PAPER ${e.title}`, e.body, { urgent: true })
+      .then(r => { for (const o of r) if (!o.ok) console.error(`[index-paper] ${o.channel} push failed: ${o.detail}`); });
+  },
+});
+
 feed.on('tick', (t: Tick) => {
+  indexPaper.onFeedTick(t);
   const id = underlyingOf.get(`${t.seg}:${t.securityId}`);
   if (id && t.ltp !== null) history.push(id, t.at, t.ltp);
   paper.onFeedTick(t);
@@ -567,6 +611,18 @@ function bodyWith(b: unknown, keys: string[]): Record<string, unknown> | null {
 
 app.get('/api/paper', async () => paper.view());
 
+app.get('/api/index-paper', async () => indexPaper.view());
+app.post('/api/index-paper/arm', async (req, reply) => {
+  const b = bodyWith(req.body, ['armed']);
+  if (!b || typeof b.armed !== 'boolean') return reply.code(400).send({ error: 'body must be {"armed": true|false}' });
+  await indexPaper.setArmed(b.armed);
+  return indexPaper.view();
+});
+app.post('/api/index-paper/exit-all', async () => {
+  await indexPaper.exitAll();
+  return indexPaper.view();
+});
+
 app.post('/api/paper/arm', async (req, reply) => {
   const b = bodyWith(req.body, ['armed']);
   if (!b || typeof b.armed !== 'boolean') return reply.code(400).send({ error: 'body must be {"armed": true|false}' });
@@ -806,6 +862,8 @@ const start = async () => {
   // After the registry: the paper trader's lookup reads the master that resolveRegistry loads.
   await paper.load();
   paper.start();
+  await indexPaper.load();
+  indexPaper.start();
 
   const mode = isReplay() ? 'REPLAY (synthetic data)' : 'LIVE (Dhan API)';
   const lines = registry.instruments.map(i =>

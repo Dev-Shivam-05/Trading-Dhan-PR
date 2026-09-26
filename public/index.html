@@ -128,6 +128,18 @@
     </header>
     <p class="pp-rules" id="ppRules"></p>
     <div class="pp-body" id="ppBody"></div>
+    <!-- index-paper-v1.md (P53): the NIFTY index book, beside the stock book. Its buttons are static markup, so the
+         once-a-second re-render of #ixBody never swaps a button out from under the pointer. -->
+    <section class="card scan-sec pp-sec pp-ix" id="ppIndex" aria-labelledby="ixTitle">
+      <h3 id="ixTitle">NIFTY index book · 920 + AI LTP <span>P34 rules · paper · no real orders</span></h3>
+      <div class="sb-ctl">
+        <span class="sb-status" id="ixStatus">Loading…</span>
+        <span class="grow"></span>
+        <button class="tog" id="ixArm" type="button" aria-pressed="true">Armed</button>
+        <button class="tog" id="ixExitAll" type="button">Square off</button>
+      </div>
+      <div id="ixBody"></div>
+    </section>
     <!-- phone-sandbox-v1.md P41 row 7: the sandbox. Its controls are static markup, so the once-a-second
          re-render of #sbBody never resets a select or a checkbox under the pointer. -->
     <section class="card scan-sec pp-sec pp-sb" id="ppSandbox" aria-labelledby="sbTitle">
