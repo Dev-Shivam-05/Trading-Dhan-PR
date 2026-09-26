@@ -732,3 +732,10 @@ every unsourced value marked GUESS (memory: delegated decisions).
   NSE/Dhan schedule (GUESS).
 - **No configuration is recommended.** The walk-forward's out-of-sample net is +₹65k with one fill model and −₹48k with
   the other. The P34 rules lose under both. Nothing changes in any live or paper setting.
+
+## 2026-09-26 — P52: how an open question counts as settled
+- **One rule, written before the run:** both fill models must agree, every arm needs ≥ 20 trades, and "better" is ₹ net per
+  trade. A question that fails the rule is printed as not settled, with the reason.
+- **Settled answers are recommendations, not settings.** Nothing in P32/P33/P53 or any live rule changes because of P52.
+- **The combination of the settled pieces is not adopted.** Settling Q1, Q4 and Q8 one at a time and then stacking them
+  would fit the history. P53 trades P34's rules (the user's) and reports the variants beside them.

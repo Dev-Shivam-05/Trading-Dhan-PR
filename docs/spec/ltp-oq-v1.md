@@ -45,3 +45,34 @@ decisions).
 
 ## Out of scope
 Changing any default, live rule or paper setting; indices other than NIFTY; the reversal formula.
+
+## Result (2026-09-26, built on `p52-oq-by-data`)
+`npm run ltpoq:test` **6/6** (AC2 the verdict rule; AC3 the additions are byte-identical to P51 when unused: 157 trades,
+−₹61,375 / −₹85,917). AC4: `ltpbt:test` 27/27, `ltplines:test` 65/65. AC5: tsc clean, `ltpstate:test` 45/45, `ltp:test`
+29/29, `chainhist:test` 50/50. AC1: `npm run ltpoq` prints a verdict for all eleven questions. The full tables are in
+`.cache/ltp-oq-report.json`.
+
+| # | Verdict | The numbers (₹ net per trade, touch / late1m) |
+|---|---|---|
+| Q1 OQ-33, 920 | **SETTLED: the OUTER lines** (EOR+1, EOS−1) | outer **+1,582 / +1,711** (50 trades, median stop 35 pts). inner −358 / −704 (111 trades, median stop 61 pts). This **agrees with V48/V51/V61** (outer = safe, smaller stop) and **contradicts V117** |
+| Q1b OQ-33, AI | not settled: the fills disagree | Moderate +1,141 / +641 (28 trades); Risky +837 / +673 (135 trades) |
+| Q2 OQ-9 depth | not settled: the fills disagree (ITM 1 vs ITM 4) | Every depth loses. Premium captured per index point: 0.45 (nearest), 0.61, 0.73, 0.87 (4 ITM). V107's "36 of 50" is 0.72 |
+| Q3 OQ-2 basis | not settled: no OI-only level was ever traded | Both factors **+1,577 / +1,587** (53 trades); volume only **−1,394 / −1,635** (104). The one comparison possible agrees with V05: both > volume |
+| Q4 stop size | **SETTLED: 50/30** (target/stop, index points) | 50/30 is the only positive cell (+67 / +165). V99's own best, 30/20, is −451 / −525 here. Widening the target, not the stop, is what helps on this data |
+| Q5 gap filter | SETTLED on the rule's letter: ≤ 400 beats no filter | **Every arm loses** (≤ 400: −288 / −532). No gap threshold makes the 920 book profitable. The narrow-gap days V117 praises are the worst here (≤ 150: −1,686 / −2,289) |
+| Q6 920 hour | **SETTLED: 10:00–10:59** | 10h −64 / −147; 09h −687 / −1,151; 11h −720 / −493. It agrees with V117 ("profits between 10 and 11") in ranking, but even 10h is not positive |
+| Q6b AI hour | not settled: three hours have fewer than 20 trades | 10h and 12h lead under both fills |
+| Q7 indices | not measurable | NIFTY only |
+| Q8 OQ-15 target | **SETTLED: 50 points (V117)** | −1 / +20, about breakeven. Next divergence (P34) −391 / −547. Next line (V48) −705 / −831 |
+| Q9 IV gate | not settled: the fills disagree | Gate on removes 81 of 138 AI trades |
+| Q10 OQ-22 | not measurable on this reconstruction | Price was never past a 920 line at 09:21 (P50), so the forecast's condition never occurs |
+| Q11 OQ-1 | recorded | Extension median 99 / 88 / 101 points in 2024 / 2025 / 2026 = **0.36–0.42% of the index, 2.7× V09's midpoint**. Gap width ≤ 100 on 18 of 677 days |
+
+**What this changes: nothing live** (the spec's rule). On the board as recommendations for a forward test, not as settings:
+- **Q1** is the most solid: the outer 920 lines beat the inner ones under both fills, and their stops are about half as wide.
+- **Q4 and Q8** both favour a **fixed 50-point target** over the structural one.
+- The pieces were settled one at a time. The combination (outer lines, 50/30) was **not** tested as a whole, and picking it
+  now would be fitting the history. P53's paper book therefore runs **P34's rules**, the user's own. Its report
+  labels the outer-line and 50-point variants as shadow numbers.
+- All of it rests on lines that sit 2.7× further out than V09 says (Q11). The first ground-truth check against the tool
+  (the 7-day premium) could move every row of this table.
