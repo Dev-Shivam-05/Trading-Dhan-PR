@@ -28,3 +28,20 @@ indicators that need their own scale. Every GUESS row can be vetoed in one word.
 
 ## Out of scope
 More than one pane, resizing the pane by drag, per-pane crosshair values, and user-editable MACD parameters.
+
+## Result (2026-09-26, built on `p58-subpane`)
+- `npm run ind:test` **38/38**: RSI reproduces StockCharts' published Wilder example (19 values to 2 dp). RSI and MACD
+  agree with second implementations over 2,000 candles, 0 mismatches. RSI is 100 with no losses, and a straight line
+  gives MACD the constant lag difference (1.5 for 3/6).
+- `.cache/p58-verify.js` **22/22**:
+  - Each pane gives a frame of `H − paneH` (312 − 94), the overlays stop 102 px up, and the time labels sit above the pane.
+  - Each pane's legend equals the recomputed series at the last candle.
+  - A drag over the pane draws nothing, **and the same drag over the price plot draws a trendline**, so the check can
+    fail.
+  - The choice persists across a reload, `—` restores the full height exactly, and there are zero console errors.
+- **AC5, frame time.** The first run read p95 3.9 ms. Three later runs read 9.0–10.2 ms, but at the same time the "nothing
+  on" baseline read 8.1 ms, so the machine was busy (a research agent was running). On a quiet machine, the median of
+  three runs per configuration, interleaved: nothing 2.5, P57 defaults 2.8, every overlay 2.9, **every overlay + MACD
+  3.0 ms**. The pane and the overlays cost about 0.5 ms.
+- AC6: with the pane off, P19 **62/62**, P25 **44/44** and P57 **20/20**.
+- One fix came from the screenshots: the "Pane" label wrapped away from its chips. Label and chips now wrap as one unit.
