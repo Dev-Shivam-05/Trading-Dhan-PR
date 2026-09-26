@@ -12,7 +12,7 @@ demonstrated"). History only: no UI.
 |---|---|---|---|
 | 1 | Which instrument | NIFTY weekly only. Monthly ranges (Bank Nifty, Fin Nifty, stocks) are out of scope | §16.2; only NIFTY chains are rebuilt (P48) |
 | 2 | The week | All sessions sharing one W1 expiry (P48's calendar, holiday- and Muhurat-aware). The first group in the data (it starts mid-week) is dropped | V88: "the week runs from the Wednesday after expiry"; OQ-25 resolved as "after the settle on expiry day" |
-| 3 | When it is computed | At the close of the **09:15 minute on the week's first session**, from the new W1 chain. **Deviation, declared:** the tool computes after the 16:00 settle on expiry day (V88). On that evening our only chain is the expiring contract (W2 exists only from Sep 2026). The overnight gap therefore sits **inside** our band's starting point, not outside it | P48 data limit |
+| 3 | When it is computed | At the close of the **09:15 minute on the week's first regular session** (amended at build: two weeks open on a Muhurat evening, 1 Nov 2024 and 21 Oct 2025, which has no 09:15; the next session is used), from the new W1 chain. **Deviation, declared:** the tool computes after the 16:00 settle on expiry day (V88). On that evening our only chain is the expiring contract (W2 exists only from Sep 2026). The overnight gap therefore sits **inside** our band's starting point, not outside it | P48 data limit |
 | 4 | Method **σ** (the SD reading) | centre = the index at row 3's minute. σ = centre × IV/100 × √(T/365), with IV = the mean of the CE and PE IV at the strike nearest the centre, and T = calendar days from row 3's minute to the expiry at 15:30. **L1 = ±1σ, L2 = ±2σ, L3 = ±3σ** (RL above, SL below). **GUESS** (the multiples) | §16.1: the hit rates are "essentially 1σ / 2σ / 3σ" (65 / 95 / 99); §16.4 names IV and standard-deviation rules |
 | 5 | Method **straddle** (V118) | The ATM straddle (CE + PE LTP at the strike nearest the centre) × **0.90** (V118's before-noon discount) = the L1 distance. L2 and L3 are **2× and 3×** it. **GUESS** (the multiples) | §16.7 is "the better-specified alternative"; V118 gives L1 only |
 | 6 | Hit rate: path | The share of weeks whose index path (every minute's high and low, row 3's minute through the expiry day's 15:29) **never leaves** ±Lk | §16.1's "L3 rarely even reached" reads as a statement about the path |
@@ -33,3 +33,29 @@ demonstrated"). History only: no UI.
 
 ## Out of scope
 Monthly ranges; the ±375 projection (V50, OQ-17: its scaling is never given); range-writing strategies (§17.4); UI.
+
+## Result (2026-09-26, built on `p54-weekly-range`)
+`npm run ltprange:test` **16/16**:
+- AC1: both bands to the paisa by hand.
+- AC2: 680 of 680 sessions sit in exactly one week, the partial first week is dropped, and Diwali 2025's week closes on
+  Monday 20 Oct.
+- AC3: the scoring boundaries hold.
+- AC4: a raw-array second implementation agrees on 6 of 6 cells.
+- AC6: no `dhan.ts` and no clock. tsc clean, `chainhist:test` 50/50.
+
+`npm run ltprange`: 142 complete weeks (2024-01-05 → 2026-09-22):
+| Band (claim) | σ method, path inside | σ, expiry close inside | straddle method, path | straddle, close |
+|---|---|---|---|---|
+| L1 (~65%) | 46.5%, narrower | **69.7%, matches** | 25.4%, narrower | 57.0%, narrower |
+| L2 (~95%) | **90.1%, matches** | **97.2%, matches** | 74.6%, narrower | 85.2%, narrower |
+| L3 (>99%) | **99.3%, matches** | **100%, matches** | 93.7%, narrower | 97.9%, matches |
+
+Median week size (RL1 − SL1): σ 790 points (3.4% of the index); straddle 573 (2.4%).
+
+**What it says about OQ-16:**
+- The corpus's hit rates are **what ±1/2/3σ bands from the ATM IV give**, when "hit rate" means **where the expiry close
+  lands**. That is V131's use ("expect the close back inside the range").
+- Read as "the week's path never leaves the band", L1 holds only 46% of weeks.
+- V118's straddle projection, with 2× and 3× for L2/L3 (our GUESS), is too narrow for the claims. Its L1 is **not** the tool's L1.
+- This does **not** prove the tool uses σ bands. It shows that σ bands reproduce the published numbers, which the straddle
+  reading does not.
