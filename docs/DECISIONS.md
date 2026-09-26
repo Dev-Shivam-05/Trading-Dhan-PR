@@ -709,3 +709,17 @@ subscriptions and the ₹5,899 community fee are not needed, because the system 
 - **Both sides bearish = scenario 6 (blood bath)**, per V13 and V37 over V47 (OQ-14).
 - **Three GUESSes, open to a one-word veto:** a re-seat (price through the level) counts as a shift; the Game of Percentage looks back 5 minutes with a 1.0-point dead-band; IV counts as moving at 2.0 points from 09:20.
 - **History only.** No UI, no live wiring. The live read waits until the rules are checked against the tool's banner.
+
+## 2026-09-26 — P50: the line sets, locked by delegation
+The user said "go for it and complete all the pending phases … without stopping", so the spec was locked without a vote,
+every unsourced value marked GUESS (memory: delegated decisions).
+- **P34 is folded in, on the user's own answers of 2026-09-23**: stop at extension ±2 (EOR+2 / EOS−2), target the next
+  divergence, first touch only. V48's "+10 points" stop reading is not used; V61 and V114 state the structure without it.
+- **A touch is read from NIFTY's own 1-minute high/low**, fetched once (`npm run idxhist`, 12 calls). The chain's `spot`
+  is not the minute close after Oct 2025, so it could not serve.
+- **AI lines are recomputed every minute, and a trade uses the previous minute's line** (no look-ahead).
+- **GUESSes:** S/R Risky = the strongest inward challenger, even if it is under 75%; Max Gain = the next divergence, with
+  the other side's Moderate as the fallback; a neutral scenario draws nothing; no counter-trend trades; AI entries until
+  14:29; the IV gate is a veto that is off by default.
+- **Not changed, recorded instead:** the reversal formula. The lines' distances disagree with the corpus's two published
+  numbers (V09, V117) by about 3×. P29 row 12 stays as approved until the tool's own numbers settle it.

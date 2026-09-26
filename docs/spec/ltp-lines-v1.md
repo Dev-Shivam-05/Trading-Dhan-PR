@@ -82,3 +82,48 @@ Both are unchanged.
 ## Out of scope
 Pricing and P&L (P51); settling OQ-15/22/33 by data (P52); live wiring and the paper book (P53); the stock C1/C2/P1/P2
 set (§11.5, a stock path); counter-trend trades; V109's "percentage running to 100" warning; averaging.
+
+## Amendments at build (2026-09-26) — both record a measured fact that the table had wrong
+- **AC8.** The pre-spec measurement (three minutes of 1 Jan 2024) said the chain's `spot` **is** the index close. That
+  holds to Sep 2025 (99.995% of 162,609 minutes). From Nov 2025 it does not: the rebuild's `spot` is sampled **inside**
+  the minute (Dec 2025 26% of minutes differ, Sep 2026 61%). It sits within the index bar's [low, high] on 99.1% of all
+  253,814 minutes, and where it falls outside the median miss is 0.45 points. AC8 now asserts both facts. Touches read the
+  index bar (row 2), so P50 is unaffected. **P48/P49's `spot` is not the minute close after Oct 2025**, so an imaginary
+  line can sit a few points off. That is recorded for P52, not fixed here.
+- **AC5, real-data half.** Four of the seven vetoes fire on the 680 days: window 6,068, used 2,046, ratio 312, side 2.
+  Three never fire. (e) stop-on-entry **cannot**: Max Pain is two strikes out, and reversal prices rise with the strike
+  (AC1: 0 violations). (d) no-stop needs the leg two strikes past a **touched** AI level to be missing. (f) needs a Max
+  Gain behind its entry, and row 15's fallback prevents that. All three stay as defence-in-depth, are exercised by
+  fixtures, and have their real counts printed on every run.
+
+## Result (2026-09-26, built on `p50-ltp-lines`)
+`npm run ltplines:test` **65/65**:
+- AC1–AC5 pass on hand-built chains and a hand-built day.
+- AC1's order holds on all 680 days.
+- AC5 accounts for **8,601 touches = 8,601 signals** counted in a separate loop.
+- AC6: minute i's own chain ×1.5 leaves its AI signals unchanged, and the same change one minute earlier moves them.
+- AC7: a second implementation agrees on **every day's 920 lines and touches, 0 mismatches**. With the stops swapped
+  it differs on 362 days.
+- AC8 as amended. AC9 is byte-identical, with no `dhan.ts` and no clock.
+- AC10: tsc clean, `ltpstate:test` 45/45, `ltp:test` 29/29, `chainhist:test` 50/50.
+- `npm run idxhist` stored 253,940 index minutes (2024-01-01 → 2026-09-25) in 12 calls.
+
+**What the history says**, from `npm run ltplines` (679 session days):
+| Measure | Value |
+|---|---|
+| 920 lines drawn | all 4 on 661 days, 2 on 15, 0 on 1 (2 days had no 09:20 reading). No day ever lost a line to "beyond": at 09:21 price was never past a line |
+| 920 touches | 5,614, of which **161 accepted**. 4,055 fall after 11:29 (window), 1,237 are later touches (used), 161 fail the ratio gate |
+| AI touches | 2,987, of which **12 accepted**. 2,013 fall after 14:29, 809 used, 151 ratio, 2 side |
+| **Gap width EOR − EOS at 09:20** | **median 277 points**, p10 149, p90 508. **≤ 100 on only 18 of 677 days** |
+| **Extension distance** (the premium at the level, EOR − R or S − EOS) | **median 96 points**, p10 34, p90 173 |
+
+**Read these before building on the lines. They are the strongest evidence yet on OQ-1:**
+- **V09 puts the level → extension distance at "~25–35 points on Nifty near 20,000".** Under P29 row 12
+  (`K ± LTP`) the median is **96**. The p10 (34) is where V09 says the typical value sits.
+- **V117's Nifty backtest had gaps above 100 points on only 12 trades out of 84 or more.** Here the gap is above
+  100 on **659 of 677 days**. With lines this far apart, price rarely reaches them before 11:30, and that is why the
+  window vetoes dominate.
+- Both point the same way: **the tool's reversal price sits about a third as far from the strike as the writer's
+  break-even does.** This is not changed here, because the user approved row 12 (`go`, 2026-09-23) and one function
+  holds the formula. P52 measures the candidates against these two published numbers, and the tool's 7-day premium
+  settles it.
