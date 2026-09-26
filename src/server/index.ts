@@ -27,6 +27,7 @@ import { jobDue } from './backtest.ts';
 import { TickRecorder } from './ticks.ts';
 import { ChainRecorder } from './chainrec.ts';
 import { IndexPaper } from './index-paper.ts';
+import { runShadow, readShadow } from './shadow.ts';
 import { CACHE_DIR } from './paths.ts';
 import { notify } from './notify.ts';
 import { SandboxManager, sandboxDates, SPEEDS, NO_RULES, type Speed } from './sandbox.ts';
@@ -81,6 +82,13 @@ if (!isReplay() && creds) {
       console.log(`[backtest] done: ${r.sessions.length} sessions to ${r.lastDay}, ${r.calls} Dhan calls, ${r.failed.length} failed`);
     } catch (e) {
       console.error(`[backtest] FAILED: ${(e as Error).message} — next try tomorrow, or run npm run backtest`);
+    }
+    // P45 (shadow-v1.md row 4): after the backtest, P44's engine on the new day. Its own failure never touches the backtest's.
+    try {
+      const sh = await runShadow(creds, Date.now(), m => console.log(`[shadow] ${m}`));
+      console.log(`[shadow] done: ${sh.sessions.length} forward session(s) since ${sh.after}`);
+    } catch (e) {
+      console.error(`[shadow] FAILED: ${(e as Error).message} — next try tomorrow, or run npm run shadow`);
     } finally {
       backtestBusy = false;
     }
@@ -612,6 +620,7 @@ function bodyWith(b: unknown, keys: string[]): Record<string, unknown> | null {
 app.get('/api/paper', async () => paper.view());
 
 app.get('/api/index-paper', async () => indexPaper.view());
+app.get('/api/shadow', async () => readShadow());
 app.post('/api/index-paper/arm', async (req, reply) => {
   const b = bodyWith(req.body, ['armed']);
   if (!b || typeof b.armed !== 'boolean') return reply.code(400).send({ error: 'body must be {"armed": true|false}' });

@@ -49,7 +49,9 @@
     "ltprange": "node scripts/ltp-range.ts",
     "ltprange:test": "node scripts/ltp-range-test.ts",
     "ind:test": "node scripts/indicators-test.ts",
-    "ipaper:test": "node scripts/index-paper-test.ts"
+    "ipaper:test": "node scripts/index-paper-test.ts",
+    "shadow": "node --env-file-if-exists=.env scripts/shadow.ts",
+    "shadow:test": "node scripts/shadow-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
