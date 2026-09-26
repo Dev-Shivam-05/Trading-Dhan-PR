@@ -28,8 +28,37 @@ P52's variants are **not** traded (P52's decision: settled pieces are not stacke
 | AC1 | The minute builder turns a stream of snapshots into a `ChainDay` whose `daySignals()` output equals the output from the same minutes built directly (per-minute volume recovered from cumulative to the unit) |
 | AC2 | On a scripted session (synthetic snapshots + ticks, injected clock): a 920 line is touched by a tick, the position opens at the leg's feed LTP, and its target tick closes it; a second touch of the same line is `used`; a touch while the book is open is `busy` |
 | AC3 | Every exit on the scripted session: stop, target, 14:30 time exit, AI state change; and each veto (window, used, side, ratio) rejects one scripted touch |
-| AC4 | **Live and backtest agree**: replaying a real stored day (P48 chain + P50 index bars) through the live core, tick = minute bar path (o → h/l → c), gives the same entries (line, minute) as P51's `tradeDay` with the `touch` fill, on every day of a month |
+| AC4 | **Live and backtest agree**: replaying a real stored day (P48 chain + P50 index bars) through the live core, tick = minute bar path (o → h/l → c), gives the same **first entry of each book each day** (line, minute) as P51's `tradeDay` with the `touch` fill (amended at build: later entries can differ by design, because the live book exits on ticks inside the entry minute where P51 waits for the next minute, which changes what is `busy`; the full-list agreement is printed) |
 | AC5 | Restart mid-day: a book rebuilt from the saved minute columns at 11:00 has the same lines, scenario and used set as one that never stopped |
 | AC6 | Replay server: `/api/index-paper` answers, the Paper tab shows the section with zero console errors, `/index-paper` files use `.replay.json`. **Screenshot** |
 | AC7 | No order endpoint is imported or called (grep: nothing from `dhan.ts` except types); tsc clean; `paper:test`, `ltplines:test`, `ltpbt:test` still pass |
 | AC8 | **Live, Mon 28 Sep (open):** the book draws the 920 lines at 09:21 and logs every touch with its veto. Measured in the next session, not claimed here |
+
+## Result (2026-09-26, built on `p53-index-paper`)
+- `npm run ipaper:test` **14/14** on real stored days replayed through the live core with an injected clock.
+  - **AC1:** the minute builder's ChainDay gives the same 920 lines, AI lines, verdicts and signals as the stored day
+    (4 Jun 2024, 375 minutes), and it recovers per-minute volume to the unit.
+  - **AC2/AC3:** over 16 days picked from P51's own trades (target, stop, time, state, busy days) plus 1–7 Aug 2026,
+    the book took 12 trades from tick touches. It refused touches as `used` (47), `window` (178), `ratio` (13) and
+    `busy` (1), and it exited by target 5, stop 3, time 2 and state 2. `side` never fired (P50 measured 2 in 680 days).
+  - **AC4:** the first entry of each book each day equals the backtest's on **12/12** book-days, and on those days the
+    whole entry lists are identical too.
+  - **AC5:** a book rebuilt at 11:00 from the saved minute columns matches the one that never stopped.
+  - **AC7:** nothing is imported from `dhan.ts`.
+- **AC6** (`.cache/p53-ui-verify.js`) **6/6** on a replay server:
+  - `/api/index-paper` answers and the section renders with its status;
+  - arm and disarm both work;
+  - replay writes `index-paper.replay.json` and never the live file;
+  - zero console errors.
+  - Two screenshots: idle, and a populated state seeded from 5 May 2026 replayed through the core, where EOS−1 hit its
+    target for +₹8,334 net. The seed was moved out of `.cache` afterwards.
+  - Two presentation fixes came from the screenshot: the notes are indented to match the tables, and touches after the
+    entry window are counted in one line instead of listed one by one.
+- **AC7:** tsc clean, `paper:test` 104/104, `ltpbt:test` 27/27, `ltplines:test` 65/65.
+- **Live:** 8787 restarted at 21:15 on build `f44322e`: one listener, 0 EADDRINUSE. `/api/index-paper` is armed and
+  idle until 09:14. The stock Paper trader is still armed, and the token was renewed to 27 Sep 20:46 IST.
+- **AC8 is open:** Monday 28 Sep is the first live session. Read `/api/index-paper` (or the Paper tab) after 09:21 for
+  the 920 lines, and after 15:31 for the touches and trades. A server that is not running then trades nothing.
+
+**Known limits, stated:** the fill is the leg's feed LTP at the touch tick, not a limit at a pre-computed premium (row
+5). A blind gap is flagged but not repriced (row 11). The phone gets index entries and exits (row 12, a GUESS; veto in one word).

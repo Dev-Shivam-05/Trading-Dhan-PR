@@ -748,3 +748,10 @@ every unsourced value marked GUESS (memory: delegated decisions).
   does not scroll, and the card had no room left.
 - **The live server was restarted** (evening, market shut, Paper armed state kept) so that `/indicators.js` was on its
   allow-list before `ucandles.js` imported it. Otherwise the user's next reload would have lost the whole client.
+
+## 2026-09-26 — P53: the index paper book
+- **One engine for live and history.** The live book rebuilds the minute chain from snapshots and runs P50's
+  `daySignals()`. Only the tick-level touch and the stop and target ticks are live-specific.
+- **P34's rules, not P52's variants.** The settled pieces are not stacked (P52 decision).
+- **Armed by default, and it posts to the phone** (GUESSes, rows 9 and 12). It is paper, and the user asked for everything to run. One word vetoes either.
+- **The live server was restarted at 21:15** so that the book is running for Monday. That also renewed the token.
