@@ -739,3 +739,12 @@ every unsourced value marked GUESS (memory: delegated decisions).
 - **Settled answers are recommendations, not settings.** Nothing in P32/P33/P53 or any live rule changes because of P52.
 - **The combination of the settled pieces is not adopted.** Settling Q1, Q4 and Q8 one at a time and then stacking them
   would fit the history. P53 trades P34's rules (the user's) and reports the variants beside them.
+
+## 2026-09-26 — P57: the chart indicators
+- **"ETC" became Bollinger Bands only.** RSI, MACD and volume need a pane under the chart, which is a layout phase (P58).
+- **VWAP is drawn wherever the candles carry volume.** NIFTY's index candles from Dhan do (measured). No proxy volume from
+  the future is borrowed.
+- **The settings sit under the preview, not in the controls card.** P19 fixed the dialog at 1040 × 640 with a card that
+  does not scroll, and the card had no room left.
+- **The live server was restarted** (evening, market shut, Paper armed state kept) so that `/indicators.js` was on its
+  allow-list before `ucandles.js` imported it. Otherwise the user's next reload would have lost the whole client.
