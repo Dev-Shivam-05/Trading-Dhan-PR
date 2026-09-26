@@ -745,6 +745,11 @@ body.ucmode .lineonly{display:none!important}
 .sma.ind i{flex:0 0 14px}
 .sma.ind input{width:28px;margin-left:0;font-size:12px}
 .sma.ind input + input{width:30px}
+/* P58 row 7 — the lower-pane radio chips */
+.cs-paneunit{display:flex;align-items:center;gap:8px;margin-left:6px}
+.cs-pane{display:flex;gap:4px}
+.sma.ind.pane{padding:0 10px}
+.sma.ind.pane span{color:var(--fg-muted)}
 .cs-save,.cs-reset{
   height:40px;border:0;border-radius:999px;cursor:pointer;font:600 14px Inter,system-ui,sans-serif;
   transition:opacity 120ms var(--ease),background 120ms var(--ease);

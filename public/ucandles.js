@@ -12,7 +12,15 @@
      (which borrows chart-tools' X/Y, keeping P6 drawings anchored) and the preview (its own X/Y)
      can never draw the same candle two different ways */
 
-import { emaSeries, vwapSeries, supertrendSeries, bollingerSeries, hasVolume } from '/indicators.js';
+import { emaSeries, vwapSeries, supertrendSeries, bollingerSeries, hasVolume, rsiSeries, macdSeries } from '/indicators.js';
+
+/** P58 row 2: the lower pane's height for a strip SVG `H` tall, or 0 when no pane is chosen. */
+export function paneHeight(style, H) {
+  const k = style?.ind?.pane?.kind;
+  return k && k !== 'none' ? Math.max(48, Math.round(0.30 * H)) : 0;
+}
+/** P58 rows 3-4: line colours (GUESS). */
+const PANE_COL = { rsi: '#A78BFA', macd: '#60A5FA', signal: '#F97316' };
 
 /** Row 3. */
 export const INTERVALS = ['1', '5', '15'];
@@ -611,6 +619,92 @@ export function renderSvg(view, o) {
 }
 
 /**
+ * P58: the lower pane, drawn in the band [top, H] of the same SVG, under the price plot's time
+ * labels. `o` carries W, H (the full SVG height), top (the price area's height), the strip's X,
+ * the up/down colours, the formatter, the hovered index and the pane choice.
+ */
+export function renderPane(view, o) {
+  const { W, H, top, X, up, down, inr, pane } = o;
+  const plotW = Math.max(1, W - PAD_R);
+  const y0 = top + 6, y1 = H - 2, ph = Math.max(1, y1 - y0);
+  const { all, s, vis, ivMs } = view;
+  const inWin = (t) => t >= view.t0 - ivMs / 2 && t <= view.t1 + ivMs / 2;
+  let lastIn = vis.length - 1;
+  while (lastIn > 0 && vis[lastIn].t > view.t1) lastIn--;
+  const j = s + (o.hover >= 0 && o.hover < vis.length ? o.hover : lastIn);
+  const slot = (plotW * ivMs) / Math.max(1, view.t1 - view.t0);
+  const bw = Math.max(1, Math.min(15, slot * 0.68));
+  const clip = o.clipId ? `${o.clipId}Pane` : 'ucPaneClip';
+  let body = '', legend = '', axis = '';
+  const lineOf = (vals, Yp) => {
+    let d = '';
+    for (let i = s; i < all.length; i++) if (vals[i] !== null) d += `${d ? 'L' : 'M'}${f1(X(all[i].t))} ${f1(Yp(vals[i]))}`;
+    return d;
+  };
+  const lab = (x, y, text) => `<text x="${f1(x)}" y="${f1(y)}" fill="var(--fg-faint)" font-family="${MONO}" font-size="10">${text}</text>`;
+  const fmt = (v) => (v === null || v === undefined ? '—' : inr(v));
+
+  if (pane.kind === 'rsi') {
+    const n = pane.rsi ?? 14;
+    const r = rsiSeries(all, n);
+    const Yp = (v) => y1 - (v / 100) * ph;
+    for (const [lvl, op, dash] of [[70, 0.6, '3 3'], [30, 0.6, '3 3'], [50, 0.3, '1 3']]) {
+      body += `<line x1="0" y1="${f1(Yp(lvl))}" x2="${f1(plotW)}" y2="${f1(Yp(lvl))}" stroke="var(--fg-faint)" stroke-width="1" stroke-dasharray="${dash}" opacity="${op}"/>`;
+    }
+    body += `<path data-pane="rsi" d="${lineOf(r, Yp)}" fill="none" stroke="${PANE_COL.rsi}" stroke-width="1.4" stroke-linejoin="round"/>`;
+    axis = lab(plotW + 6, Yp(70) + 3.5, '70') + lab(plotW + 6, Yp(30) + 3.5, '30');
+    legend = `<tspan fill="${PANE_COL.rsi}">RSI ${n}</tspan> <tspan fill="var(--fg-muted)">${r[j] === null ? '—' : r[j].toFixed(2)}</tspan>`;
+  } else if (pane.kind === 'macd') {
+    const m = macdSeries(all);
+    let mx = 0;
+    for (let i = s; i < all.length; i++) {
+      if (!inWin(all[i].t)) continue;
+      for (const v of [m.macd[i], m.signal[i], m.hist[i]]) if (v !== null) mx = Math.max(mx, Math.abs(v));
+    }
+    mx = mx || 1;
+    const Yp = (v) => y0 + ph / 2 - (v / mx) * (ph / 2) * 0.92;
+    body += `<line x1="0" y1="${f1(Yp(0))}" x2="${f1(plotW)}" y2="${f1(Yp(0))}" stroke="var(--fg-faint)" stroke-width="1" opacity=".4"/>`;
+    let hu = '', hd = '';
+    for (let i = s; i < all.length; i++) {
+      const v = m.hist[i];
+      if (v === null) continue;
+      const x = X(all[i].t), a = Yp(0), b = Yp(v);
+      const r = `M${f1(x - bw / 2)} ${f1(Math.min(a, b))}H${f1(x + bw / 2)}V${f1(Math.max(a, b) + 0.5)}H${f1(x - bw / 2)}Z`;
+      if (v >= 0) hu += r; else hd += r;
+    }
+    body += (hu ? `<path data-pane="hist-up" d="${hu}" fill="${up}" opacity=".6"/>` : '')
+      + (hd ? `<path data-pane="hist-down" d="${hd}" fill="${down}" opacity=".6"/>` : '')
+      + `<path data-pane="macd" d="${lineOf(m.macd, Yp)}" fill="none" stroke="${PANE_COL.macd}" stroke-width="1.4"/>`
+      + `<path data-pane="signal" d="${lineOf(m.signal, Yp)}" fill="none" stroke="${PANE_COL.signal}" stroke-width="1.2"/>`;
+    axis = lab(plotW + 6, Yp(0) + 3.5, '0');
+    legend = `<tspan fill="${PANE_COL.macd}">MACD 12,26,9</tspan> <tspan fill="var(--fg-muted)">${fmt(m.macd[j])}</tspan>`
+      + ` <tspan fill="${PANE_COL.signal}">${fmt(m.signal[j])}</tspan> <tspan fill="var(--fg-muted)">${fmt(m.hist[j])}</tspan>`;
+  } else if (pane.kind === 'vol') {
+    if (!hasVolume(all)) {
+      legend = `<tspan fill="var(--fg-faint)">Vol — no volume</tspan>`;
+    } else {
+      let mx = 0;
+      for (let i = s; i < all.length; i++) if (inWin(all[i].t)) mx = Math.max(mx, Number(all[i].v) || 0);
+      mx = mx || 1;
+      let vu = '', vd = '';
+      for (let i = s; i < all.length; i++) {
+        const k = all[i], v = Number(k.v) || 0, x = X(k.t), b = y1 - (v / mx) * ph * 0.92;
+        const r = `M${f1(x - bw / 2)} ${f1(b)}H${f1(x + bw / 2)}V${f1(y1)}H${f1(x - bw / 2)}Z`;
+        if (k.c >= k.o) vu += r; else vd += r;
+      }
+      body += (vu ? `<path data-pane="vol-up" d="${vu}" fill="${up}" opacity=".6"/>` : '')
+        + (vd ? `<path data-pane="vol-down" d="${vd}" fill="${down}" opacity=".6"/>` : '');
+      legend = `<tspan fill="var(--fg-faint)">Vol</tspan> <tspan fill="var(--fg-muted)">${inr(Number(all[j]?.v) || 0, 0)}</tspan>`;
+    }
+  }
+  return `<defs><clipPath id="${clip}"><rect x="0" y="${f1(y0 - 2)}" width="${f1(plotW)}" height="${f1(ph + 4)}"/></clipPath></defs>`
+    + `<line data-pane-sep="1" x1="0" y1="${f1(top + 1)}" x2="${f1(W)}" y2="${f1(top + 1)}" stroke="var(--border)" stroke-width="1"/>`
+    + `<g clip-path="url(#${clip})">${body}</g>` + axis
+    + `<text data-pane-legend="1" x="0" y="${f1(y0 + 9)}" font-family="${MONO}" font-size="10" paint-order="stroke" `
+    + `stroke="var(--chart-bg)" stroke-width="3" stroke-linejoin="round">${legend}</text>`;
+}
+
+/**
  * Read-only test seam for the verification scripts, mirroring `window.__chart` and
  * `window.__candles`. Nothing in the app reads it; app.js adds the paint timings.
  */
@@ -624,5 +718,5 @@ window.__ucandles = {
   retryStep: () => store.retryStep,
   retryInMs: () => Math.max(0, store.retryAt - Date.now()),
   retryNow, onReconnect,
-  mergeTick, smaSeries, niceStep, buildView, istDate, indicatorsFor,
+  mergeTick, smaSeries, niceStep, buildView, istDate, indicatorsFor, paneHeight,
 };

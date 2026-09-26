@@ -63,6 +63,8 @@ export const DEFAULTS = Object.freeze({
     ],
     st: { on: true, period: 10, mult: 3 },
     bb: { on: false, period: 20, mult: 2, color: '#A1A1AA' },
+    // P58 row 7: the lower pane, off by default so no existing criterion's geometry moves.
+    pane: { kind: 'none', rsi: 14 },
   },
 });
 
@@ -73,7 +75,9 @@ export const LIMITS = {
   stMult: { min: 0.5, max: 10, step: 0.5 },
   bbPeriod: { min: 2, max: 200, step: 1 },
   bbMult: { min: 0.5, max: 5, step: 0.5 },
+  rsi: { min: 2, max: 100, step: 1 },
 };
+const PANES = ['none', 'rsi', 'macd', 'vol'];
 /** A value inside `lim` on its step grid, or null. */
 export function inLimit(v, lim) {
   const n = Number(v);
@@ -114,6 +118,10 @@ function sanitize(raw) {
     d.ind.bb.on = !!ri.bb.on;
     d.ind.bb.period = inLimit(ri.bb.period, LIMITS.bbPeriod) ?? d.ind.bb.period;
     d.ind.bb.mult = inLimit(ri.bb.mult, LIMITS.bbMult) ?? d.ind.bb.mult;
+  }
+  if (ri.pane && typeof ri.pane === 'object') {
+    if (PANES.includes(ri.pane.kind)) d.ind.pane.kind = ri.pane.kind;
+    d.ind.pane.rsi = inLimit(ri.pane.rsi, LIMITS.rsi) ?? d.ind.pane.rsi;
   }
   if (Array.isArray(raw.sma)) {
     raw.sma.slice(0, 3).forEach((x, i) => {
@@ -332,8 +340,11 @@ function paintPreview() {
   }
   els.msg.hidden = true;
 
+  // P58 row 2: the preview shows the draft's lower pane the same way the strip does.
+  const paneH = draft.mode === 'line' ? 0 : uc.paneHeight(draft, H);
+  const Hp = H - paneH;
   const plotW = Math.max(1, W - uc.PAD_R);
-  const plotH = Math.max(1, H - uc.PAD_B);
+  const plotH = Math.max(1, Hp - uc.PAD_B);
   const X = (t) => ((t - view.t0) / Math.max(1, view.t1 - view.t0)) * plotW;
   const Y = (p) => plotH - ((p - view.lo) / Math.max(1e-9, view.hi - view.lo)) * plotH;
   els.frame = { view, plotW, X, Y };
@@ -342,9 +353,11 @@ function paintPreview() {
   // Line is P5's tick line in the strip. The preview has no tick history to show, so in Line it
   // draws the same candles' closes as a line — the closest honest picture of "line".
   svg.innerHTML = uc.renderSvg(view, {
-    W, H, X, Y, up: col.up, down: col.down, inr: deps.inr, hover, hoverGuide: true, clipId: 'csClip',
+    W, H: Hp, X, Y, up: col.up, down: col.down, inr: deps.inr, hover, hoverGuide: true, clipId: 'csClip',
     line: draft.mode === 'line',
-  });
+  }) + (paneH ? uc.renderPane(view, {
+    W, H, top: Hp, X, up: col.up, down: col.down, inr: deps.inr, hover, clipId: 'csClip', pane: draft.ind.pane,
+  }) : '');
 }
 
 /* --------------------------------------------------------------- controls */
@@ -563,6 +576,63 @@ function renderInd() {
     { field: 'period', name: 'period', lim: LIMITS.bbPeriod },
     { field: 'mult', name: 'deviations', lim: LIMITS.bbMult },
   ], true);
+  // P58 row 7: the lower pane, a radio group of four chips; the RSI chip carries its period.
+  // Label and chips wrap as one unit, so "Pane" never ends a line on its own.
+  const unit = document.createElement('div');
+  unit.className = 'cs-paneunit';
+  const sep = document.createElement('span');
+  sep.className = 'cs-indt';
+  sep.id = 'csPaneLabel';
+  sep.textContent = 'Pane';
+  unit.appendChild(sep);
+  const group = document.createElement('div');
+  group.className = 'cs-pane';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-labelledby', 'csPaneLabel');
+  group.id = 'csPane';
+  for (const [kind, label, title] of [['none', '—', 'No lower pane'], ['rsi', 'RSI', 'RSI (period)'], ['macd', 'MACD', 'MACD 12, 26, 9'], ['vol', 'Vol', 'Volume']]) {
+    const b = document.createElement('div');
+    b.className = 'sma ind pane';
+    b.dataset.k = `pane-${kind}`;
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(I.pane.kind === kind));
+    b.setAttribute('aria-label', title);
+    b.title = title;
+    b.tabIndex = I.pane.kind === kind ? 0 : -1;
+    b.innerHTML = `<span>${label}</span>`;
+    if (kind === 'rsi') {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '2'; inp.max = '100'; inp.step = '1';
+      inp.value = String(I.pane.rsi); inp.className = 'mono';
+      inp.dataset.k = 'pane-rsi'; inp.dataset.f = 'rsi';
+      inp.setAttribute('aria-label', 'RSI period');
+      inp.addEventListener('click', (e) => e.stopPropagation());
+      inp.addEventListener('keydown', (e) => { if (e.key !== 'Tab' && e.key !== 'Escape') e.stopPropagation(); });
+      inp.addEventListener('change', () => {
+        const v = inLimit(inp.value, LIMITS.rsi);
+        if (v !== null) I.pane.rsi = v;
+        inp.value = String(I.pane.rsi);
+        dirty = true;
+      });
+      b.appendChild(inp);
+    }
+    const pick = () => {
+      I.pane.kind = kind;
+      for (const x of group.children) {
+        const on = x.dataset.k === `pane-${kind}`;
+        x.setAttribute('aria-checked', String(on));
+        x.tabIndex = on ? 0 : -1;
+      }
+      dirty = true;
+    };
+    b.addEventListener('click', pick);
+    b.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); pick(); }
+    });
+    group.appendChild(b);
+  }
+  unit.appendChild(group);
+  wrap.appendChild(unit);
   // Hand focus back to the rebuilt control (CLAUDE.md: a re-render takes focus to <body> with it).
   if (keep) {
     const [k, f] = keep.split('|');

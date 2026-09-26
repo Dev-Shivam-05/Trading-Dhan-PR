@@ -114,3 +114,45 @@ export function hasVolume(candles) {
   for (const k of candles) if (Number(k.v) > 0) return true;
   return false;
 }
+
+/* ---------------------------------------------------------------- P58: the lower pane */
+
+/** P58 row 3. Wilder's RSI: the first averages are the plain means of the first n changes. */
+export function rsiSeries(candles, period) {
+  const out = new Array(candles.length).fill(null);
+  const n = Math.round(period);
+  if (!(n >= 1) || candles.length <= n) return out;
+  let g = 0, l = 0;
+  for (let i = 1; i <= n; i++) {
+    const d = candles[i].c - candles[i - 1].c;
+    if (d > 0) g += d; else l -= d;
+  }
+  g /= n; l /= n;
+  const rsi = () => (l === 0 ? 100 : 100 - 100 / (1 + g / l));
+  out[n] = rsi();
+  for (let i = n + 1; i < candles.length; i++) {
+    const d = candles[i].c - candles[i - 1].c;
+    g = (g * (n - 1) + (d > 0 ? d : 0)) / n;
+    l = (l * (n - 1) + (d < 0 ? -d : 0)) / n;
+    out[i] = rsi();
+  }
+  return out;
+}
+
+/** P58 row 4. MACD (fast, slow, signal): the signal EMA is seeded with the mean of the first `sig` MACD values. */
+export function macdSeries(candles, fast = 12, slow = 26, sig = 9) {
+  const f = emaSeries(candles, fast), s = emaSeries(candles, slow);
+  const macd = candles.map((_, i) => (f[i] === null || s[i] === null ? null : f[i] - s[i]));
+  const signal = new Array(candles.length).fill(null);
+  const hist = new Array(candles.length).fill(null);
+  const first = macd.findIndex(v => v !== null);
+  if (first < 0 || candles.length < first + sig) return { macd, signal, hist };
+  let e = 0;
+  for (let i = first; i < first + sig; i++) e += macd[i];
+  e /= sig;
+  signal[first + sig - 1] = e;
+  const a = 2 / (sig + 1);
+  for (let i = first + sig; i < candles.length; i++) { e = a * macd[i] + (1 - a) * e; signal[i] = e; }
+  for (let i = 0; i < candles.length; i++) if (macd[i] !== null && signal[i] !== null) hist[i] = macd[i] - signal[i];
+  return { macd, signal, hist };
+}

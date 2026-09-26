@@ -924,6 +924,7 @@ function drawChart() {
   // P20 row 9: option candles open in their own window (candles.js). This strip is never handed
   // over any more, so P9's early return that blanked it and disabled the tools is gone.
   if (document.body.classList.contains('ucmode')) { drawCandleStrip(); return; }
+  setPaneOverlays(0);                                // the tick line has no pane (P58 row 2)
 
   const svg = $('chartSvg');
   const box = svg.getBoundingClientRect();
@@ -1066,14 +1067,31 @@ function drawCandleStrip() {
   tools.setEnabled(!!view && view.vis.length >= 2);  // chart-tools row 25
   if (!view) { svg.innerHTML = ''; return; }
 
-  tools.setFrame({ W, H, t0: view.t0, t1: view.t1, lo: view.lo, hi: view.hi, pts: view.pts });
+  // P58 row 2: a lower pane takes the bottom of the SVG. Everything the price plot owns — its frame,
+  // time labels, drawings, crosshair, and the two pointer overlays — is handed the height above it.
+  const paneH = uc.paneHeight(style, H);
+  const Hp = H - paneH;
+  setPaneOverlays(paneH);
+  tools.setFrame({ W, H: Hp, t0: view.t0, t1: view.t1, lo: view.lo, hi: view.hi, pts: view.pts });
   const col = cstyle.colours($('chartBody'), style);
   svg.innerHTML = uc.renderSvg(view, {
-    W, H, X: tools.X, Y: tools.Y, up: col.up, down: col.down, inr,
+    W, H: Hp, X: tools.X, Y: tools.Y, up: col.up, down: col.down, inr,
     hover: state.ucHover, clipId: 'ucClipStrip', note: ucNote(W - 76),
     drawings: tools.renderDrawings(),               // chart-tools row 26 — above the series…
     crosshair: tools.renderCrosshair(),             // …and the crosshair on top of everything
-  });
+  }) + (paneH ? uc.renderPane(view, {
+    W, H, top: Hp, X: tools.X, up: col.up, down: col.down, inr, hover: state.ucHover,
+    clipId: 'ucClipStrip', pane: style.ind.pane,
+  }) : '');
+}
+
+/** P58 row 2: the pointer overlays stop above the pane, so nothing is drawn or dragged over it. */
+function setPaneOverlays(paneH) {
+  const v = paneH ? `${8 + paneH}px` : '';
+  for (const id of ['chartSurface', 'chartAxis']) {
+    const el = $(id);
+    if (el.style.bottom !== v) el.style.bottom = v;
+  }
 }
 
 /** Header items that follow the candle data: the interval buttons. */

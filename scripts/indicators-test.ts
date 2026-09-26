@@ -52,6 +52,23 @@ const k = (c: number, h = c, l = c, v = 0, d = '2026-09-24'): K => ({ t: 0, d, h
   ok('Supertrend line is under price while up, over it while down', series.every((c, i) => st.dir[i] === null || (st.dir[i] === 1 ? st.line[i] <= c.c : st.line[i] >= c.c)));
 }
 
+/* ------------------------------------------------------------------ P58: RSI and MACD by hand */
+
+{
+  // StockCharts' published Wilder RSI example (the "RSI" ChartSchool article): 33 closes, 19 RSI values to 2 dp.
+  const c = [44.3389, 44.0902, 44.1497, 43.6124, 44.3278, 44.8264, 45.0955, 45.4245, 45.8433, 46.0826, 45.8931, 46.0328, 45.6140,
+    46.2820, 46.2820, 46.0028, 46.0328, 46.4116, 46.2222, 45.6439, 46.2122, 46.2521, 45.7137, 46.4515, 45.7835, 45.3548, 44.0288,
+    44.1783, 44.2181, 44.5672, 43.4205, 42.6628, 43.1314];
+  const want = [70.53, 66.32, 66.55, 69.41, 66.36, 57.97, 62.93, 63.26, 56.06, 62.38, 54.71, 50.42, 39.99, 41.46, 41.87, 45.46, 37.30, 33.08, 37.77];
+  const r = I.rsiSeries(c.map(x => k(x)), 14);
+  ok('P58 RSI 14 reproduces the 19 published values (StockCharts) to 2 dp', r.slice(0, 14).every((x: unknown) => x === null) && want.every((w, i) => Math.abs(r[14 + i] - w) <= 0.005), r.slice(14).map((x: number) => x.toFixed(2)).join(' '));
+  ok('P58 RSI is 100 on a series with no losses', I.rsiSeries([1, 2, 3, 4, 5, 6].map(x => k(x)), 3).slice(3).every((x: number) => x === 100));
+  const m = I.macdSeries([...Array(40)].map((_, i) => k(100 + i)), 3, 6, 4);
+  // On a straight line every EMA lags by the same amount, so MACD is constant: EMA3 lags (3-1)/2 = 1, EMA6 lags 2.5 -> 1.5.
+  ok('P58 MACD on a straight line is the constant lag difference, and its histogram tends to 0', Math.abs(m.macd[39] - 1.5) < 1e-6 && Math.abs(m.hist[39]) < 1e-6, `${m.macd[39]} ${m.hist[39]}`);
+  ok('P58 MACD signal starts at fast/slow warm-up + signal - 1 (index 8 for 3,6,4)', m.signal.findIndex((x: unknown) => x !== null) === 8);
+}
+
 /* ------------------------------------------------------------------ the second implementation */
 
 function ema2(c: number[], n: number): (number | null)[] {
@@ -130,6 +147,26 @@ function bb2(c: number[], n: number, m: number) {
     cmp(`Supertrend ${n},${m} direction`, a.dir, b.dir);
     const flips = a.dir.filter((d: number | null, i: number) => i > 0 && d !== null && a.dir[i - 1] !== null && d !== a.dir[i - 1]).length;
     ok(`Supertrend ${n},${m} actually flips on the walk (the comparison is not of two flat lines)`, flips >= 5, `${flips} flips`);
+  }
+  // P58: RSI and MACD against their own second implementations.
+  const rsi2 = (n: number) => c.map((_, i) => {
+    if (i < n) return null;
+    const ch = c.slice(1, i + 1).map((x, j) => x - c[j]!);
+    let g = ch.slice(0, n).filter(x => x > 0).reduce((a, b) => a + b, 0) / n;
+    let l = -ch.slice(0, n).filter(x => x < 0).reduce((a, b) => a + b, 0) / n;
+    for (const d of ch.slice(n)) { g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n; }
+    return l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  });
+  for (const n of [14, 7]) cmp(`RSI ${n}`, I.rsiSeries(ks, n), rsi2(n));
+  {
+    const f = ema2(c, 12), sl = ema2(c, 26);
+    const macd = c.map((_, i) => (f[i] === null || sl[i] === null ? null : f[i]! - sl[i]!));
+    const first = macd.findIndex(x => x !== null);
+    const sig = macd.map((_, i) => (i < first + 8 ? null : ema2(macd.slice(first, i + 1) as number[], 9).at(-1)!));
+    const a = I.macdSeries(ks);
+    cmp('MACD 12,26,9 line', a.macd, macd);
+    cmp('MACD 12,26,9 signal', a.signal, sig);
+    cmp('MACD 12,26,9 histogram', a.hist, macd.map((x, i) => (x === null || sig[i] === null ? null : x - sig[i]!)));
   }
   for (const [n, m] of [[20, 2], [50, 1.5]] as [number, number][]) {
     const a = I.bollingerSeries(ks, n, m), b = bb2(c, n, m);
