@@ -41,7 +41,9 @@
     "sandbox:test": "node scripts/sandbox-test.ts",
     "idxhist": "node --env-file-if-exists=.env scripts/idxhist.ts",
     "ltplines": "node scripts/ltp-lines.ts",
-    "ltplines:test": "node scripts/ltp-lines-test.ts"
+    "ltplines:test": "node scripts/ltp-lines-test.ts",
+    "ltpbt": "node scripts/ltp-backtest.ts",
+    "ltpbt:test": "node scripts/ltp-backtest-test.ts"
   },
   "dependencies": {
     "fastify": "^5.2.1",
