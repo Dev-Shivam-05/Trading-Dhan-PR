@@ -34,3 +34,35 @@ candles for exactly this reason.
 - **Row 3's bounded fetch is the top 10 symbols, not 20.** The stock-option months answered at about 2 calls a minute
   (about 30 s a call, against P48's 2–3 s for index months), so 480 calls would have taken about 4 hours. The five
   stock-months already written were kept, since the fetch resumes by month. `--top 20` or `--all` fetches more.
+
+## Result (2026-09-26, built on `p39-opthist`, recorded on `p43-combine`)
+`npm run opthist:test` **13/13**:
+- **AC1:** a strike stays one series as ATM moves.
+- **AC2:** CE for BUY and PE for SELL, a tie goes to the lower strike, `late1m` is one minute later, and `no-price` is
+  never guessed.
+- **AC3:** 117 priced + 16 no-price = 133 trades on stored stock-months, counted independently.
+- **AC4:** identical reruns; replay refused; the only call is the chart endpoint.
+- **AC5:** the report prints.
+
+**The bounded fetch** (top 10 symbols × Jun–Sep 2026): **201 calls, 33 of 40 stock-months written, 4,108 s**. Two INFY
+months failed on 30 s timeouts and are fetched again next run. The first, stopped, run added 5 more months.
+
+**What the option leg does to P44's trades on those stock-months** (`.cache/history/optleg-report.json`; the share leg is
+P44's own cash-candle net):
+| Setting | Fill | Trades | Priced | Share leg | **Option leg** | Together |
+|---|---|---|---|---|---|---|
+| Pick `…/SL/noT/nofrz` | level | 133 | 117 | −₹38,881 | **−₹85,545** | −₹1,24,426 |
+| Pick | late1m | 133 | 116 | −₹26,880 | **−₹1,00,407** | −₹1,27,286 |
+| Baseline | level | 78 | 66 | −₹66,308 | **−₹55,797** | −₹1,22,105 |
+| Baseline | late1m | 78 | 66 | −₹66,308 | **−₹59,371** | −₹1,25,679 |
+The T2R twin is identical to the pick here: its target never fired. No-price trades are 12–17 per row: 7–11 had no
+option data for the day, and the rest had a strike that moved outside ATM±1 before the exit.
+
+**Read these before generalising:**
+- **The sample is small and chosen by trade count, not at random**: 10 symbols, 4 months, and in this sample even the share leg loses.
+  P44's full-year pick was **+₹13.07 L** on the share leg. So this does not say the pick loses. It says that **where the
+  pick lost, the option leg made it roughly three times worse**, and it never offset the share leg.
+- The option leg is a bought option held through the whole trade. Theta and the spread work against it on every exit,
+  and that is the likeliest reason it is negative in both fill models.
+- **This is the strongest argument yet against adding the option leg to any live change from P44.** Running the whole
+  universe (`npm run opthist -- --all`, about 15,000 calls, several hours) would settle it for the year.

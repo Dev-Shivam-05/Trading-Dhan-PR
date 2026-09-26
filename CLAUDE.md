@@ -663,3 +663,32 @@ headed Chrome's `page.request` after one nseindia.com page load). OI: NSE's opti
 **Dhan 0/40, up to 21.8% off**. Volume and LTP: 40/40 for both. Dhan's chain OI equals its own last (15:39) 1-minute
 candle, so it misses the final exchange OI. Intraday agreement is unmeasured (P56). NSE OI is in **lots**, Dhan's in
 **units** (× 65 for NIFTY). NSE's chain gives no Greeks, and its IV differs from Dhan's by up to 4.3 points near ATM.
+
+## A new `public/*.js` import breaks the live screen unless the server restarts FIRST
+`public/` is read per request, but the `STATIC` allow-list is fixed at boot. So the moment a public file starts importing
+a new module, every reload on the running server 404s that module and the whole client dies. P57 restarted 8787 with
+the new row **before** saving the `import` line. The order is: add the file and its `STATIC` row, restart the live server
+(detached, the usual checks), and only then make an existing file import it.
+
+## The chain rebuild's `spot` is not the index close after Oct 2025, and the index has volume (measured 2026-09-26)
+- P48's `spot` equals NIFTY's 1-minute close to Sep 2025 (99.995%). From Nov 2025 it is sampled **inside** the minute
+  (26–61% of minutes differ, and 99.1% sit inside the bar). Touches read `.cache/history/idx/NIFTY.json`
+  (`npm run idxhist`), never `spot`.
+- Dhan's NIFTY **index** candles carry a non-zero `volume` (5,885 in one 5-minute candle). Its meaning is undocumented.
+  VWAP uses it.
+
+## Expired stock options: `rollingoption` works for `OPTSTK`, but slowly
+`instrument: OPTSTK`, `securityId` = the share's, `expiryFlag: MONTH`, `expiryCode: 1` answers per minute, like
+P48's `OPTIDX`, but at about **30 s per stock-month call** (P48's index months took 2–3 s). A live futures contract's
+intraday history starts at its listing (about 3 months back). Expired futures are not reachable. `npm run opthist` is
+resumable by month.
+
+## Verification scripts that default their screenshots to `.` litter the repo root
+`.cache/p19-verify.js` writes `01-…png` to the working directory unless `SHOT_DIR` is set, and `p25-verify.js` writes
+`p25-*.png` there. Pass `SHOT_DIR=<scratchpad>` and check `git status` for stray PNGs after any UI sweep.
+
+## Frame-time: measure the configurations interleaved, in one page, on a quiet machine
+P58's first p95s read 9–10 ms while a research agent was running, and the "nothing on" baseline read 8.1 ms in the same
+minutes. `.cache/p58-cost.js` runs every configuration three times interleaved and reports the median. Use that shape
+whenever a paint budget goes red.
+
